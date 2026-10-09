@@ -1,0 +1,240 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>福音之家 · 家庭版</title><style>
+*{box-sizing:border-box}body{font-family:system-ui,"Microsoft YaHei",sans-serif;background:#f3f6f3;color:#24362b;margin:0}header{background:#24533f;color:white;padding:20px}main{max-width:1050px;margin:auto;padding:18px}.card{background:white;border-radius:14px;padding:18px;margin:14px 0;box-shadow:0 2px 8px #0001}button,.btn{border:0;border-radius:8px;background:#286c51;color:white;padding:9px 12px;cursor:pointer;margin:3px}button.alt{background:#64766a}button.danger{background:#ae4b44}input,select,textarea{padding:9px;border:1px solid #cbd7cf;border-radius:7px;max-width:100%;margin:3px}table{border-collapse:collapse;width:100%}td,th{padding:10px;text-align:left;border-bottom:1px solid #e4ebe6}small{color:#64746a}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}.muted{color:#6b776f}.photo{width:55px;height:55px;object-fit:cover;border-radius:6px}.scroll{overflow:auto}label{display:block;margin:5px 0}.warn{background:#fff2df;padding:10px;border-radius:8px}h2{margin-top:0}@media(max-width:600px){main{padding:10px}td,th{padding:6px;font-size:13px}}.inventory-scroll{overflow-y:auto;overflow-x:auto;overscroll-behavior:contain}.inventory-scroll thead th{position:sticky;top:0;background:white;z-index:2}.item-notes{min-width:120px;max-width:280px;white-space:normal;overflow-wrap:anywhere;line-height:1.45}
+.zoomable-photo{cursor:zoom-in}.photo-lightbox{position:fixed;inset:0;background:rgba(0,0,0,.86);z-index:9999;display:none;align-items:center;justify-content:center;flex-direction:column;padding:24px;gap:12px}.photo-lightbox.open{display:flex}.photo-lightbox img{display:block;max-width:95vw;max-height:78vh;object-fit:contain;border-radius:6px}.photo-lightbox .lightbox-title{color:white;font-size:16px;text-align:center;overflow-wrap:anywhere}.photo-lightbox .lightbox-close{position:absolute;right:16px;top:12px;font-size:22px;background:#fff;color:#222;border-radius:8px;padding:6px 12px;cursor:pointer}
+.photo-open{display:inline-flex;align-items:center;justify-content:center;padding:0;margin:0;border:2px solid transparent;background:transparent;border-radius:8px;cursor:zoom-in;vertical-align:middle}
+.photo-open:hover,.photo-open:focus-visible{border-color:#286c51;outline:2px solid #b5d4c1}
+.photo-open .photo{display:block;pointer-events:none}
+.photo-lightbox{z-index:2147483647!important}
+
+/* 手机端：库存由横向表格改为纵向卡片，触屏可直接滚动 */
+@media (max-width: 680px){
+ html{-webkit-text-size-adjust:100%}
+ body{overflow-x:hidden}
+ header{padding:16px max(14px,env(safe-area-inset-right)) 16px max(14px,env(safe-area-inset-left))}
+ header h1{font-size:1.35rem;margin:0 0 5px}
+ main{padding:8px 10px calc(22px + env(safe-area-inset-bottom))}
+ .card{padding:13px 12px;margin:10px 0;border-radius:12px}
+ .grid{grid-template-columns:minmax(0,1fr)}
+ label,input,select{width:100%}
+ input,select,textarea{font-size:16px;min-height:44px}
+ input[type=file]{font-size:14px;height:auto;padding:12px 6px}
+ button{min-height:44px;touch-action:manipulation}
+ #inventoryScroll{overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+ #inventoryScroll table,#inventoryScroll tbody,#inventoryScroll tr,#inventoryScroll td{display:block;width:100%}
+ #inventoryScroll thead{display:none}
+ #inventoryScroll tr{position:relative;border:1px solid #dce7df;border-radius:12px;margin:8px 2px;padding:12px;box-shadow:0 1px 3px #0001;background:#fff}
+ #inventoryScroll td{border:0;padding:3px 0;text-align:left;font-size:14px;min-width:0;max-width:none}
+ #inventoryScroll td:nth-child(1){float:left;width:74px;margin-right:12px;min-height:75px}
+ #inventoryScroll td:nth-child(2){min-height:32px;font-size:16px}
+ #inventoryScroll td:nth-child(3)::before{content:'位置：';font-weight:600}
+ #inventoryScroll td:nth-child(4)::before{content:'备注：';font-weight:600}
+ #inventoryScroll td:nth-child(5)::before{content:'库存：';font-weight:600}
+ #inventoryScroll td:nth-child(6){clear:both;padding-top:8px}
+ #inventoryScroll td:nth-child(6) button{width:100%;margin:0}
+ #inventoryScroll .photo{width:66px;height:66px}
+ #inventoryScroll .item-notes{overflow-wrap:anywhere;white-space:normal}
+ #photoLightbox{padding:16px}
+ #photoLightbox img{max-width:95vw;max-height:72dvh}
+ #photoLightbox .lightbox-close{top:max(10px,env(safe-area-inset-top));right:12px}
+ #requests button{display:block;width:100%;margin:8px 0}
+}
+
+.app-modal[hidden],.download-notice[hidden]{display:none!important}
+.app-modal{position:fixed;inset:0;z-index:2147483646;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:16px}
+.app-modal-box{background:white;border-radius:16px;padding:20px;width:min(100%,440px);max-height:90dvh;overflow-y:auto;box-shadow:0 12px 40px #0004}
+.app-modal-box h3{margin:0 0 12px}.app-modal-box p{white-space:pre-wrap;overflow-wrap:anywhere}
+.app-modal-box label{display:block;margin:12px 0}.app-modal-box select,.app-modal-box input{width:100%;font-size:16px;min-height:44px}
+.app-modal-actions{display:flex;gap:12px;margin-top:20px}.app-modal-actions button{flex:1;min-height:48px}
+.modal-error{color:#ad302a}.download-notice{position:fixed;bottom:10px;left:10px;right:10px;z-index:2147483645;border:2px solid #286c51;max-width:500px;margin:auto}
+.download-notice a{display:inline-block;padding:12px;margin:8px 0;color:#126348;font-weight:700;text-decoration:underline}
+</style><header><h1>福音之家 · 家庭版</h1><div>手机网页版 · 导入库存后可离线查看和申请</div></header><main>
+<div class="card"><h2>家庭资料</h2><label>家庭名称 <input id="familyName" placeholder="例如：恩典之家" oninput="savePrefs()"></label><label>申请人名字 <input id="memberName" placeholder="例如：小明" oninput="savePrefs()"></label><p class="muted">无需密码。本网站为静态网页，库存和申请记录只保存在当前设备的浏览器中；不会自动上传给管理员。</p></div>
+<div class="card"><h2>在线库存自动更新</h2><p>打开网页时自动获取管理员发布的最新库存；也可以点击按钮立即检查。</p>
+<button type="button" onclick="syncPublishedInventory()" id="syncNow">立即检查最新库存</button>
+<p id="syncStatus" class="warn" aria-live="polite">正在准备同步…</p></div>
+<div class="card"><h2>备用：手动导入管理员库存</h2><label>选择管理员发来的库存更新包 <input type="file" accept=".json" onchange="importStock(this.files[0]);this.value=''"></label><p id="status" class="warn">首次访问将自动获取线上库存；若网络不可用，也可手动导入 JSON。</p></div>
+<div class="card"><h2>物品目录</h2><div class="grid">
+<label>搜索方式<select id="searchMode" onchange="updateSearchControls();render()"><option value="name">名称</option><option value="category">分类</option><option value="location">存放位置</option><option value="qty">数量</option></select></label>
+<label id="searchTextWrap">搜索内容<input id="search" placeholder="输入物品名称" oninput="render()"></label>
+<label id="searchChoiceWrap" style="display:none">筛选选项<select id="searchChoice" onchange="render()"></select></label>
+<label id="qtyModeWrap" style="display:none">数量比较<select id="qtyMode" onchange="render()"><option value="eq">等于</option><option value="gte">大于或等于</option><option value="lte">小于或等于</option></select></label>
+</div><div class="scroll inventory-scroll" id="inventoryScroll"><table><thead><tr><th>照片</th><th>名称</th><th>位置</th><th>备注</th><th>库存</th><th>申请</th></tr></thead><tbody id="items"></tbody></table></div></div>
+<div class="card"><h2>本机申请记录</h2><p class="muted">生成申请 JSON 文件后，请通过微信或邮件发送给管理员。管理员批准后，请重新导入最新库存包。</p><div id="requests"></div></div>
+</main><div id="appModal" class="app-modal" hidden role="dialog" aria-modal="true" aria-labelledby="appModalTitle">
+ <div class="app-modal-box"><h3 id="appModalTitle">确认操作</h3><p id="appModalMessage"></p>
+ <div id="appModalFields" hidden>
+  <label>申请类型<select id="modalKind"><option value="借用">借用</option><option value="领取">领取</option></select></label>
+  <label id="modalQtyLabel">申请数量<input id="modalQty" type="number" inputmode="numeric" step="1" min="1" value="1"></label>
+  <p id="modalError" class="modal-error" aria-live="polite"></p>
+ </div>
+ <div class="app-modal-actions"><button type="button" class="alt" id="appModalCancel">取消</button><button type="button" id="appModalOK">确定</button></div></div>
+</div>
+<div id="downloadNotice" class="card download-notice" hidden><b>申请文件已生成</b><p>请点击下方链接保存 JSON 申请文件，再通过微信或邮件发送给管理员。</p><a id="downloadLink" download>点击这里下载申请文件</a><button type="button" class="alt" onclick="document.getElementById('downloadNotice').hidden=true">关闭提示</button></div>
+<div id="photoLightbox" class="photo-lightbox" role="dialog" aria-modal="true" aria-label="物品照片放大查看" onclick="closePhotoLightbox()"><button type="button" class="lightbox-close" onclick="closePhotoLightbox()" aria-label="关闭大图">× 关闭</button><img id="lightboxImage" alt="物品大图" onclick="event.stopPropagation()"><div id="lightboxTitle" class="lightbox-title"></div></div><script>
+const $=id=>document.getElementById(id);
+const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+const uuid=()=>typeof crypto!=='undefined'&&typeof crypto.randomUUID==='function'?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);
+let lastDownloadUrl=null;
+function download(name,obj){
+ const b=new Blob([JSON.stringify(obj,null,2)],{type:'application/json'});
+ if(lastDownloadUrl)URL.revokeObjectURL(lastDownloadUrl);
+ lastDownloadUrl=URL.createObjectURL(b);
+ const a=$('downloadLink');a.href=lastDownloadUrl;a.download=name;
+ $('downloadNotice').hidden=false;
+ // 浏览器可能限制异步流程后的自动下载，明确提供用户手动点击的下载链接。
+}
+function readJSON(file){return new Promise((resolve,reject)=>{if(!file||file.size>15000000)return reject(Error('文件过大或未选择'));let r=new FileReader();r.onload=()=>{try{resolve(JSON.parse(r.result))}catch{reject(Error('不是有效的 JSON 文件'))}};r.onerror=()=>reject(Error('无法读取文件'));r.readAsText(file)})}
+function msg(t){const el=$('status');if(el){el.textContent=t;el.scrollIntoView({block:'nearest',behavior:'smooth'})}else console.warn(t)}
+function saveLocal(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch{msg('保存失败：可能是浏览器存储已满，请先保存申请文件。');return false}}
+function loadLocal(k,fallback){try{return JSON.parse(localStorage.getItem(k))||fallback}catch{return fallback}}
+async function photoToData(file){if(!file)return '';return new Promise((resolve,reject)=>{let r=new FileReader();r.onload=()=>{let im=new Image();im.onload=()=>{let c=document.createElement('canvas'),s=Math.min(1,350/Math.max(im.width,im.height));c.width=im.width*s;c.height=im.height*s;c.getContext('2d').drawImage(im,0,0,c.width,c.height);resolve(c.toDataURL('image/jpeg',.55))};im.onerror=()=>reject(Error('图片格式不支持'));im.src=r.result};r.onerror=()=>reject(Error('图片读取失败'));r.readAsDataURL(file)})}
+function validSnapshot(x){return x&&x.type==='fzh-stock-snapshot'&&x.schema===1&&Number.isSafeInteger(x.version)&&x.version>=0&&Array.isArray(x.items)&&x.items.length<=5000&&x.items.every(i=>typeof i.id==='string'&&typeof i.name==='string'&&Number.isFinite(i.qty)&&i.qty>=0)}
+
+function showAppModal(title,message,fields=false,maxQty=1){
+ return new Promise(resolve=>{
+  const modal=$('appModal'),ok=$('appModalOK'),cancel=$('appModalCancel');
+  $('appModalTitle').textContent=title;$('appModalMessage').textContent=message;
+  $('appModalFields').hidden=!fields;$('modalError').textContent='';
+  if(fields){$('modalQty').max=String(maxQty);$('modalQty').value='1';$('modalQtyLabel').firstChild.textContent='申请数量（1—'+maxQty+'）';$('modalKind').value='借用'}
+  modal.hidden=false;
+  const finish=value=>{modal.hidden=true;ok.removeEventListener('click',accept);cancel.removeEventListener('click',reject);resolve(value)};
+  const reject=()=>finish(null);
+  const accept=()=>{
+   if(!fields)return finish(true);
+   const n=Number($('modalQty').value);
+   if(!$('modalQty').value.trim()||!Number.isSafeInteger(n)||n<1||n>maxQty){$('modalError').textContent='请输入1至'+maxQty+'之间的整数';return}
+   finish({kind:$('modalKind').value,qty:n});
+  };
+  ok.addEventListener('click',accept);cancel.addEventListener('click',reject);
+ });
+}
+async function confirmThree(action,detail){
+ for(let n=1;n<=3;n++){
+  const accepted=await showAppModal('第'+n+'次确认（共3次）','确定'+action+'「'+detail+'」吗？');
+  if(!accepted)return false;
+ }
+ return true;
+}
+
+const KEY='fzh_family_v2';let db=loadLocal(KEY,{version:-1,items:[],requests:[],family:'',member:'',categories:[],locations:[]});
+function persist(){saveLocal(KEY,db);render()}
+function savePrefs(){db.family=$('familyName').value;db.member=$('memberName').value;saveLocal(KEY,db)}
+$('familyName').value=db.family;$('memberName').value=db.member;
+function updateSearchControls(){
+ const mode=$('searchMode').value,choice=$('searchChoice');
+ const useChoice=mode==='category'||mode==='location';
+ $('searchTextWrap').style.display=useChoice?'none':'';
+ $('searchChoiceWrap').style.display=useChoice?'':'none';
+ $('qtyModeWrap').style.display=mode==='qty'?'':'none';
+ $('search').placeholder=mode==='qty'?'输入整数数量':'输入物品名称';
+ if(useChoice){
+  const key=mode==='category'?'categories':'locations';
+  const field=mode==='category'?'category':'location';
+  const values=Array.isArray(db[key])&&db[key].length?db[key]:[...new Set(db.items.map(i=>i[field]).filter(Boolean))];
+  const signature=mode+'|'+JSON.stringify(values);
+  if(choice.dataset.signature!==signature){const previous=choice.value;
+   choice.innerHTML='<option value="">全部</option>'+values.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+   choice.dataset.signature=signature;
+   if(values.includes(previous))choice.value=previous;
+  }
+ }
+}
+function limitInventoryToTenRows(){
+ const panel=document.getElementById('inventoryScroll');
+ const table=panel.querySelector('table');
+ const rows=Array.from(table.tBodies[0].rows);
+ const headerHeight=table.tHead.getBoundingClientRect().height;
+ const visibleHeight=rows.slice(0,10).reduce((total,row)=>{
+  const style=getComputedStyle(row);
+  return total+row.getBoundingClientRect().height+parseFloat(style.marginTop||0)+parseFloat(style.marginBottom||0);
+ },0);
+ panel.style.maxHeight=Math.ceil(headerHeight+visibleHeight+4)+'px';
+}
+
+
+document.getElementById('items').addEventListener('click',function(event){
+ const button=event.target.closest('button[data-photo-id]');
+ if(!button||!this.contains(button))return;
+ event.preventDefault();
+ showPhotoById(button.getAttribute('data-photo-id'));
+});
+function showPhotoById(id){
+ const item=db.items.find(i=>i.id===id);
+ if(!item||!item.photo)return;
+ const viewer=document.getElementById('photoLightbox');
+ document.getElementById('lightboxImage').src=item.photo;
+ document.getElementById('lightboxTitle').textContent=item.name;
+ viewer.classList.add('open');
+ viewer.style.display='flex';
+ document.body.style.overflow='hidden';
+}
+function closePhotoLightbox(){
+ const viewer=document.getElementById('photoLightbox');
+ viewer.classList.remove('open');
+ viewer.style.display='none';
+ document.body.style.overflow='';
+ document.getElementById('lightboxImage').removeAttribute('src');
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closePhotoLightbox()});
+
+function render(){
+ updateSearchControls();
+ $('status').textContent=db.version<0?'尚未导入库存更新包。':`已导入库存版本 V${db.version} · ${db.items.length} 种物品（离线快照，可能不是实时库存）`;
+ let q=$('search').value.trim().toLowerCase(),mode=$('searchMode').value,choice=$('searchChoice').value;
+ $('items').innerHTML=db.items.filter(i=>mode==='name'?i.name.toLowerCase().includes(q):mode==='category'?(!choice||i.category===choice):mode==='location'?(!choice||i.location===choice):q===''?true:(Number.isFinite(Number(q))&&($('qtyMode').value==='eq'?i.qty===Number(q):$('qtyMode').value==='gte'?i.qty>=Number(q):i.qty<=Number(q)))).map(i=>`<tr><td>${i.photo?`<button type="button" class="photo-open" data-photo-id="${esc(i.id)}" title="点击查看大图" aria-label="放大查看 ${esc(i.name)} 的图片"><img class="photo zoomable-photo" src="${i.photo}" alt="${esc(i.name)}的照片"></button>`:'📦'}</td><td><b>${esc(i.name)}</b><br><small>${esc(i.category)}</small></td><td>${esc(i.location)}</td><td class="item-notes">${i.notes?esc(i.notes):'<span class="muted">—</span>'}</td><td>${i.qty} ${esc(i.unit)}</td><td><button onclick="requestItem('${i.id}')">申请</button></td></tr>`).join('');
+ limitInventoryToTenRows();
+ $('requests').innerHTML=db.requests.map(r=>`<p>📄 ${esc(r.itemName)} × ${r.qty}（${esc(r.kind)}） <button onclick="downloadRequest('${r.id}')">重新下载申请文件</button></p>`).join('')||'<p class="muted">暂无申请</p>';
+}
+// 同源静态文件同步：无需 Token；不上传家庭名称、申请记录或其他私人数据。
+let syncingInventory=false;
+async function syncPublishedInventory(){
+ if(syncingInventory)return;
+ syncingInventory=true;
+ const label=$('syncStatus'),button=$('syncNow');button.disabled=true;
+ label.textContent='正在检查 GitHub Pages 上的最新库存…';
+ try{
+  const response=await fetch('./inventory.json?check='+Date.now(),{cache:'no-store'});
+  if(!response.ok)throw Error('HTTP '+response.status+'；管理员可能还未发布 inventory.json');
+  const data=await response.json();
+  if(!validSnapshot(data))throw Error('线上库存文件格式不正确');
+  if(data.version<db.version){label.textContent='当前设备库存 V'+db.version+' 比线上 V'+data.version+' 更新；为防止回退，已保留本地库存。';return;}
+  const previous=localStorage.getItem('fzh_last_published_at')||'';
+  if(data.version===db.version&&data.exportedAt===previous){label.textContent='库存已是最新版本 V'+db.version;return;}
+  // 保留家庭身份和申请记录，只覆盖公开库存快照。
+  const next={...db,version:data.version,items:data.items.map(i=>({...i})),
+   categories:Array.isArray(data.categories)?data.categories:[],locations:Array.isArray(data.locations)?data.locations:[]};
+  if(!saveLocal(KEY,next))throw Error('手机本地空间不足，库存无法缓存');
+  db=next;
+  try{localStorage.setItem('fzh_last_published_at',data.exportedAt||'')}catch{}
+  delete $('searchChoice').dataset.signature;render();
+  label.textContent='已自动同步最新库存 V'+db.version+'（'+new Date().toLocaleString()+'）';
+ }catch(e){label.textContent='自动同步暂不可用：'+e.message+'。'+(db.version>=0?'已保留本机缓存 V'+db.version+'，仍可浏览。':'请稍后重试，或使用下方手动导入。');}
+ finally{syncingInventory=false;button.disabled=false;}
+}
+window.addEventListener('pageshow',()=>syncPublishedInventory());
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncPublishedInventory()});
+
+async function importStock(file){try{let d=await readJSON(file);if(!validSnapshot(d))throw Error('不是有效的库存更新包');if(d.version<db.version)throw Error('这是较旧的库存版本，已阻止覆盖');if(!await confirmThree('导入',`库存版本 V${d.version}`))return;
+ db.version=d.version;db.items=d.items.map(i=>({...i}));db.categories=Array.isArray(d.categories)?d.categories.filter(x=>typeof x==='string'):[];db.locations=Array.isArray(d.locations)?d.locations.filter(x=>typeof x==='string'):[];delete $('searchChoice').dataset.signature;persist();msg('库存已更新到 V'+db.version)}catch(e){msg(e.message)}}
+async function requestItem(id){
+ const i=db.items.find(x=>x.id===id);
+ if(!i)return;
+ if(!db.family.trim()||!db.member.trim())return msg('请先填写家庭名称和申请人名字');
+ if(!Number.isSafeInteger(i.qty)||i.qty<1)return msg('该物品当前可用库存为0，不能申请');
+ const selected=await showAppModal('申请物品',i.name+'｜当前可用库存：'+i.qty+' '+(i.unit||'件'),true,i.qty);
+ if(!selected)return;
+ const r={type:'fzh-family-request',schema:1,id:uuid(),family:db.family.trim().slice(0,100),member:db.member.trim().slice(0,60),itemId:id,itemName:i.name,kind:selected.kind,qty:selected.qty,date:new Date().toISOString(),stockVersion:db.version};
+ if(!await confirmThree('增加','领取/借用申请：'+i.name+' × '+r.qty))return;
+ db.requests.unshift(r);persist();
+ downloadRequest(r.id,true);
+}
+
+async function downloadRequest(id,alreadyConfirmed=false){
+ const r=db.requests.find(x=>x.id===id);
+ if(!r)return;
+ if(!alreadyConfirmed&&!await confirmThree('下载','申请文件：'+r.itemName))return;
+ download('福音之家_申请_'+r.id.slice(0,8)+'.json',r);
+}
+window.addEventListener('resize',()=>{limitInventoryToTenRows()});
+render();
+</script></html>
