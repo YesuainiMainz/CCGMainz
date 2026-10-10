@@ -48,7 +48,7 @@
 .modal-error{color:#ad302a}.download-notice{position:fixed;bottom:10px;left:10px;right:10px;z-index:2147483645;border:2px solid #286c51;max-width:500px;margin:auto}
 .download-notice a{display:inline-block;padding:12px;margin:8px 0;color:#126348;font-weight:700;text-decoration:underline}
 </style><header><h1>福音之家 · 私密家庭端</h1><div>仅授权成员可查看库存</div></header><main><section class="card" id="authPanel"><h2>家庭成员登录 / 注册</h2><p>首次注册后等待管理员批准。未批准前无法查看库存。</p><div class="grid"><label>邮箱<input id="authEmail" type="email" autocomplete="username"></label><label>密码（至少6位）<input id="authPassword" type="password" autocomplete="current-password"></label></div><div class="grid"><label>家庭名称（注册时填写）<input id="registerFamily" maxlength="80"></label><label>联系人（注册时填写）<input id="registerMember" maxlength="60"></label></div><button type="button" onclick="fzhLogin()">登录</button><button type="button" onclick="fzhRegister()">注册并申请加入</button><button type="button" class="alt" onclick="fzhResetPassword()">重置密码</button><button type="button" class="alt" onclick="fzhLogout()">退出登录</button><p id="authStatus" class="warn" aria-live="polite">请登录。</p></section><div id="privateContent" hidden>
-<div class="card"><h2>家庭资料</h2><label>家庭名称 <input id="familyName" placeholder="例如：恩典之家" oninput="savePrefs()"></label><label>申请人名字 <input id="memberName" placeholder="例如：小明" oninput="savePrefs()"></label><p class="muted">仅批准的家庭成员可以查看云端库存；申请文件仍需发给管理员。</p></div>
+<div class="card"><h2>家庭资料</h2><label>家庭名称 <input id="familyName" placeholder="例如：恩典之家" oninput="savePrefs()"></label><label>申请人名字 <input id="memberName" placeholder="例如：小明" oninput="savePrefs()"></label><p class="muted">仅批准的家庭成员可以查看云端库存，并在线提交借用或领取申请。</p></div>
 <div class="card"><h2>在线库存自动更新</h2><p>仅获批准的成员可以实时读取云端库存；无需导入更新包。</p>
 <button type="button" onclick="syncPublishedInventory()" id="syncNow">立即检查最新库存</button>
 <p id="syncStatus" class="warn" aria-live="polite">正在准备同步…</p></div>
@@ -59,7 +59,7 @@
 <label id="searchChoiceWrap" style="display:none">筛选选项<select id="searchChoice" onchange="render()"></select></label>
 <label id="qtyModeWrap" style="display:none">数量比较<select id="qtyMode" onchange="render()"><option value="eq">等于</option><option value="gte">大于或等于</option><option value="lte">小于或等于</option></select></label>
 </div><div class="scroll inventory-scroll" id="inventoryScroll"><table><thead><tr><th>照片</th><th>名称</th><th>位置</th><th>备注</th><th>库存</th><th>申请</th></tr></thead><tbody id="items"></tbody></table></div></div>
-<div class="card"><h2>本机申请记录</h2><p class="muted">生成申请 JSON 文件后，请通过微信或邮件发送给管理员。管理员批准后，请重新导入最新库存包。</p><div id="requests"></div></div>
+<div class="card"><h2>在线申请记录</h2><p class="muted">在线申请自动发送管理员审批，状态实时更新。</p><div id="requests"></div></div>
 </div></main><div id="appModal" class="app-modal" hidden role="dialog" aria-modal="true" aria-labelledby="appModalTitle">
  <div class="app-modal-box"><h3 id="appModalTitle">确认操作</h3><p id="appModalMessage"></p>
  <div id="appModalFields" hidden>
@@ -116,7 +116,7 @@ async function confirmThree(action,detail){
  return true;
 }
 
-const KEY='fzh_family_v2';let db=loadLocal(KEY,{version:-1,items:[],requests:[],family:'',member:'',categories:[],locations:[]});
+let onlineRequests=[];const KEY='fzh_family_v2';let db=loadLocal(KEY,{version:-1,items:[],requests:[],family:'',member:'',categories:[],locations:[]});
 function persist(){saveLocal(KEY,db);render()}
 function savePrefs(){db.family=$('familyName').value;db.member=$('memberName').value;saveLocal(KEY,db)}
 $('familyName').value=db.family;$('memberName').value=db.member;
@@ -183,7 +183,7 @@ function render(){
  let q=$('search').value.trim().toLowerCase(),mode=$('searchMode').value,choice=$('searchChoice').value;
  $('items').innerHTML=db.items.filter(i=>mode==='name'?i.name.toLowerCase().includes(q):mode==='category'?(!choice||i.category===choice):mode==='location'?(!choice||i.location===choice):q===''?true:(Number.isFinite(Number(q))&&($('qtyMode').value==='eq'?i.qty===Number(q):$('qtyMode').value==='gte'?i.qty>=Number(q):i.qty<=Number(q)))).map(i=>`<tr><td>${i.photo?`<button type="button" class="photo-open" data-photo-id="${esc(i.id)}" title="点击查看大图" aria-label="放大查看 ${esc(i.name)} 的图片"><img class="photo zoomable-photo" src="${i.photo}" alt="${esc(i.name)}的照片"></button>`:'📦'}</td><td><b>${esc(i.name)}</b><br><small>${esc(i.category)}</small></td><td>${esc(i.location)}</td><td class="item-notes">${i.notes?esc(i.notes):'<span class="muted">—</span>'}</td><td>${i.qty} ${esc(i.unit)}</td><td><button onclick="requestItem('${i.id}')">申请</button></td></tr>`).join('');
  limitInventoryToTenRows();
- $('requests').innerHTML=db.requests.map(r=>`<p>📄 ${esc(r.itemName)} × ${r.qty}（${esc(r.kind)}） <button onclick="downloadRequest('${r.id}')">重新下载申请文件</button></p>`).join('')||'<p class="muted">暂无申请</p>';
+ $('requests').innerHTML=onlineRequests.map(r=>`<p>📄 ${esc(r.itemName)} × ${r.qty}（${esc(r.kind)}） · <b>${esc(r.status)}</b>${r.kind==='借用'?' · 已归还 '+(r.returnedQty||0)+'/'+r.qty:''}</p>`).join('')||'<p class="muted">暂无在线申请</p>';
 }
 // Firestore 实时同步仅在通过服务端授权后启用。
 let syncingInventory=false;
@@ -193,15 +193,21 @@ async function disabledImportStock(file){try{let d=await readJSON(file);if(!vali
  db.version=d.version;db.items=d.items.map(i=>({...i}));db.categories=Array.isArray(d.categories)?d.categories.filter(x=>typeof x==='string'):[];db.locations=Array.isArray(d.locations)?d.locations.filter(x=>typeof x==='string'):[];delete $('searchChoice').dataset.signature;persist();msg('库存已更新到 V'+db.version)}catch(e){msg(e.message)}}
 async function requestItem(id){
  const i=db.items.find(x=>x.id===id);
- if(!i)return;
- if(!window.fzhUser||!window.fzhApproved)return msg('需要获批准的家庭账号才能申请');
- if(!Number.isSafeInteger(i.qty)||i.qty<1)return msg('该物品当前可用库存为0，不能申请');
- const selected=await showAppModal('申请物品',i.name+'｜当前可用库存：'+i.qty+' '+(i.unit||'件'),true,i.qty);
+ if(!i||!window.fzhUser||!window.fzhApproved)return msg('请先登录并通过管理员审批');
+ if(!Number.isSafeInteger(i.qty)||i.qty<1)return msg('库存不足');
+ const selected=await showAppModal('在线申请物品',i.name+'｜当前库存：'+i.qty+' '+(i.unit||'件'),true,i.qty);
  if(!selected)return;
- const r={type:'fzh-family-request',schema:1,id:uuid(),family:db.family.trim().slice(0,100),member:db.member.trim().slice(0,60),itemId:id,itemName:i.name,kind:selected.kind,qty:selected.qty,date:new Date().toISOString(),stockVersion:db.version};
- if(!await confirmThree('增加','领取/借用申请：'+i.name+' × '+r.qty))return;
- db.requests.unshift(r);persist();
- downloadRequest(r.id,true);
+ if(!await confirmThree('提交在线申请',i.name+' × '+selected.qty))return;
+ const button=document.activeElement;if(button?.tagName==='BUTTON')button.disabled=true;
+ try{
+  const uid=window.fzhUser.uid,requestId=uuid();
+  await fzhStore.collection('onlineRequests').doc(requestId).set({
+   uid,memberEmail:window.fzhUser.email||'',family:db.family,member:db.member,
+   itemId:i.id,itemName:i.name,kind:selected.kind,qty:selected.qty,
+   status:'pending',returnedQty:0,createdAt:firebase.firestore.FieldValue.serverTimestamp()
+  });
+  document.getElementById('syncStatus').textContent='在线申请已提交，等待管理员审批（不需发送文件）。';
+ }catch(e){msg('在线申请提交失败：'+e.message)}finally{if(button?.tagName==='BUTTON')button.disabled=false}
 }
 
 async function downloadRequest(id,alreadyConfirmed=false){
@@ -213,22 +219,25 @@ async function downloadRequest(id,alreadyConfirmed=false){
 window.addEventListener('resize',()=>{limitInventoryToTenRows()});
 render();
 </script><script>
-let fzhAuth, fzhStore, fzhUnsub=null;window.fzhUser=null;window.fzhApproved=false;
+let fzhAuth, fzhStore, fzhUnsub=null, fzhRequestsUnsub=null;window.fzhUser=null;window.fzhApproved=false;
 function fzhSetStatus(t){document.getElementById('authStatus').textContent=t;}
 function fzhInit(){
  const c=window.FZH_FIREBASE_CONFIG;
  if(!c||c.apiKey.startsWith('REPLACE')){fzhSetStatus('尚未配置 Firebase，请管理员先编辑 firebase-config.js');return;}
  firebase.initializeApp(c);fzhAuth=firebase.auth();fzhStore=firebase.firestore();
  fzhAuth.onAuthStateChanged(async u=>{
-  if(fzhUnsub){fzhUnsub();fzhUnsub=null;}window.fzhUser=u;window.fzhApproved=false;
+  if(fzhUnsub){fzhUnsub();fzhUnsub=null;}if(fzhRequestsUnsub){fzhRequestsUnsub();fzhRequestsUnsub=null;}onlineRequests=[];window.fzhUser=u;window.fzhApproved=false;
   document.getElementById('privateContent').hidden=true;
   db.items=[];db.version=-1;db.categories=[];db.locations=[];render();
   if(!u){fzhSetStatus('请登录；新账号需管理员审批。');return;}
   try{const p=await fzhStore.doc('members/'+u.uid).get();
-   if(!p.exists||p.data().status!=='approved'){fzhSetStatus('已登录，等待管理员审批。批准后请退出再登录。');return;}
+   if(!p.exists||p.data().status!=='approved'){fzhSetStatus(p.exists&&p.data().status==='blocked'?'账号已被管理员停用，请联系管理员。':'已登录，等待管理员审批。批准后请退出再登录。');return;}
    window.fzhApproved=true;document.getElementById('privateContent').hidden=false;fzhSetStatus('身份已验证：'+(p.data().family||u.email));
    db.family=p.data().family||'';db.member=p.data().member||'';document.getElementById('familyName').value=db.family;document.getElementById('memberName').value=db.member;
-   fzhUnsub=fzhStore.doc('private/inventory').onSnapshot(s=>{
+   fzhRequestsUnsub=fzhStore.collection('onlineRequests').where('uid','==',u.uid).onSnapshot(s=>{
+     onlineRequests=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));render();
+    },e=>{document.getElementById('syncStatus').textContent='申请记录读取失败：'+e.message});
+    fzhUnsub=fzhStore.doc('private/inventory').onSnapshot(s=>{
     if(!s.exists){document.getElementById('syncStatus').textContent='管理员尚未发布库存';return;}
     const data=s.data().snapshot;if(!validSnapshot(data))throw Error('云端库存格式错误');
     db.version=data.version;db.items=data.items;db.categories=data.categories||[];db.locations=data.locations||[];
