@@ -47,12 +47,12 @@
 .app-modal-actions{display:flex;gap:12px;margin-top:20px}.app-modal-actions button{flex:1;min-height:48px}
 .modal-error{color:#ad302a}.download-notice{position:fixed;bottom:10px;left:10px;right:10px;z-index:2147483645;border:2px solid #286c51;max-width:500px;margin:auto}
 .download-notice a{display:inline-block;padding:12px;margin:8px 0;color:#126348;font-weight:700;text-decoration:underline}
-</style><header><h1>福音之家 · 家庭版</h1><div>手机网页版 · 导入库存后可离线查看和申请</div></header><main>
-<div class="card"><h2>家庭资料</h2><label>家庭名称 <input id="familyName" placeholder="例如：恩典之家" oninput="savePrefs()"></label><label>申请人名字 <input id="memberName" placeholder="例如：小明" oninput="savePrefs()"></label><p class="muted">无需密码。本网站为静态网页，库存和申请记录只保存在当前设备的浏览器中；不会自动上传给管理员。</p></div>
-<div class="card"><h2>在线库存自动更新</h2><p>打开网页时自动获取管理员发布的最新库存；也可以点击按钮立即检查。</p>
+</style><header><h1>福音之家 · 私密家庭端</h1><div>仅授权成员可查看库存</div></header><main><section class="card" id="authPanel"><h2>家庭成员登录 / 注册</h2><p>首次注册后等待管理员批准。未批准前无法查看库存。</p><div class="grid"><label>邮箱<input id="authEmail" type="email" autocomplete="username"></label><label>密码（至少6位）<input id="authPassword" type="password" autocomplete="current-password"></label></div><div class="grid"><label>家庭名称（注册时填写）<input id="registerFamily" maxlength="80"></label><label>联系人（注册时填写）<input id="registerMember" maxlength="60"></label></div><button type="button" onclick="fzhLogin()">登录</button><button type="button" onclick="fzhRegister()">注册并申请加入</button><button type="button" class="alt" onclick="fzhResetPassword()">重置密码</button><button type="button" class="alt" onclick="fzhLogout()">退出登录</button><p id="authStatus" class="warn" aria-live="polite">请登录。</p></section><div id="privateContent" hidden>
+<div class="card"><h2>家庭资料</h2><label>家庭名称 <input id="familyName" placeholder="例如：恩典之家" oninput="savePrefs()"></label><label>申请人名字 <input id="memberName" placeholder="例如：小明" oninput="savePrefs()"></label><p class="muted">仅批准的家庭成员可以查看云端库存；申请文件仍需发给管理员。</p></div>
+<div class="card"><h2>在线库存自动更新</h2><p>仅获批准的成员可以实时读取云端库存；无需导入更新包。</p>
 <button type="button" onclick="syncPublishedInventory()" id="syncNow">立即检查最新库存</button>
 <p id="syncStatus" class="warn" aria-live="polite">正在准备同步…</p></div>
-<div class="card"><h2>备用：手动导入管理员库存</h2><label>选择管理员发来的库存更新包 <input type="file" accept=".json" onchange="importStock(this.files[0]);this.value=''"></label><p id="status" class="warn">首次访问将自动获取线上库存；若网络不可用，也可手动导入 JSON。</p></div>
+<div class="card"><p id="status" class="warn">登录并获批准后加载私密库存。</p></div>
 <div class="card"><h2>物品目录</h2><div class="grid">
 <label>搜索方式<select id="searchMode" onchange="updateSearchControls();render()"><option value="name">名称</option><option value="category">分类</option><option value="location">存放位置</option><option value="qty">数量</option></select></label>
 <label id="searchTextWrap">搜索内容<input id="search" placeholder="输入物品名称" oninput="render()"></label>
@@ -60,7 +60,7 @@
 <label id="qtyModeWrap" style="display:none">数量比较<select id="qtyMode" onchange="render()"><option value="eq">等于</option><option value="gte">大于或等于</option><option value="lte">小于或等于</option></select></label>
 </div><div class="scroll inventory-scroll" id="inventoryScroll"><table><thead><tr><th>照片</th><th>名称</th><th>位置</th><th>备注</th><th>库存</th><th>申请</th></tr></thead><tbody id="items"></tbody></table></div></div>
 <div class="card"><h2>本机申请记录</h2><p class="muted">生成申请 JSON 文件后，请通过微信或邮件发送给管理员。管理员批准后，请重新导入最新库存包。</p><div id="requests"></div></div>
-</main><div id="appModal" class="app-modal" hidden role="dialog" aria-modal="true" aria-labelledby="appModalTitle">
+</div></main><div id="appModal" class="app-modal" hidden role="dialog" aria-modal="true" aria-labelledby="appModalTitle">
  <div class="app-modal-box"><h3 id="appModalTitle">确认操作</h3><p id="appModalMessage"></p>
  <div id="appModalFields" hidden>
   <label>申请类型<select id="modalKind"><option value="借用">借用</option><option value="领取">领取</option></select></label>
@@ -70,7 +70,7 @@
  <div class="app-modal-actions"><button type="button" class="alt" id="appModalCancel">取消</button><button type="button" id="appModalOK">确定</button></div></div>
 </div>
 <div id="downloadNotice" class="card download-notice" hidden><b>申请文件已生成</b><p>请点击下方链接保存 JSON 申请文件，再通过微信或邮件发送给管理员。</p><a id="downloadLink" download>点击这里下载申请文件</a><button type="button" class="alt" onclick="document.getElementById('downloadNotice').hidden=true">关闭提示</button></div>
-<div id="photoLightbox" class="photo-lightbox" role="dialog" aria-modal="true" aria-label="物品照片放大查看" onclick="closePhotoLightbox()"><button type="button" class="lightbox-close" onclick="closePhotoLightbox()" aria-label="关闭大图">× 关闭</button><img id="lightboxImage" alt="物品大图" onclick="event.stopPropagation()"><div id="lightboxTitle" class="lightbox-title"></div></div><script>
+<div id="photoLightbox" class="photo-lightbox" role="dialog" aria-modal="true" aria-label="物品照片放大查看" onclick="closePhotoLightbox()"><button type="button" class="lightbox-close" onclick="closePhotoLightbox()" aria-label="关闭大图">× 关闭</button><img id="lightboxImage" alt="物品大图" onclick="event.stopPropagation()"><div id="lightboxTitle" class="lightbox-title"></div></div><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script><script src="./firebase-config.js"></script><script>
 const $=id=>document.getElementById(id);
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 const uuid=()=>typeof crypto!=='undefined'&&typeof crypto.randomUUID==='function'?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);
@@ -85,8 +85,8 @@ function download(name,obj){
 }
 function readJSON(file){return new Promise((resolve,reject)=>{if(!file||file.size>15000000)return reject(Error('文件过大或未选择'));let r=new FileReader();r.onload=()=>{try{resolve(JSON.parse(r.result))}catch{reject(Error('不是有效的 JSON 文件'))}};r.onerror=()=>reject(Error('无法读取文件'));r.readAsText(file)})}
 function msg(t){const el=$('status');if(el){el.textContent=t;el.scrollIntoView({block:'nearest',behavior:'smooth'})}else console.warn(t)}
-function saveLocal(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch{msg('保存失败：可能是浏览器存储已满，请先保存申请文件。');return false}}
-function loadLocal(k,fallback){try{return JSON.parse(localStorage.getItem(k))||fallback}catch{return fallback}}
+function saveLocal(k,v){if(k==='fzh_family_v2')return true;try{localStorage.setItem(k,JSON.stringify(v));return true}catch{msg('保存失败：可能是浏览器存储已满，请先保存申请文件。');return false}}
+function loadLocal(k,fallback){if(k==='fzh_family_v2')return fallback;try{return JSON.parse(localStorage.getItem(k))||fallback}catch{return fallback}}
 async function photoToData(file){if(!file)return '';return new Promise((resolve,reject)=>{let r=new FileReader();r.onload=()=>{let im=new Image();im.onload=()=>{let c=document.createElement('canvas'),s=Math.min(1,350/Math.max(im.width,im.height));c.width=im.width*s;c.height=im.height*s;c.getContext('2d').drawImage(im,0,0,c.width,c.height);resolve(c.toDataURL('image/jpeg',.55))};im.onerror=()=>reject(Error('图片格式不支持'));im.src=r.result};r.onerror=()=>reject(Error('图片读取失败'));r.readAsDataURL(file)})}
 function validSnapshot(x){return x&&x.type==='fzh-stock-snapshot'&&x.schema===1&&Number.isSafeInteger(x.version)&&x.version>=0&&Array.isArray(x.items)&&x.items.length<=5000&&x.items.every(i=>typeof i.id==='string'&&typeof i.name==='string'&&Number.isFinite(i.qty)&&i.qty>=0)}
 
@@ -185,41 +185,16 @@ function render(){
  limitInventoryToTenRows();
  $('requests').innerHTML=db.requests.map(r=>`<p>📄 ${esc(r.itemName)} × ${r.qty}（${esc(r.kind)}） <button onclick="downloadRequest('${r.id}')">重新下载申请文件</button></p>`).join('')||'<p class="muted">暂无申请</p>';
 }
-// 同源静态文件同步：无需 Token；不上传家庭名称、申请记录或其他私人数据。
+// Firestore 实时同步仅在通过服务端授权后启用。
 let syncingInventory=false;
-async function syncPublishedInventory(){
- if(syncingInventory)return;
- syncingInventory=true;
- const label=$('syncStatus'),button=$('syncNow');button.disabled=true;
- label.textContent='正在检查 GitHub Pages 上的最新库存…';
- try{
-  const response=await fetch('./inventory.json?check='+Date.now(),{cache:'no-store'});
-  if(!response.ok)throw Error('HTTP '+response.status+'；管理员可能还未发布 inventory.json');
-  const data=await response.json();
-  if(!validSnapshot(data))throw Error('线上库存文件格式不正确');
-  if(data.version<db.version){label.textContent='当前设备库存 V'+db.version+' 比线上 V'+data.version+' 更新；为防止回退，已保留本地库存。';return;}
-  const previous=localStorage.getItem('fzh_last_published_at')||'';
-  if(data.version===db.version&&data.exportedAt===previous){label.textContent='库存已是最新版本 V'+db.version;return;}
-  // 保留家庭身份和申请记录，只覆盖公开库存快照。
-  const next={...db,version:data.version,items:data.items.map(i=>({...i})),
-   categories:Array.isArray(data.categories)?data.categories:[],locations:Array.isArray(data.locations)?data.locations:[]};
-  if(!saveLocal(KEY,next))throw Error('手机本地空间不足，库存无法缓存');
-  db=next;
-  try{localStorage.setItem('fzh_last_published_at',data.exportedAt||'')}catch{}
-  delete $('searchChoice').dataset.signature;render();
-  label.textContent='已自动同步最新库存 V'+db.version+'（'+new Date().toLocaleString()+'）';
- }catch(e){label.textContent='自动同步暂不可用：'+e.message+'。'+(db.version>=0?'已保留本机缓存 V'+db.version+'，仍可浏览。':'请稍后重试，或使用下方手动导入。');}
- finally{syncingInventory=false;button.disabled=false;}
-}
-window.addEventListener('pageshow',()=>syncPublishedInventory());
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncPublishedInventory()});
-
-async function importStock(file){try{let d=await readJSON(file);if(!validSnapshot(d))throw Error('不是有效的库存更新包');if(d.version<db.version)throw Error('这是较旧的库存版本，已阻止覆盖');if(!await confirmThree('导入',`库存版本 V${d.version}`))return;
+async function syncPublishedInventory(){if(!window.fzhUser||!window.fzhApproved)return; $('syncStatus').textContent='库存已开启实时同步，无需手动更新。';}
+async function importStock(file){throw Error("私密版本不支持绕过身份验证导入库存");}
+async function disabledImportStock(file){try{let d=await readJSON(file);if(!validSnapshot(d))throw Error('不是有效的库存更新包');if(d.version<db.version)throw Error('这是较旧的库存版本，已阻止覆盖');if(!await confirmThree('导入',`库存版本 V${d.version}`))return;
  db.version=d.version;db.items=d.items.map(i=>({...i}));db.categories=Array.isArray(d.categories)?d.categories.filter(x=>typeof x==='string'):[];db.locations=Array.isArray(d.locations)?d.locations.filter(x=>typeof x==='string'):[];delete $('searchChoice').dataset.signature;persist();msg('库存已更新到 V'+db.version)}catch(e){msg(e.message)}}
 async function requestItem(id){
  const i=db.items.find(x=>x.id===id);
  if(!i)return;
- if(!db.family.trim()||!db.member.trim())return msg('请先填写家庭名称和申请人名字');
+ if(!window.fzhUser||!window.fzhApproved)return msg('需要获批准的家庭账号才能申请');
  if(!Number.isSafeInteger(i.qty)||i.qty<1)return msg('该物品当前可用库存为0，不能申请');
  const selected=await showAppModal('申请物品',i.name+'｜当前可用库存：'+i.qty+' '+(i.unit||'件'),true,i.qty);
  if(!selected)return;
@@ -237,4 +212,42 @@ async function downloadRequest(id,alreadyConfirmed=false){
 }
 window.addEventListener('resize',()=>{limitInventoryToTenRows()});
 render();
+</script><script>
+let fzhAuth, fzhStore, fzhUnsub=null;window.fzhUser=null;window.fzhApproved=false;
+function fzhSetStatus(t){document.getElementById('authStatus').textContent=t;}
+function fzhInit(){
+ const c=window.FZH_FIREBASE_CONFIG;
+ if(!c||c.apiKey.startsWith('REPLACE')){fzhSetStatus('尚未配置 Firebase，请管理员先编辑 firebase-config.js');return;}
+ firebase.initializeApp(c);fzhAuth=firebase.auth();fzhStore=firebase.firestore();
+ fzhAuth.onAuthStateChanged(async u=>{
+  if(fzhUnsub){fzhUnsub();fzhUnsub=null;}window.fzhUser=u;window.fzhApproved=false;
+  document.getElementById('privateContent').hidden=true;
+  db.items=[];db.version=-1;db.categories=[];db.locations=[];render();
+  if(!u){fzhSetStatus('请登录；新账号需管理员审批。');return;}
+  try{const p=await fzhStore.doc('members/'+u.uid).get();
+   if(!p.exists||p.data().status!=='approved'){fzhSetStatus('已登录，等待管理员审批。批准后请退出再登录。');return;}
+   window.fzhApproved=true;document.getElementById('privateContent').hidden=false;fzhSetStatus('身份已验证：'+(p.data().family||u.email));
+   db.family=p.data().family||'';db.member=p.data().member||'';document.getElementById('familyName').value=db.family;document.getElementById('memberName').value=db.member;
+   fzhUnsub=fzhStore.doc('private/inventory').onSnapshot(s=>{
+    if(!s.exists){document.getElementById('syncStatus').textContent='管理员尚未发布库存';return;}
+    const data=s.data().snapshot;if(!validSnapshot(data))throw Error('云端库存格式错误');
+    db.version=data.version;db.items=data.items;db.categories=data.categories||[];db.locations=data.locations||[];
+    delete document.getElementById('searchChoice').dataset.signature;render();
+    document.getElementById('syncStatus').textContent='已实时更新库存 V'+db.version+' · '+new Date().toLocaleString();
+   },e=>{document.getElementById('syncStatus').textContent='库存读取失败：'+e.message;document.getElementById('privateContent').hidden=true;});
+  }catch(e){fzhSetStatus('验证失败：'+e.message);}
+ });
+}
+async function fzhLogin(){try{await fzhAuth.signInWithEmailAndPassword(document.getElementById('authEmail').value.trim(),document.getElementById('authPassword').value);}catch(e){fzhSetStatus(e.message)}}
+async function fzhRegister(){
+ try{const email=document.getElementById('authEmail').value.trim(),pass=document.getElementById('authPassword').value, family=document.getElementById('registerFamily').value.trim(),member=document.getElementById('registerMember').value.trim();
+ if(!family||!member)throw Error('请填写家庭名称和联系人');
+ const c=await fzhAuth.createUserWithEmailAndPassword(email,pass);
+ await fzhStore.doc('members/'+c.user.uid).set({uid:c.user.uid,email:email,family:family.slice(0,80),member:member.slice(0,60),status:'pending',createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+ fzhSetStatus('注册成功，等待管理员批准。批准前不能查看库存。');
+ }catch(e){fzhSetStatus('注册失败：'+e.message)}
+}
+async function fzhResetPassword(){try{const email=document.getElementById('authEmail').value.trim();if(!email)throw Error('请填写邮箱');await fzhAuth.sendPasswordResetEmail(email);fzhSetStatus('若邮箱已注册，将收到重置密码邮件。')}catch(e){fzhSetStatus(e.message)}}
+async function fzhLogout(){if(fzhAuth)await fzhAuth.signOut();try{localStorage.removeItem('fzh_family_v2')}catch{};fzhSetStatus('已退出登录。')}
+try{fzhInit()}catch(e){fzhSetStatus('Firebase 初始化失败：'+e.message)}
 </script></html>

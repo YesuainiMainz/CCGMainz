@@ -1,0 +1,295 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>福音之家 · 管理员版</title><style>
+*{box-sizing:border-box}body{font-family:system-ui,"Microsoft YaHei",sans-serif;background:#f3f6f3;color:#24362b;margin:0}header{background:#24533f;color:white;padding:20px}main{max-width:1050px;margin:auto;padding:18px}.card{background:white;border-radius:14px;padding:18px;margin:14px 0;box-shadow:0 2px 8px #0001}button,.btn{border:0;border-radius:8px;background:#286c51;color:white;padding:9px 12px;cursor:pointer;margin:3px}button.alt{background:#64766a}button.danger{background:#ae4b44}input,select,textarea{padding:9px;border:1px solid #cbd7cf;border-radius:7px;max-width:100%;margin:3px}table{border-collapse:collapse;width:100%}td,th{padding:10px;text-align:left;border-bottom:1px solid #e4ebe6}small{color:#64746a}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}.muted{color:#6b776f}.photo{width:55px;height:55px;object-fit:cover;border-radius:6px}.scroll{overflow:auto}label{display:block;margin:5px 0}.warn{background:#fff2df;padding:10px;border-radius:8px}h2{margin-top:0}@media(max-width:600px){main{padding:10px}td,th{padding:6px;font-size:13px}}.inventory-scroll{overflow-y:auto;overflow-x:auto;overscroll-behavior:contain}.inventory-scroll thead th{position:sticky;top:0;background:white;z-index:2}.item-notes{min-width:120px;max-width:280px;white-space:normal;overflow-wrap:anywhere;line-height:1.45}#itemEditorSection{scroll-margin-top:12px}
+.zoomable-photo{cursor:zoom-in}.photo-lightbox{position:fixed;inset:0;background:rgba(0,0,0,.86);z-index:9999;display:none;align-items:center;justify-content:center;flex-direction:column;padding:24px;gap:12px}.photo-lightbox.open{display:flex}.photo-lightbox img{display:block;max-width:95vw;max-height:78vh;object-fit:contain;border-radius:6px}.photo-lightbox .lightbox-title{color:white;font-size:16px;text-align:center;overflow-wrap:anywhere}.photo-lightbox .lightbox-close{position:absolute;right:16px;top:12px;font-size:22px;background:#fff;color:#222;border-radius:8px;padding:6px 12px;cursor:pointer}
+.photo-open{display:inline-flex;align-items:center;justify-content:center;padding:0;margin:0;border:2px solid transparent;background:transparent;border-radius:8px;cursor:zoom-in;vertical-align:middle}
+.photo-open:hover,.photo-open:focus-visible{border-color:#286c51;outline:2px solid #b5d4c1}
+.photo-open .photo{display:block;pointer-events:none}
+.photo-lightbox{z-index:2147483647!important}
+</style><header><h1>福音之家 · 管理员版</h1><div>集中仓库 · 离线主程序</div></header><main>
+<div class="card"><h2>库存概况</h2><span id="summary"></span><p class="warn">本程序只保存在此浏览器中。请定期导出完整备份；库存更新包只用于家庭版查看，不能代替管理员备份。</p><button onclick="exportStock()">导出库存更新包</button><button onclick="backup()">导出完整备份</button><label>恢复完整备份 <input type="file" accept=".json" onchange="restore(this.files[0]);this.value=''"></label></div>
+<div class="card" id="firebasePublisher"><h2>Firebase 私密库存 · 管理员登录与一键发布</h2><p class="warn">登录后须拥有管理员授权。库存不再发布到公开 GitHub 仓库。</p><div class="grid"><label>管理员邮箱<input id="adminEmail" type="email"></label><label>管理员密码<input id="adminPassword" type="password"></label></div><button type="button" onclick="adminSignIn()">管理员登录</button><button type="button" class="alt" onclick="adminSignOut()">退出</button><p id="adminAuthStatus" class="warn">尚未登录。</p><button type="button" onclick="publishInventory()" id="ghPublishButton">一键发布私密库存</button><p id="ghPublishStatus" class="warn">尚未发布</p><p class="muted">首次配置管理员权限见部署说明。库存照片随快照存储，Firestore 单文档上限约 1 MiB；大库存需升级为分片存储。</p></div><div class="card" id="memberApproval"><h2>家庭成员审批</h2><button type="button" onclick="loadMembers()">刷新申请列表</button><p id="memberStatus" class="muted">请先以管理员身份登录。</p><div id="memberList"></div></div>
+<div class="card"><h2>Excel 批量录入</h2><p>支持 Excel 的 <b>.xlsx</b> 和 <b>.csv（UTF-8）</b> 文件。列名：名称、分类、存放位置、数量、单位、备注。每一行都会新增一条物品；如名称重复，自动加上“（二）”“（三）”等中文编号，不覆盖原库存。</p><button onclick="downloadTemplate()">下载 Excel CSV 模板</button><label>选择 Excel 文件 <input type="file" accept=".xlsx,.csv" onchange="importExcel(this.files[0]);this.value=''"></label><p class="muted">导入前会显示新增数量并要求确认；新分类、位置可自动添加。建议导入前先导出完整备份。</p></div>
+<div class="card"><h2>分类与位置管理</h2><div class="grid"><div><b>分类</b><div id="categoriesList"></div><input id="newCategory" placeholder="新分类名称"><button onclick="addOption('categories','newCategory')">添加分类</button></div><div><b>存放位置</b><div id="locationsList"></div><input id="newLocation" placeholder="新位置名称"><button onclick="addOption('locations','newLocation')">添加位置</button></div></div></div>
+<input id="itemPhotoPicker" type="file" accept="image/*" style="display:none" onchange="savePhotoForItem(this.files[0]);this.value=''"><div class="card" id="itemEditorSection"><h2>添加 / 编辑物品</h2><form id="form"><input type="hidden" name="id"><div class="grid"><label>名称 *<input name="name" required></label><label>分类<select name="category" id="categorySelect"></select></label><label>存放位置<select name="location" id="locationSelect"></select></label><label>库存数量<input name="qty" type="number" min="0" step="1" value="1" required></label><label>单位<input name="unit" value="件"></label><label>照片<input id="photo" type="file" accept="image/*"></label><label>备注<input name="notes"></label></div><button type="submit">保存物品</button><button type="button" class="alt" onclick="clearForm()">清空表单</button></form></div>
+<div class="card"><h2>物品库存</h2><div class="grid">
+<label>搜索方式<select id="searchMode" onchange="updateSearchControls();render()"><option value="name">名称</option><option value="category">分类</option><option value="location">存放位置</option><option value="qty">数量</option></select></label>
+<label id="searchTextWrap">搜索内容<input id="search" placeholder="输入物品名称" oninput="render()"></label>
+<label id="searchChoiceWrap" style="display:none">筛选选项<select id="searchChoice" onchange="render()"></select></label>
+<label id="qtyModeWrap" style="display:none">数量比较<select id="qtyMode" onchange="render()"><option value="eq">等于</option><option value="gte">大于或等于</option><option value="lte">小于或等于</option></select></label>
+</div><div class="scroll inventory-scroll" id="inventoryScroll"><table><thead><tr><th>照片</th><th>名称</th><th>位置</th><th>备注</th><th>数量</th><th>操作</th></tr></thead><tbody id="items"></tbody></table></div></div>
+<div class="card"><h2>导入家庭申请</h2><label>选择家庭版生成的申请文件 <input type="file" accept=".json" onchange="importRequest(this.files[0]);this.value=''"></label><div class="scroll"><table><thead><tr><th>家庭 / 物品</th><th>类型 / 数量</th><th>状态</th><th>操作</th></tr></thead><tbody id="requests"></tbody></table></div></div>
+<div class="card"><h2>归还登记</h2><p>导入家庭当初发送的<b>同一份借用申请 JSON 文件</b>，填写本次归还数量。支持分批归还，系统自动累计已归还数量并恢复库存。</p>
+<label>导入原借用申请文件 <input type="file" accept=".json" onchange="importReturn(this.files[0]);this.value=''"></label>
+<p class="muted">只能归还已批准借出的物品。未批准、领取申请或已全部归还的申请无法重复归还。</p></div>
+<div class="card"><h2>出入库记录</h2><button onclick="exportHistoryCSV()">导出记录 Excel CSV</button><button onclick="exportHistoryJSON()">导出记录 JSON</button><div id="history"></div></div>
+</main><div id="photoLightbox" class="photo-lightbox" role="dialog" aria-modal="true" aria-label="物品照片放大查看" onclick="closePhotoLightbox()"><button type="button" class="lightbox-close" onclick="closePhotoLightbox()" aria-label="关闭大图">× 关闭</button><img id="lightboxImage" alt="物品大图" onclick="event.stopPropagation()"><div id="lightboxTitle" class="lightbox-title"></div></div><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script><script src="./firebase-config.js"></script><script>
+const $=id=>document.getElementById(id);
+const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+const uuid=()=>crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);
+function download(name,obj){let b=new Blob([JSON.stringify(obj,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+function readJSON(file){return new Promise((resolve,reject)=>{if(!file||file.size>6000000)return reject(Error('文件过大或未选择'));let r=new FileReader();r.onload=()=>{try{resolve(JSON.parse(r.result))}catch{reject(Error('不是有效的 JSON 文件'))}};r.onerror=()=>reject(Error('无法读取文件'));r.readAsText(file)})}
+function msg(t){alert(t)}
+function saveLocal(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch{alert('保存失败，可能是照片太大或浏览器存储已满，请先导出备份。');return false}}
+function loadLocal(k,fallback){try{return JSON.parse(localStorage.getItem(k))||fallback}catch{return fallback}}
+async function photoToData(file){if(!file)return '';return new Promise((resolve,reject)=>{let r=new FileReader();r.onload=()=>{let im=new Image();im.onload=()=>{let c=document.createElement('canvas'),s=Math.min(1,350/Math.max(im.width,im.height));c.width=im.width*s;c.height=im.height*s;c.getContext('2d').drawImage(im,0,0,c.width,c.height);resolve(c.toDataURL('image/jpeg',.55))};im.onerror=()=>reject(Error('图片格式不支持'));im.src=r.result};r.onerror=()=>reject(Error('图片读取失败'));r.readAsDataURL(file)})}
+function validSnapshot(x){return x&&x.type==='fzh-stock-snapshot'&&x.schema===1&&Number.isSafeInteger(x.version)&&x.version>=0&&Array.isArray(x.items)&&x.items.length<=5000&&x.items.every(i=>typeof i.id==='string'&&typeof i.name==='string'&&Number.isFinite(i.qty)&&i.qty>=0)}
+
+const KEY='fzh_admin_v2';
+let db=loadLocal(KEY,{version:0,items:[],requests:[],history:[]}),editPhoto='';
+db.categories=Array.isArray(db.categories)?db.categories:['饰品','用品','礼物','未知','图书','工具'];
+db.locations=Array.isArray(db.locations)?db.locations:['A1','A2','A3','J1','P1','P2','S1'];
+db.items.forEach(i=>{if(i.category&&!db.categories.includes(i.category))db.categories.push(i.category);if(i.location&&!db.locations.includes(i.location))db.locations.push(i.location)});
+function optionUI(){for(let [field,selectId,listId] of [['categories','categorySelect','categoriesList'],['locations','locationSelect','locationsList']]){let sel=$(selectId),v=sel.value;sel.innerHTML=db[field].map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');if(db[field].includes(v))sel.value=v;$(listId).innerHTML=db[field].map((x,n)=>`<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;margin:3px;background:#e8f1e9;border-radius:6px">${esc(x)} <button class="danger" style="padding:3px 6px" onclick="deleteOption('${field}',${n})" aria-label="删除${esc(x)}">×</button></span>`).join('')}} 
+function addOption(field,inputId){let v=$(inputId).value.trim();if(!v||v.length>50)return msg('名称不能为空或超过50字');if(db[field].includes(v))return msg('已经存在');if(!confirmThree('增加',v))return;db[field].push(v);$(inputId).value='';persist();$(field==='categories'?'categorySelect':'locationSelect').value=v}
+
+function deleteOption(field,index){
+ let value=db[field][index];if(value===undefined)return;
+ let used=db.items.filter(i=>i[field==='categories'?'category':'location']===value).length;
+ if(used)return msg(`不能删除「${value}」：仍有 ${used} 件物品使用它。请先编辑这些物品，改为其他${field==='categories'?'分类':'位置'}后再删除。`);
+ if(!confirmThree(field==='categories'?'分类':'存放位置',value))return;
+ db[field].splice(index,1);persist();
+}
+// 对同名物品自动追加中文序号；忽略名称末尾已有的中文序号以避免重复嵌套。
+function chineseNumber(n){
+ const digits='零一二三四五六七八九',units=['','十','百','千'];
+ if(n<10)return digits[n];
+ if(n<100)return (n<20?'十':digits[Math.floor(n/10)]+'十')+(n%10?digits[n%10]:'');
+ if(n<10000){let str='',zero=false;for(let p=3;p>=0;p--){let d=Math.floor(n/10**p)%10;if(d){if(zero&&str)str+='零';str+=digits[d]+units[p];zero=false}else if(str)zero=true}return str}
+ return String(n);
+}
+function uniqueName(raw,items,excludeId){
+ const suffix=/（[零一二三四五六七八九十百千]+）$/;
+ const base=String(raw).trim().replace(suffix,'');
+ const taken=new Set(items.filter(i=>i.id!==excludeId).map(i=>i.name));
+ if(!taken.has(base))return base;
+ for(let n=2;n<=9999;n++){let candidate=base+'（'+chineseNumber(n)+'）';if(!taken.has(candidate))return candidate}
+ throw Error('同名物品过多，请修改名称');
+}
+function confirmThree(kind,detail){
+ for(let i=1;i<=3;i++){
+  let text=`第${i}次确认（共3次）：确定要${kind}「${detail}」吗？`+(i===3?'（最后一次确认）':'');
+  if(!confirm(text))return false;
+ }
+ return true;
+}
+function deleteRequest(id){
+ let r=db.requests.find(x=>x.id===id);if(!r)return;
+ if(!confirmThree('家庭申请',`${r.family} / ${r.itemName} / ${r.status}`))return;
+ db.requests=db.requests.filter(x=>x.id!==id);
+ // 删除申请不自动恢复或扣减库存，防止重复影响正式库存。
+ touch(`删除家庭申请记录：${r.family} ${r.itemName} × ${r.qty}（${r.status}）；库存不变`);
+ persist();
+}
+function deleteHistory(index){
+ let h=db.history[index];if(!h)return;
+ if(!confirmThree('出入库记录',`${h.time} / ${h.action}`))return;
+ db.history.splice(index,1);
+ // 删除日志不修改库存，也不产生新日志。
+ persist();
+}
+function persist(){if(saveLocal(KEY,db))render()}
+function touch(action){db.version++;db.history.unshift({time:new Date().toLocaleString(),action});db.history=db.history.slice(0,500)}
+
+function clearForm(){if(!confirmThree('清空','物品录入表单'))return;$('form').reset();$('photo').value='';$('form').elements.id.value='';editPhoto='';$('form').elements.qty.value=1}
+function updateSearchControls(){
+ const mode=$('searchMode').value,choice=$('searchChoice'),text=$('searchTextWrap'),cw=$('searchChoiceWrap'),qw=$('qtyModeWrap');
+ const useChoice=mode==='category'||mode==='location';
+ text.style.display=useChoice?'none':'';cw.style.display=useChoice?'':'none';qw.style.display=mode==='qty'?'':'none';
+ $('search').placeholder=mode==='qty'?'输入整数数量':'输入物品名称';
+ if(useChoice){const values=mode==='category'?db.categories:db.locations;let prev=choice.value;
+ const sig=mode+'|'+values.join('\u001f');if(choice.dataset.signature!==sig){choice.innerHTML='<option value="">全部</option>'+values.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');choice.dataset.signature=sig;if(values.includes(prev))choice.value=prev}}
+}
+
+function limitInventoryToTenRows(){
+ const panel=document.getElementById('inventoryScroll');
+ const table=panel.querySelector('table');
+ const rows=Array.from(table.tBodies[0].rows);
+ const headerHeight=table.tHead.getBoundingClientRect().height;
+ const visibleHeight=rows.slice(0,10).reduce((total,row)=>total+row.getBoundingClientRect().height,0);
+ panel.style.maxHeight=Math.ceil(headerHeight+visibleHeight+2)+'px';
+}
+
+
+document.getElementById('items').addEventListener('click',function(event){
+ const button=event.target.closest('button[data-photo-id]');
+ if(!button||!this.contains(button))return;
+ event.preventDefault();
+ showPhotoById(button.getAttribute('data-photo-id'));
+});
+function showPhotoById(id){
+ const item=db.items.find(i=>i.id===id);
+ if(!item||!item.photo)return;
+ const viewer=document.getElementById('photoLightbox');
+ document.getElementById('lightboxImage').src=item.photo;
+ document.getElementById('lightboxTitle').textContent=item.name;
+ viewer.classList.add('open');
+ viewer.style.display='flex';
+ document.body.style.overflow='hidden';
+}
+function closePhotoLightbox(){
+ const viewer=document.getElementById('photoLightbox');
+ viewer.classList.remove('open');
+ viewer.style.display='none';
+ document.body.style.overflow='';
+ document.getElementById('lightboxImage').removeAttribute('src');
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closePhotoLightbox()});
+
+function render(){
+ optionUI();updateSearchControls();
+ $('summary').textContent=`库存版本 V${db.version} · ${db.items.length} 种物品 · 总数量 ${db.items.reduce((s,i)=>s+i.qty,0)} · 待审批 ${db.requests.filter(r=>r.status==='待审批').length}`;
+ let q=$('search').value.trim().toLowerCase(),mode=$('searchMode').value,choice=$('searchChoice').value;
+ $('items').innerHTML=db.items.filter(i=>mode==='name'?i.name.toLowerCase().includes(q):mode==='category'?(!choice||i.category===choice):mode==='location'?(!choice||i.location===choice):q===''?true:(Number.isFinite(Number(q))&&( $('qtyMode').value==='eq'?i.qty===Number(q):$('qtyMode').value==='gte'?i.qty>=Number(q):i.qty<=Number(q)))).map(i=>`<tr><td>${i.photo?`<button type="button" class="photo-open" data-photo-id="${esc(i.id)}" title="点击查看大图" aria-label="放大查看 ${esc(i.name)} 的图片"><img class="photo zoomable-photo" src="${i.photo}" alt="${esc(i.name)}的照片"></button>`:'<span title="尚未添加照片">📦</span>'}</td><td><b>${esc(i.name)}</b><br><small>${esc(i.category)}</small></td><td>${esc(i.location)}</td><td class="item-notes">${i.notes?esc(i.notes):'<span class="muted">—</span>'}</td><td>${i.qty} ${esc(i.unit)}</td><td><button onclick="edit('${i.id}')">编辑</button><button type="button" onclick="pickPhotoForItem('${i.id}')">${i.photo?'更换照片':'添加照片'}</button><button class="danger" onclick="removeItem('${i.id}')">删除</button></td></tr>`).join('');
+ limitInventoryToTenRows();
+ $('requests').innerHTML=db.requests.map(r=>`<tr><td>${esc(r.family)}<br>${esc(r.itemName)}<br><small>${esc(r.member||'')}</small></td><td>${esc(r.kind)} × ${r.qty}</td><td>${esc(r.status)}${r.kind==='借用'&&['借出中','部分归还','已归还'].includes(r.status)?`<br><small>已归还 ${r.returnedQty||0}/${r.qty}</small>`:''}</td><td>${r.status==='待审批'?`<button onclick="decide('${r.id}','批准')">批准出库</button><button class="danger" onclick="decide('${r.id}','拒绝')">拒绝</button>`:''}${['借出中','部分归还'].includes(r.status)?`<button onclick="decide('${r.id}','归还')">登记归还</button>`:''}<button class="danger" onclick="deleteRequest('${r.id}')">删除申请</button></td></tr>`).join('');
+ $('history').innerHTML=db.history.map((h,index)=>`<p><small>${esc(h.time)}</small> · ${esc(h.action)} <button class="danger" onclick="deleteHistory(${index})">删除记录</button></p>`).join('')||'<p class="muted">暂无记录</p>';
+}
+$('form').onsubmit=async e=>{e.preventDefault();try{
+ let d=Object.fromEntries(new FormData(e.target)),qty=Number(d.qty);
+ if(!Number.isSafeInteger(qty)||qty<0)return msg('库存必须是非负整数');
+ let existing=db.items.find(i=>i.id===d.id),file=$('photo').files[0],photo=file?await photoToData(file):(existing?.photo||editPhoto||'');
+ let item={id:existing?.id||uuid(),name:d.name.trim().slice(0,120),category:d.category.slice(0,50),location:d.location.slice(0,120),qty,unit:d.unit.slice(0,20),notes:d.notes.slice(0,500),photo};
+ if(!item.name)return msg('请输入物品名称');
+ if(!existing||item.name!==existing.name)item.name=uniqueName(item.name,db.items,existing?.id);
+ if(!existing&&!confirmThree('增加物品',item.name))return;
+ if(existing)Object.assign(existing,item);else db.items.push(item);
+ touch((existing?'修改':'添加')+'物品：'+item.name);persist();e.target.reset();e.target.elements.qty.value=1;editPhoto='';
+}catch(err){msg(err.message)}};
+function edit(id){let i=db.items.find(x=>x.id===id);if(!i)return;$('photo').value='';for(let k of ['id','name','category','location','qty','unit','notes'])$('form').elements[k].value=i[k]||'';editPhoto=i.photo||'';document.getElementById('itemEditorSection').scrollIntoView({behavior:'smooth',block:'start'})}
+let pendingPhotoItemId=null;
+function pickPhotoForItem(id){
+ const item=db.items.find(i=>i.id===id);
+ if(!item)return msg('找不到该物品');
+ pendingPhotoItemId=id;
+ const picker=$('itemPhotoPicker');
+ picker.value='';
+ picker.click();
+}
+async function savePhotoForItem(file){
+ const id=pendingPhotoItemId;
+ pendingPhotoItemId=null;
+ if(!file)return;
+ const item=db.items.find(i=>i.id===id);
+ if(!item)return msg('物品不存在，照片未保存');
+ try{
+  if(!file.type.startsWith('image/'))throw Error('请选择图片文件');
+  if(file.size>15*1024*1024)throw Error('原始照片不能超过15MB');
+  const photo=await photoToData(file);
+  if(!confirmThree(item.photo?'更换照片':'增加照片',item.name))return;
+  const oldPhoto=item.photo;
+  item.photo=photo;
+  // 检查持久化结果；失败时恢复旧照片，避免界面假装保存成功。
+  db.version++;
+  db.history.unshift({time:new Date().toLocaleString(),action:(oldPhoto?'更换':'添加')+'物品照片：'+item.name});
+  if(!saveLocal(KEY,db)){
+   item.photo=oldPhoto;db.version--;db.history.shift();render();return;
+  }
+  render();
+  msg('「'+item.name+'」的照片已单独保存');
+ }catch(e){msg('照片保存失败：'+e.message)}
+}
+function removeItem(id){let i=db.items.find(x=>x.id===id);if(i&&confirmThree('物品',i.name)){db.items=db.items.filter(x=>x.id!==id);touch('删除物品：'+i.name);persist()}}
+// Firebase Auth + Firestore：管理员授权由 Firestore 规则验证。
+let fzhAdminAuth=null,fzhAdminStore=null,fzhAdminReady=false;
+function initAdminFirebase(){const c=window.FZH_FIREBASE_CONFIG;if(!c||c.apiKey.startsWith('REPLACE')){document.getElementById('adminAuthStatus').textContent='请先配置 firebase-config.js';return;}firebase.initializeApp(c);fzhAdminAuth=firebase.auth();fzhAdminStore=firebase.firestore();fzhAdminAuth.onAuthStateChanged(async u=>{fzhAdminReady=false;if(!u){document.getElementById('adminAuthStatus').textContent='尚未登录';return;}try{const d=await fzhAdminStore.doc('admins/'+u.uid).get();if(!d.exists){document.getElementById('adminAuthStatus').textContent='账号已登录，但不是管理员。请按说明在 Firestore 添加 admins/'+u.uid;return;}fzhAdminReady=true;document.getElementById('adminAuthStatus').textContent='管理员已验证：'+u.email;loadMembers();}catch(e){document.getElementById('adminAuthStatus').textContent='权限检查失败：'+e.message;}});}
+async function adminSignIn(){try{await fzhAdminAuth.signInWithEmailAndPassword(document.getElementById('adminEmail').value.trim(),document.getElementById('adminPassword').value)}catch(e){document.getElementById('adminAuthStatus').textContent=e.message}}
+async function adminSignOut(){if(fzhAdminAuth)await fzhAdminAuth.signOut()}
+function publicSnapshot(){return {type:'fzh-stock-snapshot',schema:1,version:db.version,exportedAt:new Date().toISOString(),categories:db.categories,locations:db.locations,items:db.items.map(i=>({id:i.id,name:i.name,category:i.category,location:i.location,qty:i.qty,unit:i.unit,notes:i.notes||'',photo:i.photo||''}))};}
+async function publishInventory(){const status=document.getElementById('ghPublishStatus'),btn=document.getElementById('ghPublishButton');if(!fzhAdminReady)return status.textContent='请先通过管理员身份验证';if(!confirmThree('发布','私密库存 V'+db.version))return;btn.disabled=true;try{const snapshot=publicSnapshot();const size=new TextEncoder().encode(JSON.stringify({snapshot})).length;if(size>800000)throw Error('库存含照片超过安全大小限制（约800KB）；Firestore 单文档限制1MiB，请减少图片或升级分片存储');await fzhAdminStore.doc('private/inventory').set({snapshot,updatedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedBy:fzhAdminAuth.currentUser.uid});status.textContent='私密发布成功，已授权家庭端将自动更新 V'+db.version;}catch(e){status.textContent='发布失败：'+e.message}finally{btn.disabled=false}}
+async function loadMembers(){const area=document.getElementById('memberList'),status=document.getElementById('memberStatus');if(!fzhAdminReady)return;area.textContent='正在读取…';try{const snap=await fzhAdminStore.collection('members').get();area.replaceChildren();status.textContent='共 '+snap.size+' 个成员账号';snap.forEach(d=>{const v=d.data(),line=document.createElement('div');line.style.cssText='border-bottom:1px solid #ddd;padding:10px';const info=document.createElement('span');info.textContent=(v.family||'')+' · '+(v.member||'')+' · '+(v.email||'')+' · '+(v.status||'');line.append(info);for(const [label,val] of [['批准','approved'],['停用','blocked']]){const b=document.createElement('button');b.textContent=label;b.onclick=()=>changeMemberStatus(d.id,val);line.append(b)}area.append(line)});}catch(e){status.textContent='读取失败：'+e.message}}
+async function changeMemberStatus(uid,status){if(!fzhAdminReady)return;if(!confirmThree(status==='approved'?'批准':'停用','家庭账号 '+uid))return;try{await fzhAdminStore.doc('members/'+uid).update({status});await loadMembers()}catch(e){document.getElementById('memberStatus').textContent='操作失败：'+e.message}}
+try{initAdminFirebase()}catch(e){document.getElementById('adminAuthStatus').textContent=e.message}
+
+function exportStock(){if(!confirmThree('导出','库存更新包'))return;download('福音之家_库存_V'+db.version+'.json',{type:'fzh-stock-snapshot',schema:1,version:db.version,exportedAt:new Date().toISOString(),categories:db.categories,locations:db.locations,items:db.items})}
+function backup(){if(!confirmThree('导出','完整备份'))return;download('福音之家_管理员完整备份_'+Date.now()+'.json',{type:'fzh-admin-backup',schema:1,data:db})}
+async function restore(file){try{let d=await readJSON(file);if(d.type!=='fzh-admin-backup'||d.schema!==1||!Array.isArray(d.data?.items)||!Array.isArray(d.data?.requests)||!Array.isArray(d.data?.history)||!Number.isSafeInteger(d.data.version))throw Error('备份格式不正确');if(confirmThree('导入并覆盖','管理员完整备份')){db=d.data;db.categories=Array.isArray(db.categories)?db.categories:['饰品','用品','礼物','未知','图书','工具'];db.locations=Array.isArray(db.locations)?db.locations:['A1','A2','A3','J1','P1','P2','S1'];persist()}}catch(e){msg(e.message)}}
+async function importRequest(file){try{let d=await readJSON(file);if(d.type!=='fzh-family-request'||d.schema!==1||typeof d.id!=='string'||d.id.length>100||typeof d.family!=='string'||d.family.length>100||typeof d.itemId!=='string'||!['领取','借用'].includes(d.kind)||!Number.isSafeInteger(d.qty)||d.qty<1||d.qty>10000)throw Error('申请文件格式不正确');if(db.requests.some(r=>r.id===d.id))return msg('这个申请已经导入过，不能重复导入');let i=db.items.find(x=>x.id===d.itemId);if(!i)throw Error('对应物品不存在，可能是旧版库存');if(!confirmThree('导入','家庭申请：'+d.family+' / '+i.name))return;db.requests.unshift({id:d.id,family:d.family,member:String(d.member||'').slice(0,60),itemId:i.id,itemName:i.name,kind:d.kind,qty:d.qty,status:'待审批',date:d.date});db.history.unshift({time:new Date().toLocaleString(),action:'收到申请：'+d.family+' '+i.name});persist();msg('申请已导入，等待审批')}catch(e){msg(e.message)}}
+function decide(id,action){let r=db.requests.find(x=>x.id===id),i=r&&db.items.find(x=>x.id===r.itemId);if(!r)return;if(action==='拒绝'&&r.status==='待审批'){r.status='已拒绝'}else if(action==='批准'&&r.status==='待审批'){if(!i||i.qty<r.qty)return msg('库存不足，不能批准');i.qty-=r.qty;r.status=r.kind==='借用'?'借出中':'已领取'}else if(action==='归还'&&['借出中','部分归还'].includes(r.status)){return processReturn(r)}else return;touch(`${action}：${r.family} ${r.itemName} × ${r.qty}`);persist()}
+
+function processReturn(r){
+ let item=db.items.find(i=>i.id===r.itemId);
+ if(!item)return msg('对应物品已删除，无法归还。请先恢复物品');
+ if(r.kind!=='借用'||!['借出中','部分归还'].includes(r.status))return msg('这不是可以归还的借用申请');
+ let returned=Number.isSafeInteger(r.returnedQty)?r.returnedQty:0;
+ let remaining=r.qty-returned;
+ if(remaining<=0)return msg('已全部归还，不能重复归还');
+ let input=prompt(`归还：${r.itemName}，原借出 ${r.qty}，已归还 ${returned}，剩余 ${remaining}。\\n请输入本次归还数量（1-${remaining}）：`,String(remaining));
+ if(input===null)return;
+ let qty=Number(input);
+ if(!Number.isSafeInteger(qty)||qty<1||qty>remaining)return msg(`归还数量必须是1至${remaining}之间的整数`);
+ if(!confirmThree('增加','归还入库 '+r.itemName+' × '+qty))return;
+ item.qty+=qty;
+ r.returnedQty=returned+qty;
+ r.status=r.returnedQty===r.qty?'已归还':'部分归还';
+ touch(`归还入库：${r.family} ${r.itemName} × ${qty}（累计 ${r.returnedQty}/${r.qty}）`);
+ persist();
+ msg(`归还成功：本次 ${qty}，剩余待还 ${r.qty-r.returnedQty}`);
+}
+async function importReturn(file){
+ try{
+ let d=await readJSON(file);
+ if(d.type!=='fzh-family-request'||d.schema!==1||typeof d.id!=='string'||d.kind!=='借用')throw Error('请导入原始借用申请 JSON 文件');
+ let r=db.requests.find(x=>x.id===d.id);
+ if(!r)throw Error('找不到对应借用记录，请先导入并批准这份申请');
+ if(r.kind!=='借用'||r.itemId!==d.itemId||r.qty!==d.qty||r.family!==d.family)throw Error('申请文件内容与已登记的借用记录不一致');
+ if(!['借出中','部分归还'].includes(r.status))throw Error('此申请尚未借出，或已全部归还');
+ processReturn(r);
+ }catch(e){msg('归还失败：'+e.message)}
+}
+function csvEscape(v){let t=String(v??'');return /[",\r\n]/.test(t)?'"'+t.replace(/"/g,'""')+'"':t}
+function downloadCSV(filename,rows){let content='\ufeff'+rows.map(row=>row.map(csvEscape).join(',')).join('\r\n');let a=document.createElement('a'),u=URL.createObjectURL(new Blob([content],{type:'text/csv;charset=utf-8'}));a.href=u;a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}
+function downloadTemplate(){if(!confirmThree('下载','Excel CSV 模板'))return;downloadCSV('福音之家_库存批量录入模板.csv',[['名称','分类','存放位置','数量','单位','备注'],['圣经','图书','A1',50,'本','示例：可删除'],['折叠椅','用品','A2',30,'把','']])}
+function exportHistoryCSV(){if(!confirmThree('导出','出入库记录 CSV'))return;downloadCSV('福音之家_出入库记录_'+Date.now()+'.csv',[['时间','操作记录'],...db.history.map(h=>[h.time,h.action])])}
+function exportHistoryJSON(){if(!confirmThree('导出','出入库记录 JSON'))return;download('福音之家_出入库记录_'+Date.now()+'.json',{type:'fzh-history',schema:1,exportedAt:new Date().toISOString(),records:db.history})}
+function parseCSV(text){
+ text=text.replace(/^\ufeff/,'');let rows=[],row=[],cell='',quoted=false;
+ for(let i=0;i<text.length;i++){let c=text[i];if(quoted){if(c==='"'&&text[i+1]==='"'){cell+='"';i++}else if(c==='"')quoted=false;else cell+=c}else if(c==='"')quoted=true;else if(c===','){row.push(cell);cell=''}else if(c==='\n'||c==='\r'){if(c==='\r'&&text[i+1]==='\n')i++;row.push(cell);if(row.some(x=>x.trim()))rows.push(row);row=[];cell=''}else cell+=c}
+ row.push(cell);if(row.some(x=>x.trim()))rows.push(row);return rows
+}
+async function unzipXLSX(file){
+ const bytes=new Uint8Array(await file.arrayBuffer()),dv=new DataView(bytes.buffer);let end=-1;
+ for(let i=bytes.length-22;i>=Math.max(0,bytes.length-65557);i--){if(dv.getUint32(i,true)===0x06054b50){end=i;break}}
+ if(end<0)throw Error('Excel 文件格式错误');
+ let count=dv.getUint16(end+10,true),pos=dv.getUint32(end+16,true),entries=new Map();
+ for(let k=0;k<count;k++){if(dv.getUint32(pos,true)!==0x02014b50)throw Error('Excel ZIP 目录损坏');
+ let method=dv.getUint16(pos+10,true),size=dv.getUint32(pos+20,true),nl=dv.getUint16(pos+28,true),ex=dv.getUint16(pos+30,true),co=dv.getUint16(pos+32,true),offset=dv.getUint32(pos+42,true),name=new TextDecoder().decode(bytes.slice(pos+46,pos+46+nl));
+ entries.set(name,{method,size,offset});pos+=46+nl+ex+co}
+ async function read(name){let e=entries.get(name);if(!e)throw Error('Excel 缺少 '+name);let p=e.offset;if(dv.getUint32(p,true)!==0x04034b50)throw Error('Excel ZIP 内容损坏');let start=p+30+dv.getUint16(p+26,true)+dv.getUint16(p+28,true),raw=bytes.slice(start,start+e.size);
+ if(e.method===0)return new TextDecoder().decode(raw);
+ if(e.method!==8||typeof DecompressionStream==='undefined')throw Error('此浏览器不支持 Excel 解压，请用 Excel 另存为 CSV UTF-8');
+ try{let stream=new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'));return await new Response(stream).text()}catch{throw Error('当前浏览器无法解压 xlsx，请用 Excel 另存为 CSV UTF-8')}}
+ let parser=new DOMParser(),parse=async name=>{let doc=parser.parseFromString(await read(name),'application/xml');if(doc.querySelector('parsererror'))throw Error('Excel XML 内容错误');return doc};
+ let strings=[];if(entries.has('xl/sharedStrings.xml')){let doc=await parse('xl/sharedStrings.xml');strings=[...doc.getElementsByTagName('si')].map(si=>[...si.getElementsByTagName('t')].map(t=>t.textContent).join(''))}
+ let wb=await parse('xl/workbook.xml'),rels=await parse('xl/_rels/workbook.xml.rels'),sheet=wb.getElementsByTagName('sheet')[0];if(!sheet)throw Error('Excel 中没有工作表');
+ let rid=sheet.getAttribute('r:id')||sheet.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships','id'),rel=[...rels.getElementsByTagName('Relationship')].find(x=>x.getAttribute('Id')===rid);
+ let target=rel?.getAttribute('Target')||'worksheets/sheet1.xml';target=target.startsWith('/')?target.slice(1):'xl/'+target.replace(/^xl\//,'');
+ let doc=await parse(target),rows=[];
+ for(let row of doc.getElementsByTagName('row')){let arr=[];for(let c of row.getElementsByTagName('c')){let ref=c.getAttribute('r')||'',letters=ref.match(/^[A-Z]+/)?.[0]||'A',idx=0;for(let ch of letters)idx=idx*26+ch.charCodeAt(0)-64;idx--;if(idx>100)continue;
+ let typ=c.getAttribute('t'),v=c.getElementsByTagName('v')[0]?.textContent||'',inline=c.getElementsByTagName('is')[0];
+ arr[idx]=typ==='s'?strings[Number(v)]||'':typ==='inlineStr'&&inline?[...inline.getElementsByTagName('t')].map(x=>x.textContent).join(''):v}
+ if(arr.some(x=>String(x??'').trim()))rows.push(arr)}
+ return rows
+}
+async function importExcel(file){if(!file)return;try{
+ if(file.size>10000000)throw Error('文件超过10MB，请拆分导入');
+ let rows=/\.xlsx$/i.test(file.name)?await unzipXLSX(file):/\.csv$/i.test(file.name)?parseCSV(await file.text()):null;
+ if(!rows)throw Error('仅支持 .xlsx 或 .csv 文件');
+ if(rows.length<2)throw Error('文件没有数据行');
+ let headers=rows[0].map(x=>String(x??'').trim().replace(/\s/g,'')),cols={};
+ for(let [key,names] of Object.entries({name:['名称','物品名称','物品'],category:['分类'],location:['存放位置','位置'],qty:['数量','库存','库存数量'],unit:['单位'],notes:['备注','说明']})){cols[key]=headers.findIndex(h=>names.includes(h))}
+ if(cols.name<0||cols.qty<0)throw Error('Excel 至少需要「名称」和「数量」列');
+ let parsed=[],errors=[];
+ for(let [j,row] of rows.slice(1).entries()){let get=k=>cols[k]<0?'':String(row[cols[k]]??'').trim(),name=get('name'),q=get('qty'),qty=Number(q),category=get('category')||'未知',location=get('location')||'A1',unit=get('unit')||'件';
+ if(!name&&!q)continue;
+ if(!name||name.length>120||!Number.isSafeInteger(qty)||qty<0||category.length>50||location.length>50){errors.push('第'+(j+2)+'行：名称、数量、分类或位置无效');continue}
+ parsed.push({name,category,location,qty,unit:unit.slice(0,20),notes:get('notes').slice(0,500)})}
+ if(errors.length)throw Error(errors.slice(0,8).join('\n')+(errors.length>8?`\n另外还有 ${errors.length-8} 行错误`:''));
+ if(!parsed.length)throw Error('没有可导入的数据');
+ if(!confirmThree('导入',`${parsed.length} 行 Excel 物品（全部新增，同名自动编号）`))return;
+ for(let i of parsed){let name=uniqueName(i.name,db.items);db.items.push({id:uuid(),...i,name,photo:''});
+ if(!db.categories.includes(i.category))db.categories.push(i.category);if(!db.locations.includes(i.location))db.locations.push(i.location)}
+ touch(`Excel批量导入：新增 ${parsed.length} 种物品（同名自动编号）`);persist();msg('导入成功！')
+ }catch(e){msg('导入失败：'+e.message)}}
+
+render();
+</script></html>
