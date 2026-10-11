@@ -50,7 +50,7 @@
 </style><header><h1>福音之家 · 私密家庭端</h1><div>仅授权成员可查看库存</div></header><main><section class="card" id="authPanel"><h2>家庭成员登录 / 注册</h2><p>首次注册后等待管理员批准。未批准前无法查看库存。</p><div class="grid"><label>邮箱<input id="authEmail" type="email" autocomplete="username"></label><label>密码（至少6位）<input id="authPassword" type="password" autocomplete="current-password"></label></div><div class="grid"><label>家庭名称（注册时填写）<input id="registerFamily" maxlength="80"></label><label>联系人（注册时填写）<input id="registerMember" maxlength="60"></label></div><button type="button" onclick="fzhLogin()">登录</button><button type="button" onclick="fzhRegister()">注册并申请加入</button><button type="button" class="alt" onclick="fzhResetPassword()">重置密码</button><button type="button" class="alt" onclick="fzhLogout()">退出登录</button><p id="authStatus" class="warn" aria-live="polite">请登录。</p></section><div id="privateContent" hidden>
 <div class="card"><h2>家庭资料</h2><label>家庭名称 <input id="familyName" placeholder="例如：恩典之家" oninput="savePrefs()"></label><label>申请人名字 <input id="memberName" placeholder="例如：小明" oninput="savePrefs()"></label><p class="muted">仅批准的家庭成员可以查看云端库存，并在线提交借用或领取申请。</p></div>
 <div class="card"><h2>在线库存自动更新</h2><p>仅获批准的成员可以实时读取云端库存；无需导入更新包。</p>
-<button type="button" onclick="syncPublishedInventory()" id="syncNow">立即检查最新库存</button>
+<p id="lastInventoryChange" class="muted">上次更改时间：正在读取…</p>
 <p id="syncStatus" class="warn" aria-live="polite">正在准备同步…</p></div>
 <div class="card"><p id="status" class="warn">登录并获批准后加载私密库存。</p></div>
 <div class="card"><h2>物品目录</h2><div class="grid">
@@ -177,7 +177,7 @@ function render(){
 }
 // Firestore 实时同步仅在通过服务端授权后启用。
 let syncingInventory=false;
-async function syncPublishedInventory(){if(!window.fzhUser||!window.fzhApproved)return; $('syncStatus').textContent='库存已开启实时同步，无需手动更新。';}
+
 
 async function requestItem(id){
  const i=db.items.find(x=>x.id===id);
@@ -225,7 +225,7 @@ function fzhInit(){
     const data=s.data().snapshot;if(!validSnapshot(data))throw Error('云端库存格式错误');
     db.version=data.version;db.items=data.items;db.categories=data.categories||[];db.locations=data.locations||[];
     delete document.getElementById('searchChoice').dataset.signature;render();
-    document.getElementById('syncStatus').textContent='已实时更新库存 V'+db.version+' · '+new Date().toLocaleString();
+    document.getElementById('syncStatus').textContent='库存已自动同步 · V'+db.version;const stamp=s.data().updatedAt;document.getElementById('lastInventoryChange').textContent='上次更改时间：'+(stamp&&typeof stamp.toDate==='function'?stamp.toDate().toLocaleString('zh-CN'):'暂无记录');
    },e=>{document.getElementById('syncStatus').textContent='库存读取失败：'+e.message;document.getElementById('privateContent').hidden=true;});
   }catch(e){fzhSetStatus('验证失败：'+e.message);}
  });
