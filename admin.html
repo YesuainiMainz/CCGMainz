@@ -5,8 +5,8 @@
 .photo-open:hover,.photo-open:focus-visible{border-color:#286c51;outline:2px solid #b5d4c1}
 .photo-open .photo{display:block;pointer-events:none}
 .photo-lightbox{z-index:2147483647!important}
-</style><header><h1>福音之家 · 管理员版</h1><div>集中仓库 · 离线主程序</div></header><main>
-<div class="card"><h2>库存概况</h2><span id="summary"></span><p class="warn">本程序只保存在此浏览器中。请定期导出完整备份；云端自动同步库存。请定期导出完整备份。</p><button onclick="backup()">导出完整备份</button><label>恢复完整备份 <input type="file" accept=".json" onchange="restore(this.files[0]);this.value=''"></label></div>
+.stock-action-overlay[hidden],#stockActionLocationWrap[hidden],#stockActionQtyWrap[hidden]{display:none!important}.stock-action-overlay{position:fixed;inset:0;z-index:2147483646;background:#0009;display:flex;justify-content:center;align-items:center;padding:15px}.stock-action-box{background:white;padding:22px;border-radius:14px;width:min(100%,480px);max-height:90vh;overflow:auto;box-shadow:0 12px 35px #0003}.stock-action-box label{display:block;margin:12px 0}.stock-action-box input,.stock-action-box select{display:block;width:100%;min-height:44px;font-size:16px}</style><header><h1>福音之家 · 管理员版</h1><div>集中仓库 · 离线主程序</div></header><main>
+<div class="card"><h2>库存概况</h2><span id="summary"></span><p class="warn">管理员编辑先保存在本机；点击「一键发布私密库存」后同步至云端。请定期导出完整备份。</p><button onclick="backup()">导出完整备份</button><label>恢复完整备份 <input type="file" accept=".json" onchange="restore(this.files[0]);this.value=''"></label></div>
 <div class="card" id="firebasePublisher"><h2>Firebase 私密库存 · 管理员登录与一键发布</h2><p class="warn">登录后须拥有管理员授权。库存不再发布到公开 GitHub 仓库。</p><div class="grid"><label>管理员邮箱<input id="adminEmail" type="email"></label><label>管理员密码<input id="adminPassword" type="password"></label></div><button type="button" onclick="adminSignIn()">管理员登录</button><button type="button" class="alt" onclick="adminSignOut()">退出</button><p id="adminAuthStatus" class="warn">尚未登录。</p><button type="button" class="alt" onclick="loadCloudInventory()">从云端载入库存</button><button type="button" onclick="publishInventory()" id="ghPublishButton">一键发布私密库存</button><p id="ghPublishStatus" class="warn">尚未发布</p><p class="muted">首次配置管理员权限见部署说明。照片按物品单独保存在私密 Firestore 文档中，不再占用库存快照的 1 MiB 容量；每张照片上传时自动压缩。</p></div><div class="card" id="memberApproval"><h2>家庭成员审批</h2><button type="button" onclick="loadMembers()">刷新申请列表</button><p id="memberStatus" class="muted">请先以管理员身份登录。</p><div id="memberList"></div></div>
 <div class="card"><h2>在线申请审批 / 归还</h2><p class="muted">家庭端提交后自动出现。批准时在 Firestore 事务中检查库存并扣减，防止多人同时申请造成超额出库。归还支持分批登记。</p><button onclick="loadOnlineRequests()">刷新在线申请</button><p id="onlineRequestStatus" class="warn">请先登录管理员账号。</p><div class="scroll"><table><thead><tr><th>申请人 / 物品</th><th>申请</th><th>状态</th><th>操作</th></tr></thead><tbody id="onlineRequestRows"></tbody></table></div></div><div class="card"><h2>Excel 批量录入</h2><p>支持 Excel 的 <b>.xlsx</b> 和 <b>.csv（UTF-8）</b> 文件。列名：名称、分类、存放位置、数量、单位、备注。每一行都会新增一条物品；如名称重复，自动加上“（二）”“（三）”等中文编号，不覆盖原库存。</p><button onclick="downloadTemplate()">下载 Excel CSV 模板</button><label>选择 Excel 文件 <input type="file" accept=".xlsx,.csv" onchange="importExcel(this.files[0]);this.value=''"></label><p class="muted">导入前会显示新增数量并要求确认；新分类、位置可自动添加。建议导入前先导出完整备份。</p></div>
 <div class="card"><h2>分类与位置管理</h2><div class="grid"><div><b>分类</b><div id="categoriesList"></div><input id="newCategory" placeholder="新分类名称"><button onclick="addOption('categories','newCategory')">添加分类</button></div><div><b>存放位置</b><div id="locationsList"></div><input id="newLocation" placeholder="新位置名称"><button onclick="addOption('locations','newLocation')">添加位置</button></div></div></div>
@@ -18,12 +18,12 @@
 <label id="qtyModeWrap" style="display:none">数量比较<select id="qtyMode" onchange="render()"><option value="eq">等于</option><option value="gte">大于或等于</option><option value="lte">小于或等于</option></select></label>
 </div><div class="scroll inventory-scroll" id="inventoryScroll"><table><thead><tr><th>照片</th><th>名称</th><th>位置</th><th>备注</th><th>数量</th><th>操作</th></tr></thead><tbody id="items"></tbody></table></div></div>
 <div class="card"><h2>出入库记录</h2><button onclick="exportHistoryCSV()">导出记录 Excel CSV</button><button onclick="exportHistoryJSON()">导出记录 JSON</button><div id="history"></div></div>
-</main><div id="photoLightbox" class="photo-lightbox" role="dialog" aria-modal="true" aria-label="物品照片放大查看" onclick="closePhotoLightbox()"><button type="button" class="lightbox-close" onclick="closePhotoLightbox()" aria-label="关闭大图">× 关闭</button><img id="lightboxImage" alt="物品大图" onclick="event.stopPropagation()"><div id="lightboxTitle" class="lightbox-title"></div></div><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script><script src="./firebase-config.js"></script><script>
+</main><div id="stockActionModal" class="stock-action-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="stockActionTitle"><div class="stock-action-box"><h2 id="stockActionTitle">库存出库 / 库位移动</h2><p id="stockActionItem"></p><label>操作类型<select id="stockActionType" onchange="updateStockActionFields()"><option value="move">库位移动（可移动部分数量）</option><option value="use">取用（扣减库存）</option><option value="destroy">销毁（扣减库存）</option></select></label><label id="stockActionLocationWrap">目标库位<select id="stockActionLocation"></select></label><label id="stockActionQtyWrap" hidden>数量<input id="stockActionQty" type="number" min="1" step="1" value="1"></label><label>操作备注<input id="stockActionNote" maxlength="200" placeholder="可选：操作原因、经手人"></label><p id="stockActionError" class="warn" aria-live="polite"></p><div><button type="button" id="stockActionSubmit" onclick="submitStockAction()">确认操作</button><button type="button" class="alt" onclick="closeStockAction()">取消</button></div></div></div><div id="photoLightbox" class="photo-lightbox" role="dialog" aria-modal="true" aria-label="物品照片放大查看" onclick="closePhotoLightbox()"><button type="button" class="lightbox-close" onclick="closePhotoLightbox()" aria-label="关闭大图">× 关闭</button><img id="lightboxImage" alt="物品大图" onclick="event.stopPropagation()"><div id="lightboxTitle" class="lightbox-title"></div></div><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script><script src="./firebase-config.js"></script><script>
 const $=id=>document.getElementById(id);
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 const uuid=()=>crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);
 function download(name,obj){let b=new Blob([JSON.stringify(obj,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
-function readJSON(file){return new Promise((resolve,reject)=>{if(!file||file.size>6000000)return reject(Error('文件过大或未选择'));let r=new FileReader();r.onload=()=>{try{resolve(JSON.parse(r.result))}catch{reject(Error('不是有效的 JSON 文件'))}};r.onerror=()=>reject(Error('无法读取文件'));r.readAsText(file)})}
+function readJSON(file){return new Promise((resolve,reject)=>{if(!file||file.size>40000000)return reject(Error('文件过大或未选择'));let r=new FileReader();r.onload=()=>{try{resolve(JSON.parse(r.result))}catch{reject(Error('不是有效的 JSON 文件'))}};r.onerror=()=>reject(Error('无法读取文件'));r.readAsText(file)})}
 function msg(t){alert(t)}
 function saveLocal(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch{alert('保存失败，可能是照片太大或浏览器存储已满，请先导出备份。');return false}}
 function loadLocal(k,fallback){try{return JSON.parse(localStorage.getItem(k))||fallback}catch{return fallback}}
@@ -139,9 +139,9 @@ function render(){
  optionUI();updateSearchControls();
  $('summary').textContent=`库存版本 V${db.version} · ${db.items.length} 种物品 · 总数量 ${db.items.reduce((s,i)=>s+i.qty,0)} · 待审批 ${db.requests.filter(r=>r.status==='待审批').length}`;
  let q=$('search').value.trim().toLowerCase(),mode=$('searchMode').value,choice=$('searchChoice').value;
- $('items').innerHTML=db.items.filter(i=>mode==='name'?i.name.toLowerCase().includes(q):mode==='category'?(!choice||i.category===choice):mode==='location'?(!choice||i.location===choice):q===''?true:(Number.isFinite(Number(q))&&( $('qtyMode').value==='eq'?i.qty===Number(q):$('qtyMode').value==='gte'?i.qty>=Number(q):i.qty<=Number(q)))).map(i=>`<tr><td>${imageFor(i)?`<button type="button" class="photo-open" data-photo-id="${esc(i.id)}" title="点击查看大图" aria-label="放大查看 ${esc(i.name)} 的图片"><img class="photo zoomable-photo" src="${imageFor(i)}" alt="${esc(i.name)}的照片"></button>`:'<span title="尚未添加照片">📦</span>'}</td><td><b>${esc(i.name)}</b><br><small>${esc(i.category)}</small></td><td>${esc(i.location)}</td><td class="item-notes">${i.notes?esc(i.notes):'<span class="muted">—</span>'}</td><td>${i.qty} ${esc(i.unit)}</td><td><button onclick="edit('${i.id}')">编辑</button><button type="button" onclick="pickPhotoForItem('${i.id}')">${imageFor(i)?'更换照片':'添加照片'}</button><button class="danger" onclick="deletePhotoForItem('${i.id}')">删除照片</button><button class="danger" onclick="removeItem('${i.id}')">删除</button></td></tr>`).join('');
+ $('items').innerHTML=db.items.filter(i=>mode==='name'?i.name.toLowerCase().includes(q):mode==='category'?(!choice||i.category===choice):mode==='location'?(!choice||i.location===choice):q===''?true:(Number.isFinite(Number(q))&&( $('qtyMode').value==='eq'?i.qty===Number(q):$('qtyMode').value==='gte'?i.qty>=Number(q):i.qty<=Number(q)))).map(i=>`<tr><td>${imageFor(i)?`<button type="button" class="photo-open" data-photo-id="${esc(i.id)}" title="点击查看大图" aria-label="放大查看 ${esc(i.name)} 的图片"><img class="photo zoomable-photo" src="${imageFor(i)}" alt="${esc(i.name)}的照片"></button>`:'<span title="尚未添加照片">📦</span>'}</td><td><b>${esc(i.name)}</b><br><small>${esc(i.category)}</small></td><td>${esc(i.location)}</td><td class="item-notes">${i.notes?esc(i.notes):'<span class="muted">—</span>'}</td><td>${i.qty} ${esc(i.unit)}</td><td><button onclick="edit('${i.id}')">编辑</button><button type="button" onclick="openStockAction('${i.id}')">出库</button><button type="button" onclick="pickPhotoForItem('${i.id}')">${imageFor(i)?'更换照片':'添加照片'}</button><button class="danger" onclick="removeItem('${i.id}')">删除</button></td></tr>`).join('');
  limitInventoryToTenRows();
- $('requests').innerHTML=db.requests.map(r=>`<tr><td>${esc(r.family)}<br>${esc(r.itemName)}<br><small>${esc(r.member||'')}</small></td><td>${esc(r.kind)} × ${r.qty}</td><td>${esc(r.status)}${r.kind==='借用'&&['借出中','部分归还','已归还'].includes(r.status)?`<br><small>已归还 ${r.returnedQty||0}/${r.qty}</small>`:''}</td><td>${r.status==='待审批'?`<button onclick="decide('${r.id}','批准')">批准出库</button><button class="danger" onclick="decide('${r.id}','拒绝')">拒绝</button>`:''}${['借出中','部分归还'].includes(r.status)?`<button onclick="decide('${r.id}','归还')">登记归还</button>`:''}<button class="danger" onclick="deleteRequest('${r.id}')">删除申请</button></td></tr>`).join('');
+
  $('history').innerHTML=db.history.map((h,index)=>`<p><small>${esc(h.time)}</small> · ${esc(h.action)} <button class="danger" onclick="deleteHistory(${index})">删除记录</button></p>`).join('')||'<p class="muted">暂无记录</p>';
 }
 $('form').onsubmit=async e=>{e.preventDefault();try{
@@ -240,6 +240,71 @@ async function loadCloudInventory(){
   $('ghPublishStatus').textContent='已载入云端库存 V'+snapshot.version+'；本机历史和旧申请记录保留';
  }catch(e){msg('载入云端失败：'+e.message)}
 }
+
+// v4.1 库位移动 / 取用 / 销毁：事务只操作云端权威库存，避免本机旧版本覆盖在线申请。
+let stockActionItemId=null;
+function openStockAction(id){
+ const item=db.items.find(x=>x.id===id);if(!item)return msg('找不到物品');
+ if(!fzhAdminReady)return msg('请先登录管理员账号，再执行出库操作');
+ stockActionItemId=id;$('stockActionItem').textContent=item.name+'（本机显示库存 '+item.qty+' '+(item.unit||'件')+'；提交时以云端数量为准）';
+ $('stockActionType').value='move';$('stockActionQty').value='1';$('stockActionNote').value='';$('stockActionError').textContent='';
+ const locations=[...new Set([...db.locations,item.location].filter(Boolean))];
+ $('stockActionLocation').replaceChildren(...locations.map(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;return o}));
+ $('stockActionLocation').value=item.location;updateStockActionFields();$('stockActionModal').hidden=false;
+}
+function updateStockActionFields(){const move=$('stockActionType').value==='move';$('stockActionLocationWrap').hidden=!move;$('stockActionQtyWrap').hidden=false;}
+function closeStockAction(){$('stockActionModal').hidden=true;stockActionItemId=null;}
+async function submitStockAction(){
+ const id=stockActionItemId,type=$('stockActionType').value,qty=Number($('stockActionQty').value),location=$('stockActionLocation').value,note=$('stockActionNote').value.trim();
+ const error=$('stockActionError'),button=$('stockActionSubmit');error.textContent='';
+ if(!fzhAdminReady)return error.textContent='管理员未登录';
+ if(!['move','use','destroy'].includes(type))return error.textContent='操作类型无效';
+ if(!Number.isSafeInteger(qty)||qty<1)return error.textContent='请输入有效的操作数量';
+ if(type==='move'&&!location)return error.textContent='请选择目标库位';
+ const label={move:'库位移动',use:'取用',destroy:'销毁'}[type];
+ if(!confirmThree(label,type==='move'?'移动 '+qty+' 件到 '+location:'数量 '+qty))return;
+ button.disabled=true;
+ try{
+  const ref=fzhAdminStore.doc('private/inventory');let nextVersion=0,summary='';
+  await fzhAdminStore.runTransaction(async tx=>{
+   const d=await tx.get(ref);if(!d.exists||!validSnapshot(d.data().snapshot))throw Error('云端尚未发布有效库存，请先从云端载入库存');
+   const snapshot=d.data().snapshot,item=snapshot.items.find(x=>x.id===id);if(!item)throw Error('云端找不到该物品，请先从云端载入最新库存');
+   if(type==='move'){
+    if(item.location===location)throw Error('目标库位与当前库位相同');
+    if(item.qty<qty)throw Error('云端库存不足，目前仅剩 '+item.qty);
+    if(qty===item.qty){
+     summary='整批库位移动：'+item.name+' × '+qty+' '+item.location+' → '+location;
+     item.location=location;
+    }else{
+     // Split one stock record into two independent records to preserve quantities in both locations.
+     if(snapshot.items.length>=5000)throw Error('库存条目已达到上限，无法拆分');
+     const from=item.location,oldName=item.name;
+     const moved={...item,id:uuid(),qty,location,photo:''};
+     moved.name=uniqueName(oldName,snapshot.items);
+     item.qty-=qty;snapshot.items.push(moved);
+     summary='部分库位移动：'+oldName+' × '+qty+' '+from+' → '+location+'（新条目：'+moved.name+'）';
+    }
+    if(!Array.isArray(snapshot.locations))snapshot.locations=[];
+    if(!snapshot.locations.includes(location))snapshot.locations.push(location);
+   }else{
+    if(item.qty<qty)throw Error('云端库存不足，目前仅剩 '+item.qty);
+    item.qty-=qty;summary=label+'：'+item.name+' × '+qty;
+   }
+   snapshot.version++;nextVersion=snapshot.version;
+   tx.update(ref,{snapshot,updatedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedBy:fzhAdminAuth.currentUser.uid});
+  });
+  closeStockAction();
+  // Refresh from cloud without confirmation because this action just committed a transaction.
+  const current=await ref.get(),snap=current.data().snapshot;
+  if(validSnapshot(snap)){
+   db.items=snap.items.map(i=>({...i}));db.categories=snap.categories||[];db.locations=snap.locations||[];
+   db.version=snap.version;cloudBaseVersion=snap.version;
+   db.history.unshift({time:new Date().toLocaleString(),action:summary+(note?'；备注：'+note:'')});db.history=db.history.slice(0,500);
+   persist();$('ghPublishStatus').textContent=label+'成功，云端版本 V'+snap.version+'；家庭端会自动更新。';
+  }
+ }catch(e){error.textContent='操作失败：'+e.message}finally{button.disabled=false}
+}
+
 let onlineRequestDocs=[];
 async function loadOnlineRequests(){
  if(!fzhAdminReady)return;
@@ -305,7 +370,7 @@ async function backup(){
  for(const item of copy.items){if(photoCache.has(item.id))item.photo=photoCache.get(item.id);}
  download('福音之家_管理员完整备份_'+Date.now()+'.json',{type:'fzh-admin-backup',schema:1,data:copy});
 }
-async function restore(file){try{let d=await readJSON(file);if(d.type!=='fzh-admin-backup'||d.schema!==1||!Array.isArray(d.data?.items)||!Array.isArray(d.data?.requests)||!Array.isArray(d.data?.history)||!Number.isSafeInteger(d.data.version))throw Error('备份格式不正确');if(confirmThree('导入并覆盖','管理员完整备份')){db=d.data;db.categories=Array.isArray(db.categories)?db.categories:['饰品','用品','礼物','未知','图书','工具'];db.locations=Array.isArray(db.locations)?db.locations:['A1','A2','A3','J1','P1','P2','S1'];persist()}}catch(e){msg(e.message)}}
+async function restore(file){try{let d=await readJSON(file);if(d.type!=='fzh-admin-backup'||d.schema!==1||!Array.isArray(d.data?.items)||!Number.isSafeInteger(d.data.version))throw Error('备份格式不正确');if(confirmThree('导入并覆盖','管理员完整备份')){db=d.data;db.requests=Array.isArray(db.requests)?db.requests:[];db.history=Array.isArray(db.history)?db.history:[];db.categories=Array.isArray(db.categories)?db.categories:['饰品','用品','礼物','未知','图书','工具'];db.locations=Array.isArray(db.locations)?db.locations:['A1','A2','A3','J1','P1','P2','S1'];cloudBaseVersion=null;persist();$('ghPublishStatus').textContent='备份已恢复到本机。发布前请先核对云端版本；不要直接覆盖较新的云端库存。';msg('备份导入成功。请核对库存，再决定是否发布云端。')}}catch(e){msg(e.message)}}
 async function importRequest(file){try{let d=await readJSON(file);if(d.type!=='fzh-family-request'||d.schema!==1||typeof d.id!=='string'||d.id.length>100||typeof d.family!=='string'||d.family.length>100||typeof d.itemId!=='string'||!['领取','借用'].includes(d.kind)||!Number.isSafeInteger(d.qty)||d.qty<1||d.qty>10000)throw Error('申请文件格式不正确');if(db.requests.some(r=>r.id===d.id))return msg('这个申请已经导入过，不能重复导入');let i=db.items.find(x=>x.id===d.itemId);if(!i)throw Error('对应物品不存在，可能是旧版库存');if(!confirmThree('导入','家庭申请：'+d.family+' / '+i.name))return;db.requests.unshift({id:d.id,family:d.family,member:String(d.member||'').slice(0,60),itemId:i.id,itemName:i.name,kind:d.kind,qty:d.qty,status:'待审批',date:d.date});db.history.unshift({time:new Date().toLocaleString(),action:'收到申请：'+d.family+' '+i.name});persist();msg('申请已导入，等待审批')}catch(e){msg(e.message)}}
 function decide(id,action){let r=db.requests.find(x=>x.id===id),i=r&&db.items.find(x=>x.id===r.itemId);if(!r)return;if(action==='拒绝'&&r.status==='待审批'){r.status='已拒绝'}else if(action==='批准'&&r.status==='待审批'){if(!i||i.qty<r.qty)return msg('库存不足，不能批准');i.qty-=r.qty;r.status=r.kind==='借用'?'借出中':'已领取'}else if(action==='归还'&&['借出中','部分归还'].includes(r.status)){return processReturn(r)}else return;touch(`${action}：${r.family} ${r.itemName} × ${r.qty}`);persist()}
 
