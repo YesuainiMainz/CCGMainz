@@ -41,10 +41,13 @@ button{touch-action:manipulation}
  #inventoryScroll td:last-child button{flex:1 1 90px}
  #onlineRequestsScroll{overflow-x:auto}
 }
+#libraryRequestScroll{overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+#libraryRequestScroll table{width:100%;min-width:430px}
+@media(max-width:620px){#libraryRequestScroll{overflow-x:auto}}
 </style><header><h1>MCG Lager · 管理员版</h1><div>集中仓库 · 云端自动同步</div></header><main>
 <div class="card"><h2>库存概况</h2><span id="summary"></span><p class="warn">登录后自动同步云端库存。保存物品或恢复备份后将自动上传；建议定期导出完整备份。</p><button onclick="backup()">导出完整备份</button><label>恢复完整备份 <input type="file" accept=".json" onchange="restore(this.files[0]);this.value=''"></label></div>
 <div class="card" id="firebasePublisher"><h2>管理员登录 · 云端自动同步</h2><p class="warn">登录后须拥有管理员授权。库存不再发布到公开 GitHub 仓库。</p><div class="grid"><label>管理员账号<input id="adminEmail" type="email" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="请输入管理员账号"></label><label>管理员密码<input id="adminPassword" type="password" name="password" autocomplete="current-password"></label></div><button type="button" id="adminLoginButton" onclick="adminSignIn()">管理员登录</button><button type="button" class="alt" onclick="adminSignOut()">退出</button><p id="adminAuthStatus" class="warn">尚未登录。</p><p id="libraryMirrorStatus" class="muted">MCG图书馆公开目录：管理员登录后自动同步。</p><p><a href="./library.html" target="_blank" rel="noopener">查看 MCG图书馆（无需登录）</a></p><p id="ghPublishStatus" class="warn">登录后自动同步云端库存</p><p class="muted">首次配置管理员权限见部署说明。照片按物品单独保存在私密 Firestore 文档中，不再占用库存快照的 1 MiB 容量；每张照片上传时自动压缩。</p></div><div class="card" id="memberApproval"><h2>家庭成员审批</h2><button type="button" onclick="loadMembers()">刷新申请列表</button><p id="memberStatus" class="muted">请先以管理员身份登录。</p><div id="memberList"></div></div>
-<div class="card"><h2>在线申请审批 / 归还</h2><p class="muted">家庭端提交后自动出现。批准时在 Firestore 事务中检查库存并扣减，防止多人同时申请造成超额出库。归还支持分批登记。</p><button onclick="loadOnlineRequests()">刷新在线申请</button><p id="onlineRequestStatus" class="warn">请先登录管理员账号。</p><div class="scroll ten-row-table" id="onlineRequestsScroll"><table><thead><tr><th>申请人 / 物品</th><th>申请</th><th>状态</th><th>操作</th></tr></thead><tbody id="onlineRequestRows"></tbody></table></div></div><div class="card"><h2>分类与位置管理</h2><div class="grid"><div><b>分类</b><div id="categoriesList"></div><input id="newCategory" placeholder="新分类名称"><button onclick="addOption('categories','newCategory')">添加分类</button></div><div><b>存放位置</b><div id="locationsList"></div><input id="newLocation" placeholder="新位置名称"><button onclick="addOption('locations','newLocation')">添加位置</button></div></div></div>
+<div class="card"><h2>MCG图书馆 · 借书意向通知</h2><p class="muted">访客只需填写姓名即可发送通知；此处仅供查看，不进行审批或出入库操作。该列表与家庭端申请完全独立。</p><p id="libraryRequestStatus" class="muted">登录后自动加载通知。</p><div class="scroll" id="libraryRequestScroll"><table><thead><tr><th>图书</th><th>姓名</th><th>提交时间</th></tr></thead><tbody id="libraryRequestRows"></tbody></table></div></div><div class="card"><h2>在线申请审批 / 归还</h2><p class="muted">家庭端提交后自动出现。批准时在 Firestore 事务中检查库存并扣减，防止多人同时申请造成超额出库。归还支持分批登记。</p><button onclick="loadOnlineRequests()">刷新在线申请</button><p id="onlineRequestStatus" class="warn">请先登录管理员账号。</p><div class="scroll ten-row-table" id="onlineRequestsScroll"><table><thead><tr><th>申请人 / 物品</th><th>申请</th><th>状态</th><th>操作</th></tr></thead><tbody id="onlineRequestRows"></tbody></table></div></div><div class="card"><h2>分类与位置管理</h2><div class="grid"><div><b>分类</b><div id="categoriesList"></div><input id="newCategory" placeholder="新分类名称"><button onclick="addOption('categories','newCategory')">添加分类</button></div><div><b>存放位置</b><div id="locationsList"></div><input id="newLocation" placeholder="新位置名称"><button onclick="addOption('locations','newLocation')">添加位置</button></div></div></div>
 <input id="itemPhotoPicker" type="file" accept="image/*" style="display:none" onchange="savePhotoForItem(this.files[0]);this.value=''"><div class="card" id="itemEditorSection"><h2>添加 / 编辑物品</h2><form id="form"><input type="hidden" name="id"><div class="grid"><label>名称 *<input name="name" required></label><label>分类<select name="category" id="categorySelect"></select></label><label>存放位置<select name="location" id="locationSelect"></select></label><label>库存数量<input name="qty" type="number" min="0" step="1" value="1" required></label><label>单位<input name="unit" value="个"></label><label>照片<input id="photo" type="file" accept="image/*"></label><label>备注<input name="notes"></label></div><button type="submit">保存物品</button><button type="button" class="alt" onclick="clearForm()">清空表单</button><button type="button" class="danger" id="editorDeleteButton" style="display:none" onclick="deleteEditingItem()">删除此物品</button></form></div>
 <div class="card"><h2>物品库存</h2><div class="grid">
 <label>搜索方式<select id="searchMode" onchange="updateSearchControls();render()"><option value="name">名称</option><option value="category">分类</option><option value="location">存放位置</option><option value="qty">数量</option></select></label>
@@ -216,6 +219,33 @@ function removeItem(id){let i=db.items.find(x=>x.id===id);if(i&&confirmThree('�
 // Only the admin can write publicLibrary; visitors cannot read private/inventory or itemPhotos.
 let libraryMirrorTimer=null,libraryMirrorRunning=false,libraryMirrorQueued=false;
 let libraryCloudItems=null;
+let libraryRequestsUnsub=null;
+function stopLibraryRequestNotifications(){
+ if(libraryRequestsUnsub){libraryRequestsUnsub();libraryRequestsUnsub=null;}
+}
+function listenLibraryRequestNotifications(){
+ stopLibraryRequestNotifications();
+ if(!fzhAdminReady)return;
+ libraryRequestsUnsub=fzhAdminStore.collection('libraryRequests').orderBy('createdAt','desc').limit(100)
+ .onSnapshot(s=>{
+  const tbody=$('libraryRequestRows');tbody.replaceChildren();
+  for(const d of s.docs){
+   const r=d.data(),tr=document.createElement('tr');
+   for(const value of [r.bookName||'—',r.borrowerName||'—',r.createdAt?.toDate?.()?.toLocaleString('zh-CN')||'—']){
+    const td=document.createElement('td');td.textContent=value;tr.append(td);
+   }
+   tbody.append(tr);
+  }
+  $('libraryRequestStatus').textContent='共显示最近 '+s.size+' 条借书意向（仅通知）';
+  requestAnimationFrame(()=>limitLibraryRequestRows());
+ },e=>{$('libraryRequestStatus').textContent='借书通知加载失败：'+e.message;});
+}
+function limitLibraryRequestRows(){
+ const p=$('libraryRequestScroll'),t=p?.querySelector('table');if(!p||!t)return;
+ const rows=Array.from(t.tBodies[0].rows).slice(0,5);
+ p.style.maxHeight=Math.ceil(t.tHead.getBoundingClientRect().height+rows.reduce((n,r)=>n+r.getBoundingClientRect().height,0)+2)+'px';
+}
+
 function scheduleLibraryMirror(){
  if(!fzhAdminReady||!libraryCloudItems)return;
  if(libraryMirrorTimer)clearTimeout(libraryMirrorTimer);
@@ -248,7 +278,6 @@ async function syncPublicLibrary(){
    const thumb=await libraryThumbnail(photoCache.get(item.id)||item.photo||'');
    desired.set(item.id,{
     name:String(item.name||'').slice(0,120),category:'图书',
-    location:String(item.location||'').slice(0,120),
     qty:Number.isSafeInteger(item.qty)?item.qty:0,
     unit:String(item.unit||'个').slice(0,20),
     notes:String(item.notes||'').slice(0,500),
@@ -391,7 +420,7 @@ function startCloudListener(){
 let fzhAdminAuth=null,fzhAdminStore=null,fzhAdminReady=false,cloudBaseVersion=null;
 function setAdminLoginButtonState(){const b=$('adminLoginButton');if(!b)return;b.disabled=!!(fzhAdminAuth?.currentUser||adminLoginPending);b.textContent=fzhAdminAuth?.currentUser?'已登录':adminLoginPending?'登录中…':'管理员登录';}
 let adminLoginPending=false;
-function initAdminFirebase(){const c=window.FZH_FIREBASE_CONFIG;if(!c||c.apiKey.startsWith('REPLACE')){document.getElementById('adminAuthStatus').textContent='请先配置 firebase-config.js';return;}firebase.initializeApp(c);fzhAdminAuth=firebase.auth();fzhAdminStore=firebase.firestore();fzhAdminAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e=>console.warn('持久登录设置失败',e));fzhAdminAuth.onAuthStateChanged(async u=>{fzhAdminReady=false;setAdminLoginButtonState();if(!u){if(photoUnsub){photoUnsub();photoUnsub=null;}photoCache.clear();libraryCloudItems=null;document.getElementById('adminAuthStatus').textContent='尚未登录';stopCloudListener();return;}try{const d=await fzhAdminStore.doc('admins/'+u.uid).get();if(!d.exists){document.getElementById('adminAuthStatus').textContent='账号已登录，但不是管理员。请按说明在 Firestore 添加 admins/'+u.uid;return;}fzhAdminReady=true;listenAdminPhotos();startCloudListener();loadOnlineRequests();document.getElementById('adminAuthStatus').textContent='管理员已验证：'+u.email;loadMembers();}catch(e){document.getElementById('adminAuthStatus').textContent='权限检查失败：'+e.message;}});}
+function initAdminFirebase(){const c=window.FZH_FIREBASE_CONFIG;if(!c||c.apiKey.startsWith('REPLACE')){document.getElementById('adminAuthStatus').textContent='请先配置 firebase-config.js';return;}firebase.initializeApp(c);fzhAdminAuth=firebase.auth();fzhAdminStore=firebase.firestore();fzhAdminAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e=>console.warn('持久登录设置失败',e));fzhAdminAuth.onAuthStateChanged(async u=>{fzhAdminReady=false;setAdminLoginButtonState();if(!u){stopLibraryRequestNotifications();if(photoUnsub){photoUnsub();photoUnsub=null;}photoCache.clear();libraryCloudItems=null;document.getElementById('adminAuthStatus').textContent='尚未登录';stopCloudListener();return;}try{const d=await fzhAdminStore.doc('admins/'+u.uid).get();if(!d.exists){document.getElementById('adminAuthStatus').textContent='账号已登录，但不是管理员。请按说明在 Firestore 添加 admins/'+u.uid;return;}fzhAdminReady=true;listenLibraryRequestNotifications();listenAdminPhotos();startCloudListener();loadOnlineRequests();document.getElementById('adminAuthStatus').textContent='管理员已验证：'+u.email;loadMembers();}catch(e){document.getElementById('adminAuthStatus').textContent='权限检查失败：'+e.message;}});}
 // 保存账号（仅邮箱，不保存密码），并让浏览器密码管理器识别 username 字段。
 const FZH_ADMIN_ACCOUNT_KEY='fzh_admin_account';
 try{$('adminEmail').value=localStorage.getItem(FZH_ADMIN_ACCOUNT_KEY)||'';}catch(e){}

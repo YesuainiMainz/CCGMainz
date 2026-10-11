@@ -22,24 +22,71 @@ th{position:sticky;top:0;background:white;z-index:2}img{width:74px;height:74px;o
  tr{border:1px solid #dce7df;border-radius:12px;margin:8px 2px;padding:12px;background:#fff;min-height:95px}
  td{border:0;padding:4px 0}td:first-child{float:left;width:86px;margin-right:10px}
  td:nth-child(2){font-size:17px;font-weight:600}
- td:nth-child(3)::before{content:'库位：';font-weight:600}
- td:nth-child(4)::before{content:'备注：';font-weight:600}
- td:nth-child(5)::before{content:'库存：';font-weight:600}
+ td:nth-child(3)::before{content:'备注：';font-weight:600}
+ td:nth-child(4)::before{content:'库存：';font-weight:600}
  td:last-child{clear:both}
 }
+
+.borrow{background:#28684a;color:white;border:0;border-radius:8px;padding:9px 12px;cursor:pointer;min-height:42px;margin:4px 0}
+.borrow:disabled{opacity:.55;cursor:wait}
+#borrowDialog[hidden]{display:none}
+#borrowDialog{position:fixed;inset:0;background:#0009;z-index:25;display:flex;align-items:center;justify-content:center;padding:15px}
+#borrowPanel{background:white;width:min(100%,420px);padding:20px;border-radius:14px}
+#borrowPanel h2{margin:0 0 10px}#borrowPanel label{display:block;margin:12px 0}
+#borrowPanel .actions{display:flex;gap:8px;justify-content:flex-end}
+#borrowPanel .actions button{padding:10px 16px;border-radius:8px;border:1px solid #ccd6ce}
+#sendBorrow{background:#28684a;color:white;border:0}
+#borrowMessage{min-height:24px;overflow-wrap:anywhere}
 </style></head>
 <body><header><h1>MCG图书馆</h1><div>公开图书目录 · 无需登录</div></header>
-<main><section class="card"><label for="search">搜索图书</label><input id="search" placeholder="输入图书名称、库位或备注" autocomplete="off">
+<main><section class="card"><label for="search">搜索图书</label><input id="search" placeholder="输入图书名称或备注" autocomplete="off">
 <p id="status" class="muted" aria-live="polite">正在加载图书…</p></section>
-<section class="card"><div id="bookScroll"><table><thead><tr><th>图片</th><th>名称</th><th>库位</th><th>备注</th><th>库存</th></tr></thead><tbody id="books"></tbody></table></div></section>
+<section class="card"><div id="bookScroll"><table><thead><tr><th>图片</th><th>名称</th><th>备注</th><th>库存 / 借书</th></tr></thead><tbody id="books"></tbody></table></div></section>
 </main>
+<div id="borrowDialog" hidden role="dialog" aria-modal="true" aria-labelledby="borrowTitle">
+<form id="borrowPanel"><h2 id="borrowTitle">我想借这本书</h2>
+<p id="borrowBookName"></p><label>您的姓名 <input id="borrowerName" maxlength="60" required autocomplete="name" placeholder="请输入姓名"></label>
+<p id="borrowMessage" class="muted" aria-live="polite"></p>
+<div class="actions"><button id="cancelBorrow" type="button">取消</button><button id="sendBorrow" type="submit">发送借书申请</button></div>
+</form></div>
 <div id="lightbox" hidden role="dialog" aria-modal="true" aria-label="查看图书照片"><button id="closePhoto" type="button">关闭 ×</button><img id="bigPhoto" alt="图书照片"></div>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="./firebase-config.js"></script>
 <script>
 const $=id=>document.getElementById(id);
-let books=[];
+let books=[],publicDb=null,borrowBook=null,borrowSubmitting=false;
+function openBorrow(book){
+ if(borrowSubmitting)return;
+ borrowBook=book;
+ $('borrowBookName').textContent='图书：'+book.name;
+ $('borrowerName').value='';$('borrowMessage').textContent='';
+ $('borrowDialog').hidden=false;$('borrowerName').focus();
+}
+function closeBorrow(){
+ if(borrowSubmitting)return;
+ $('borrowDialog').hidden=true;borrowBook=null;
+}
+$('cancelBorrow').addEventListener('click',closeBorrow);
+$('borrowDialog').addEventListener('click',e=>{if(e.target===$('borrowDialog'))closeBorrow()});
+$('borrowPanel').addEventListener('submit',async e=>{
+ e.preventDefault();
+ if(borrowSubmitting||!borrowBook||!publicDb)return;
+ const name=$('borrowerName').value.trim();
+ if(!name||name.length>60){$('borrowMessage').textContent='请输入不超过60字的姓名';return;}
+ borrowSubmitting=true;$('sendBorrow').disabled=true;
+ $('borrowMessage').textContent='正在发送…';
+ try{
+  await publicDb.collection('libraryRequests').add({
+   bookId:borrowBook.id,bookName:borrowBook.name,borrowerName:name,
+   createdAt:firebase.firestore.FieldValue.serverTimestamp()
+  });
+  $('borrowMessage').textContent='已发送给管理员。此申请仅用于通知，不代表借阅已批准。';
+  $('sendBorrow').textContent='已发送';
+  setTimeout(()=>{borrowSubmitting=false;$('sendBorrow').disabled=false;$('sendBorrow').textContent='发送借书申请';closeBorrow();},1200);
+ }catch(err){$('borrowMessage').textContent='发送失败：'+err.message;borrowSubmitting=false;$('sendBorrow').disabled=false;}
+});
+
 function makeCell(tr,text,cls){const td=document.createElement('td');td.textContent=text;if(cls)td.className=cls;tr.append(td);return td}
 function fitEight(){
  const panel=$('bookScroll'),table=panel.querySelector('table');
@@ -49,7 +96,7 @@ function fitEight(){
 }
 function render(){
  const q=$('search').value.trim().toLocaleLowerCase('zh-CN');
- const visible=books.filter(b=>[b.name,b.location,b.notes].some(v=>String(v||'').toLocaleLowerCase('zh-CN').includes(q)));
+ const visible=books.filter(b=>[b.name,b.notes].some(v=>String(v||'').toLocaleLowerCase('zh-CN').includes(q)));
  const tbody=$('books');tbody.replaceChildren();
  for(const book of visible){
   const tr=document.createElement('tr'),td=document.createElement('td');
@@ -58,8 +105,10 @@ function render(){
    img.addEventListener('click',()=>{$('bigPhoto').src=book.photo;$('lightbox').hidden=false;});
    td.append(img);
   }else td.textContent='📚';
-  tr.append(td);makeCell(tr,book.name);makeCell(tr,book.location||'—');
-  makeCell(tr,book.notes||'—','note');makeCell(tr,String(book.qty)+' '+(book.unit||'个'));
+  tr.append(td);makeCell(tr,book.name);
+  makeCell(tr,book.notes||'—','note');const stock=makeCell(tr,String(book.qty)+' '+(book.unit||'个'));
+  const ask=document.createElement('button');ask.type='button';ask.className='borrow';ask.textContent='📖 我想借';
+  ask.addEventListener('click',()=>openBorrow(book));stock.append(document.createTextNode(' '),ask);
   tbody.append(tr);
  }
  $('status').textContent='共 '+visible.length+' 种图书 · 目录自动更新';
@@ -68,14 +117,15 @@ function render(){
 $('search').addEventListener('input',render);
 $('closePhoto').addEventListener('click',()=>{$('lightbox').hidden=true;$('bigPhoto').removeAttribute('src')});
 $('lightbox').addEventListener('click',e=>{if(e.target===$('lightbox'))$('closePhoto').click()});
-document.addEventListener('keydown',e=>{if(e.key==='Escape')$('closePhoto').click()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){$('closePhoto').click();closeBorrow()}});
 window.addEventListener('resize',fitEight);
 try{
  const c=window.FZH_FIREBASE_CONFIG;
  if(!c||!c.apiKey||c.apiKey.startsWith('REPLACE'))throw Error('尚未配置 Firebase');
  firebase.initializeApp(c);
- firebase.firestore().collection('publicLibrary').onSnapshot(s=>{
-  books=s.docs.map(d=>d.data()).filter(b=>b.category==='图书'&&typeof b.name==='string')
+ publicDb=firebase.firestore();
+ publicDb.collection('publicLibrary').onSnapshot(s=>{
+  books=s.docs.map(d=>({id:d.id,...d.data()})).filter(b=>b.category==='图书'&&typeof b.name==='string')
    .sort((a,b)=>a.name.localeCompare(b.name,'zh-CN'));render();
  },e=>{$('status').textContent='图书加载失败：'+e.message+'。请确认已部署新版 Firestore 安全规则。'});
 }catch(e){$('status').textContent='初始化失败：'+e.message}
