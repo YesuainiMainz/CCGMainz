@@ -58,7 +58,7 @@
  #inventoryScroll td:nth-child(6) button{width:100%}
  #inventoryScroll tr{margin:7px 2px}
 }
-</style><header><h1>MCG Lager · 私密家庭端</h1><div>仅授权成员可查看库存</div></header><main><section class="card" id="authPanel"><h2>家庭成员登录 / 注册</h2><p>首次注册后等待管理员批准。未批准前无法查看库存。</p><div class="grid"><label>邮箱<input id="authEmail" type="email" autocomplete="username"></label><label>密码（至少6位）<input id="authPassword" type="password" autocomplete="current-password"></label></div><div class="grid"><label>家庭名称（注册时填写）<input id="registerFamily" maxlength="80"></label><label>联系人（注册时填写）<input id="registerMember" maxlength="60"></label></div><button type="button" id="familyLoginButton" onclick="fzhLogin()">登录</button><button type="button" onclick="fzhRegister()">注册并申请加入</button><button type="button" class="alt" onclick="fzhResetPassword()">重置密码</button><button type="button" class="alt" onclick="fzhLogout()">退出登录</button><p id="authStatus" class="warn" aria-live="polite">请登录。</p></section><div id="privateContent" hidden>
+</style><header><h1>MCG Lager · 私密家庭端</h1><div>仅授权成员可查看库存</div></header><main><section class="card" id="authPanel"><h2>家庭成员登录 / 注册</h2><p>首次注册后等待管理员批准。未批准前无法查看库存。</p><div class="grid"><label>邮箱<input id="authEmail" type="email" autocomplete="username"></label><label>密码（至少6位）<input id="authPassword" type="password" autocomplete="current-password"></label></div><div class="grid"><label>家庭名称（注册时填写）<input id="registerFamily" maxlength="80"></label><label>联系人（注册时填写）<input id="registerMember" maxlength="60"></label></div><button type="button" id="familyLoginButton" onclick="fzhLogin()">登录</button><button type="button" onclick="fzhRegister()">注册并申请加入</button><button type="button" class="alt" onclick="fzhResetPassword()">重置密码</button><button type="button" class="alt" id="familyLogoutButton" onclick="fzhLogout()">退出登录</button><p id="authStatus" class="warn" aria-live="polite">请登录。</p></section><div id="privateContent" hidden>
 <div class="card"><h2>家庭资料</h2><label>家庭名称 <input id="familyName" placeholder="例如：恩典之家" oninput="savePrefs()"></label><label>申请人名字 <input id="memberName" placeholder="例如：小明" oninput="savePrefs()"></label><p class="muted">仅批准的家庭成员可以查看云端库存，并在线提交借用或领取申请。</p></div>
 <div class="card"><h2>在线库存自动更新</h2><p>仅获批准的成员可以实时读取云端库存；无需导入更新包。</p>
 <p id="lastInventoryChange" class="muted">上次更改时间：正在读取…</p>
@@ -259,12 +259,19 @@ async function fzhRegister(){
  }catch(e){fzhSetStatus('注册失败：'+e.message)}
 }
 async function fzhResetPassword(){try{const email=document.getElementById('authEmail').value.trim();if(!email)throw Error('请填写邮箱');await fzhAuth.sendPasswordResetEmail(email);fzhSetStatus('若邮箱已注册，将收到重置密码邮件。')}catch(e){fzhSetStatus(e.message)}}
+let familyLogoutPending=false;
 async function fzhLogout(){
- if(!fzhAuth?.currentUser)return;
- const accepted=await showAppModal('退出登录','确定退出当前家庭账号吗？');
- if(!accepted)return;
- try{await fzhAuth.signOut();try{localStorage.removeItem('fzh_family_v2')}catch{};fzhSetStatus('已退出登录。')}
- catch(e){fzhSetStatus('退出失败：'+e.message)}
+ if(familyLogoutPending||!fzhAuth?.currentUser)return;
+ familyLogoutPending=true;
+ const button=$('familyLogoutButton');button.disabled=true;
+ try{
+  const accepted=await showAppModal('确认退出登录','确定退出当前家庭账号吗？');
+  if(!accepted)return;
+  await fzhAuth.signOut();
+  try{localStorage.removeItem('fzh_family_v2')}catch{}
+  fzhSetStatus('已退出登录。');
+ }catch(e){fzhSetStatus('退出失败：'+e.message)}
+ finally{familyLogoutPending=false;button.disabled=false}
 }
 try{fzhInit()}catch(e){fzhSetStatus('Firebase 初始化失败：'+e.message)}
 </script></html>

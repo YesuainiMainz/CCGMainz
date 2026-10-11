@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MCG图书馆</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f2f6f2;color:#21392c;font-family:system-ui,"Microsoft YaHei",sans-serif}
+header{background:#24533f;color:white;padding:22px 18px}header h1{margin:0;font-size:1.65rem}
+main{max-width:1060px;margin:auto;padding:16px}
+.card{background:#fff;border-radius:15px;padding:18px;margin:12px 0;box-shadow:0 2px 10px #0001}
+input{width:100%;padding:12px;border:1px solid #c9d8cf;border-radius:9px;font-size:16px}
+#bookScroll{overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;width:100%}th,td{border-bottom:1px solid #e1e9e3;text-align:left;padding:10px;vertical-align:middle}
+th{position:sticky;top:0;background:white;z-index:2}img{width:74px;height:74px;object-fit:cover;border-radius:8px;cursor:zoom-in}
+.note{white-space:normal;overflow-wrap:anywhere;max-width:320px}
+.muted{color:#65796a}
+#lightbox[hidden]{display:none}#lightbox{position:fixed;inset:0;background:#000d;z-index:20;display:flex;align-items:center;justify-content:center;padding:18px}
+#lightbox img{width:auto;height:auto;max-width:95vw;max-height:80vh;object-fit:contain}
+#closePhoto{position:absolute;top:14px;right:14px;border:0;border-radius:8px;padding:12px;background:#fff;color:#222;cursor:pointer}
+@media(max-width:680px){
+ main{padding:8px}.card{padding:12px}
+ #bookScroll{overflow-y:auto;overflow-x:hidden}
+ table,tbody,tr,td{display:block;width:100%}thead{display:none}
+ tr{border:1px solid #dce7df;border-radius:12px;margin:8px 2px;padding:12px;background:#fff;min-height:95px}
+ td{border:0;padding:4px 0}td:first-child{float:left;width:86px;margin-right:10px}
+ td:nth-child(2){font-size:17px;font-weight:600}
+ td:nth-child(3)::before{content:'库位：';font-weight:600}
+ td:nth-child(4)::before{content:'备注：';font-weight:600}
+ td:nth-child(5)::before{content:'库存：';font-weight:600}
+ td:last-child{clear:both}
+}
+</style></head>
+<body><header><h1>MCG图书馆</h1><div>公开图书目录 · 无需登录</div></header>
+<main><section class="card"><label for="search">搜索图书</label><input id="search" placeholder="输入图书名称、库位或备注" autocomplete="off">
+<p id="status" class="muted" aria-live="polite">正在加载图书…</p></section>
+<section class="card"><div id="bookScroll"><table><thead><tr><th>图片</th><th>名称</th><th>库位</th><th>备注</th><th>库存</th></tr></thead><tbody id="books"></tbody></table></div></section>
+</main>
+<div id="lightbox" hidden role="dialog" aria-modal="true" aria-label="查看图书照片"><button id="closePhoto" type="button">关闭 ×</button><img id="bigPhoto" alt="图书照片"></div>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="./firebase-config.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+let books=[];
+function makeCell(tr,text,cls){const td=document.createElement('td');td.textContent=text;if(cls)td.className=cls;tr.append(td);return td}
+function fitEight(){
+ const panel=$('bookScroll'),table=panel.querySelector('table');
+ const rows=Array.from(table.tBodies[0].rows).slice(0,8);
+ const height=rows.reduce((sum,r)=>{const cs=getComputedStyle(r);return sum+r.getBoundingClientRect().height+parseFloat(cs.marginTop||0)+parseFloat(cs.marginBottom||0)},0);
+ panel.style.maxHeight=Math.ceil((getComputedStyle(table.tHead).display==='none'?0:table.tHead.getBoundingClientRect().height)+height+3)+'px';
+}
+function render(){
+ const q=$('search').value.trim().toLocaleLowerCase('zh-CN');
+ const visible=books.filter(b=>[b.name,b.location,b.notes].some(v=>String(v||'').toLocaleLowerCase('zh-CN').includes(q)));
+ const tbody=$('books');tbody.replaceChildren();
+ for(const book of visible){
+  const tr=document.createElement('tr'),td=document.createElement('td');
+  if(book.photo&&book.photo.startsWith('data:image/jpeg;base64,')){
+   const img=document.createElement('img');img.src=book.photo;img.alt=book.name+' 的照片';
+   img.addEventListener('click',()=>{$('bigPhoto').src=book.photo;$('lightbox').hidden=false;});
+   td.append(img);
+  }else td.textContent='📚';
+  tr.append(td);makeCell(tr,book.name);makeCell(tr,book.location||'—');
+  makeCell(tr,book.notes||'—','note');makeCell(tr,String(book.qty)+' '+(book.unit||'个'));
+  tbody.append(tr);
+ }
+ $('status').textContent='共 '+visible.length+' 种图书 · 目录自动更新';
+ requestAnimationFrame(fitEight);
+}
+$('search').addEventListener('input',render);
+$('closePhoto').addEventListener('click',()=>{$('lightbox').hidden=true;$('bigPhoto').removeAttribute('src')});
+$('lightbox').addEventListener('click',e=>{if(e.target===$('lightbox'))$('closePhoto').click()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')$('closePhoto').click()});
+window.addEventListener('resize',fitEight);
+try{
+ const c=window.FZH_FIREBASE_CONFIG;
+ if(!c||!c.apiKey||c.apiKey.startsWith('REPLACE'))throw Error('尚未配置 Firebase');
+ firebase.initializeApp(c);
+ firebase.firestore().collection('publicLibrary').onSnapshot(s=>{
+  books=s.docs.map(d=>d.data()).filter(b=>b.category==='图书'&&typeof b.name==='string')
+   .sort((a,b)=>a.name.localeCompare(b.name,'zh-CN'));render();
+ },e=>{$('status').textContent='图书加载失败：'+e.message+'。请确认已部署新版 Firestore 安全规则。'});
+}catch(e){$('status').textContent='初始化失败：'+e.message}
+</script></body></html>
