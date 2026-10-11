@@ -6,9 +6,44 @@
 .photo-open .photo{display:block;pointer-events:none}
 .photo-lightbox{z-index:2147483647!important}
 .stock-action-overlay[hidden],#stockActionLocationWrap[hidden],#stockActionQtyWrap[hidden]{display:none!important}.stock-action-overlay{position:fixed;inset:0;z-index:2147483646;background:#0009;display:flex;justify-content:center;align-items:center;padding:15px}.stock-action-box{background:white;padding:22px;border-radius:14px;width:min(100%,480px);max-height:90vh;overflow:auto;box-shadow:0 12px 35px #0003}.stock-action-box label{display:block;margin:12px 0}.stock-action-box input,.stock-action-box select{display:block;width:100%;min-height:44px;font-size:16px}.ten-row-scroll{overflow-y:auto;overscroll-behavior:contain;max-height:460px}.ten-row-table{overflow-y:auto;overscroll-behavior:contain}.ten-row-table thead th{position:sticky;top:0;background:white;z-index:2}.ten-row-scroll li{padding:5px 0;border-bottom:1px solid #e2e9e3}
-</style><header><h1>福音之家 · 管理员版</h1><div>集中仓库 · 离线主程序</div></header><main>
-<div class="card"><h2>库存概况</h2><span id="summary"></span><p class="warn">登录后自动同步云端库存；编辑内容保存在本机，刷新网页也不会丢失。确认修改后点击「一键发布私密库存」。请定期导出完整备份。</p><button onclick="backup()">导出完整备份</button><label>恢复完整备份 <input type="file" accept=".json" onchange="restore(this.files[0]);this.value=''"></label></div>
-<div class="card" id="firebasePublisher"><h2>Firebase 私密库存 · 管理员登录与一键发布</h2><p class="warn">登录后须拥有管理员授权。库存不再发布到公开 GitHub 仓库。</p><div class="grid"><label>管理员账号<input id="adminEmail" type="email" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="请输入管理员账号"></label><label>管理员密码<input id="adminPassword" type="password" name="password" autocomplete="current-password"></label></div><button type="button" onclick="adminSignIn()">管理员登录</button><button type="button" class="alt" onclick="adminSignOut()">退出</button><p id="adminAuthStatus" class="warn">尚未登录。</p><button type="button" onclick="publishInventory()" id="ghPublishButton">一键发布私密库存</button><p id="ghPublishStatus" class="warn">登录后自动同步云端库存</p><div id="pendingChanges" class="card" style="background:#f4f8f4;border:1px solid #d5e4d9;margin-top:10px"><b>未发布修改</b><div id="pendingChangesList" class="muted ten-row-scroll">正在检查…</div></div><p class="muted">首次配置管理员权限见部署说明。照片按物品单独保存在私密 Firestore 文档中，不再占用库存快照的 1 MiB 容量；每张照片上传时自动压缩。</p></div><div class="card" id="memberApproval"><h2>家庭成员审批</h2><button type="button" onclick="loadMembers()">刷新申请列表</button><p id="memberStatus" class="muted">请先以管理员身份登录。</p><div id="memberList"></div></div>
+
+:root{color-scheme:light}
+main{width:min(100%,1180px);padding:clamp(10px,2vw,22px)}
+.card{min-width:0}
+button,input,select,textarea{min-height:42px}
+button{touch-action:manipulation}
+#inventoryScroll,#onlineRequestsScroll,#history{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+#inventoryScroll{max-width:100%}
+@media(max-width:900px){
+ .grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr))}
+ .card{padding:14px}
+ .inventory-scroll table{min-width:680px}
+ #onlineRequestsScroll table{min-width:580px}
+}
+@media(max-width:620px){
+ header{padding:14px}header h1{font-size:1.4rem}
+ main{padding:8px}
+ .card{padding:12px;margin:10px 0;border-radius:12px}
+ .grid{grid-template-columns:1fr}
+ label input,label select{display:block;width:100%;margin:5px 0;font-size:16px}
+ button{min-height:44px}
+ #inventoryScroll{overflow-x:hidden}
+ #inventoryScroll table,#inventoryScroll tbody,#inventoryScroll tr,#inventoryScroll td{display:block;width:100%;min-width:0}
+ #inventoryScroll thead{display:none}
+ #inventoryScroll tr{border:1px solid #dce7df;border-radius:12px;padding:10px;margin:8px 2px;background:#fff}
+ #inventoryScroll td{border:0;padding:4px 0;overflow-wrap:anywhere}
+ #inventoryScroll td:first-child{float:left;width:70px;margin-right:10px}
+ #inventoryScroll td:nth-child(2){font-weight:600}
+ #inventoryScroll td:nth-child(3)::before{content:'库位：'}
+ #inventoryScroll td:nth-child(4)::before{content:'备注：'}
+ #inventoryScroll td:nth-child(5)::before{content:'数量：'}
+ #inventoryScroll td:last-child{clear:both;display:flex;flex-wrap:wrap;gap:5px}
+ #inventoryScroll td:last-child button{flex:1 1 90px}
+ #onlineRequestsScroll{overflow-x:auto}
+}
+</style><header><h1>福音之家 · 管理员版</h1><div>集中仓库 · 云端自动同步</div></header><main>
+<div class="card"><h2>库存概况</h2><span id="summary"></span><p class="warn">登录后自动同步云端库存。保存物品或恢复备份后将自动上传；建议定期导出完整备份。</p><button onclick="backup()">导出完整备份</button><label>恢复完整备份 <input type="file" accept=".json" onchange="restore(this.files[0]);this.value=''"></label></div>
+<div class="card" id="firebasePublisher"><h2>管理员登录 · 云端自动同步</h2><p class="warn">登录后须拥有管理员授权。库存不再发布到公开 GitHub 仓库。</p><div class="grid"><label>管理员账号<input id="adminEmail" type="email" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="请输入管理员账号"></label><label>管理员密码<input id="adminPassword" type="password" name="password" autocomplete="current-password"></label></div><button type="button" onclick="adminSignIn()">管理员登录</button><button type="button" class="alt" onclick="adminSignOut()">退出</button><p id="adminAuthStatus" class="warn">尚未登录。</p><p id="ghPublishStatus" class="warn">登录后自动同步云端库存</p><details id="pendingChanges" style="margin-top:12px"><summary>查看待同步修改明细</summary><div id="pendingChangesList" class="muted ten-row-scroll" style="padding:8px">正在检查…</div></details><p class="muted">首次配置管理员权限见部署说明。照片按物品单独保存在私密 Firestore 文档中，不再占用库存快照的 1 MiB 容量；每张照片上传时自动压缩。</p></div><div class="card" id="memberApproval"><h2>家庭成员审批</h2><button type="button" onclick="loadMembers()">刷新申请列表</button><p id="memberStatus" class="muted">请先以管理员身份登录。</p><div id="memberList"></div></div>
 <div class="card"><h2>在线申请审批 / 归还</h2><p class="muted">家庭端提交后自动出现。批准时在 Firestore 事务中检查库存并扣减，防止多人同时申请造成超额出库。归还支持分批登记。</p><button onclick="loadOnlineRequests()">刷新在线申请</button><p id="onlineRequestStatus" class="warn">请先登录管理员账号。</p><div class="scroll ten-row-table" id="onlineRequestsScroll"><table><thead><tr><th>申请人 / 物品</th><th>申请</th><th>状态</th><th>操作</th></tr></thead><tbody id="onlineRequestRows"></tbody></table></div></div><div class="card"><h2>分类与位置管理</h2><div class="grid"><div><b>分类</b><div id="categoriesList"></div><input id="newCategory" placeholder="新分类名称"><button onclick="addOption('categories','newCategory')">添加分类</button></div><div><b>存放位置</b><div id="locationsList"></div><input id="newLocation" placeholder="新位置名称"><button onclick="addOption('locations','newLocation')">添加位置</button></div></div></div>
 <input id="itemPhotoPicker" type="file" accept="image/*" style="display:none" onchange="savePhotoForItem(this.files[0]);this.value=''"><div class="card" id="itemEditorSection"><h2>添加 / 编辑物品</h2><form id="form"><input type="hidden" name="id"><div class="grid"><label>名称 *<input name="name" required></label><label>分类<select name="category" id="categorySelect"></select></label><label>存放位置<select name="location" id="locationSelect"></select></label><label>库存数量<input name="qty" type="number" min="0" step="1" value="1" required></label><label>单位<input name="unit" value="个"></label><label>照片<input id="photo" type="file" accept="image/*"></label><label>备注<input name="notes"></label></div><button type="submit">保存物品</button><button type="button" class="alt" onclick="clearForm()">清空表单</button><button type="button" class="danger" id="editorDeleteButton" style="display:none" onclick="deleteEditingItem()">删除此物品</button></form></div>
 <div class="card"><h2>物品库存</h2><div class="grid">
@@ -87,7 +122,7 @@ function deleteHistory(index){
  // 删除日志不修改库存，也不产生新日志。
  persist();
 }
-function persist(){if(saveLocal(KEY,db)){saveDraft();render()}}
+function persist(){if(saveLocal(KEY,db)){saveDraft();render();scheduleAutoSync()}}
 function touch(action){db.version++;db.history.unshift({time:new Date().toLocaleString(),action});db.history=db.history.slice(0,500)}
 
 function clearForm(){if(!confirmThree('清空','物品录入表单'))return;$('form').reset();$('photo').value='';$('form').elements.id.value='';editPhoto='';$('form').elements.qty.value=1;$('form').elements.unit.value='个';$('editorDeleteButton').style.display='none'}
@@ -105,7 +140,7 @@ function limitInventoryToTenRows(){
  const table=panel.querySelector('table');
  const rows=Array.from(table.tBodies[0].rows);
  const headerHeight=table.tHead.getBoundingClientRect().height;
- const visibleHeight=rows.slice(0,10).reduce((total,row)=>total+row.getBoundingClientRect().height,0);
+ const visibleHeight=rows.slice(0,5).reduce((total,row)=>total+row.getBoundingClientRect().height,0);
  panel.style.maxHeight=Math.ceil(headerHeight+visibleHeight+2)+'px';
 }
 
@@ -143,7 +178,7 @@ function render(){
  limitInventoryToTenRows();
 
  $('history').innerHTML=db.history.map((h,index)=>`<p><small>${esc(h.time)}</small> · ${esc(h.action)} <button class="danger" onclick="deleteHistory(${index})">删除记录</button></p>`).join('')||'<p class="muted">暂无记录</p>';
- requestAnimationFrame(()=>{const h=$('history');const rows=Array.from(h.children).slice(0,10);if(rows.length)h.style.maxHeight=Math.ceil(rows.reduce((n,r)=>n+r.getBoundingClientRect().height+parseFloat(getComputedStyle(r).marginTop||0)+parseFloat(getComputedStyle(r).marginBottom||0),0)+6)+'px';});
+ requestAnimationFrame(()=>{const h=$('history');const rows=Array.from(h.children).slice(0,5);if(rows.length)h.style.maxHeight=Math.ceil(rows.reduce((n,r)=>n+r.getBoundingClientRect().height+parseFloat(getComputedStyle(r).marginTop||0)+parseFloat(getComputedStyle(r).marginBottom||0),0)+6)+'px';});
 }
 $('form').onsubmit=async e=>{e.preventDefault();try{if(!cloudReady)throw Error('请先登录并等待云端库存自动加载完成');
  let d=Object.fromEntries(new FormData(e.target)),qty=Number(d.qty);
@@ -169,8 +204,7 @@ function pickPhotoForItem(id){
 async function savePhotoForItem(file){
  const id=pendingPhotoItemId;pendingPhotoItemId=null;if(!file)return;
  const item=db.items.find(i=>i.id===id);if(!item)return msg('找不到该物品');
- try{if(!confirmThree(imageFor(item)?'更换照片':'增加照片',item.name))return;
-  await setCloudPhoto(id,await photoToData(file));msg('「'+item.name+'」照片已保存到云端');
+ try{await setCloudPhoto(id,await photoToData(file));
  }catch(e){msg('照片上传失败：'+e.message)}
 }
 
@@ -234,7 +268,7 @@ function saveDraft(){
 }
 function limitListToTen(list,container){
  if(!list||!container)return;
- const rows=Array.from(list.children).slice(0,10);
+ const rows=Array.from(list.children).slice(0,5);
  if(!rows.length){container.style.maxHeight='';return;}
  const height=rows.reduce((sum,el)=>{const css=getComputedStyle(el);return sum+el.getBoundingClientRect().height+parseFloat(css.marginTop||0)+parseFloat(css.marginBottom||0)},0);
  const overhead=Array.from(container.children).filter(el=>el!==list).reduce((sum,el)=>sum+el.getBoundingClientRect().height+12,0);
@@ -242,7 +276,7 @@ function limitListToTen(list,container){
 }
 function limitTableToTen(id){
  const el=$(id);if(!el)return;const table=el.querySelector('table');if(!table)return;
- const rows=Array.from(table.tBodies[0]?.rows||[]).slice(0,10);
+ const rows=Array.from(table.tBodies[0]?.rows||[]).slice(0,id==='onlineRequestsScroll'?2:5);
  const height=rows.reduce((sum,row)=>sum+row.getBoundingClientRect().height,0);
  el.style.maxHeight=Math.ceil(table.tHead.getBoundingClientRect().height+height+2)+'px';
 }
@@ -251,9 +285,9 @@ function renderDraftChanges(){
  const changes=draftDiff();area.replaceChildren();
  if(!cloudBaseline){area.textContent='等待云端库存同步…';return;}
  if(!changes.length){area.textContent='没有未发布修改。';return;}
- const count=document.createElement('p');count.textContent='共 '+changes.length+' 项修改（已保存在本机，刷新不会丢失）';area.append(count);
+ const count=document.createElement('p');count.textContent='共 '+changes.length+' 项修改（正在自动同步，失败时保留本机草稿）';area.append(count);
  const list=document.createElement('ul');list.style.cssText='margin:6px 0;padding-left:24px';for(const change of changes){const li=document.createElement('li');li.textContent=change;list.append(li);}area.append(list);requestAnimationFrame(()=>limitListToTen(list,area));
- if(cloudRemoteVersion!==null&&cloudRemoteVersion!==cloudBaseline.version){const warn=document.createElement('p');warn.style.color='#9a351f';warn.textContent='注意：云端库存已变更为 V'+cloudRemoteVersion+'，当前草稿基于 V'+cloudBaseline.version+'。为了防止覆盖在线申请或出库结果，暂时禁止直接发布；请先导出完整备份并核对差异。';area.prepend(warn);}
+ if(cloudRemoteVersion!==null&&cloudRemoteVersion!==cloudBaseline.version){const warn=document.createElement('p');warn.style.color='#9a351f';warn.textContent='注意：云端库存已变更为 V'+cloudRemoteVersion+'，当前草稿基于 V'+cloudBaseline.version+'。为了防止覆盖在线申请或出库结果，已暂停自动覆盖；请导出备份并核对差异。';area.prepend(warn);}
 }
 function applyCloud(doc){
  const snap=doc.data().snapshot;
@@ -269,8 +303,8 @@ function applyCloud(doc){
   cloudBaseline=snap;
   db.items=snap.items.map(i=>({...i}));db.categories=snap.categories||[];db.locations=snap.locations||[];db.version=snap.version;
  }
- cloudReady=true;saveLocal(KEY,db);render();renderDraftChanges();
- $('ghPublishStatus').textContent='云端 V'+snap.version+' · '+(draftDiff().length?'有未发布修改（已保存）':'已自动同步最新库存');
+ cloudReady=true;saveLocal(KEY,db);render();renderDraftChanges();if(draftDiff().length)scheduleAutoSync();
+ $('ghPublishStatus').textContent='云端 V'+snap.version+' · '+(draftDiff().length?'本机修改等待自动同步':'已自动同步最新库存');
 }
 function stopCloudListener(){if(cloudUnsub){cloudUnsub();cloudUnsub=null;}cloudReady=false;cloudRemoteVersion=null;cloudBaseline=null;}
 function startCloudListener(){
@@ -278,7 +312,7 @@ function startCloudListener(){
  cloudUnsub=fzhAdminStore.doc('private/inventory').onSnapshot(doc=>{
   try{
    if(!doc.exists){cloudRemoteVersion=0;cloudReady=true;if(!cloudBaseline)cloudBaseline={version:0,items:[],categories:[],locations:[]};
-    if(!draftDiff().length&&draft&&draft.local){db.items=draft.local.items;db.categories=draft.local.categories;db.locations=draft.local.locations;}saveDraft();render();$('ghPublishStatus').textContent='云端尚无库存，可编辑后首次发布';return;}
+    if(!draftDiff().length&&draft&&draft.local){db.items=draft.local.items;db.categories=draft.local.categories;db.locations=draft.local.locations;}saveDraft();render();$('ghPublishStatus').textContent='云端尚无库存，保存物品后自动上传';return;}
    applyCloud(doc);
   }catch(e){$('ghPublishStatus').textContent='自动同步失败：'+e.message;}
  },e=>{$('ghPublishStatus').textContent='云端连接失败：'+e.message;cloudReady=false;});
@@ -296,12 +330,29 @@ window.addEventListener('resize',()=>{limitTableToTen('onlineRequestsScroll');co
 async function adminSignIn(){try{const email=$('adminEmail').value.trim();await fzhAdminAuth.signInWithEmailAndPassword(email,$('adminPassword').value);try{localStorage.setItem(FZH_ADMIN_ACCOUNT_KEY,email)}catch(e){}}catch(e){document.getElementById('adminAuthStatus').textContent=e.message}}
 async function adminSignOut(){if(fzhAdminAuth)await fzhAdminAuth.signOut()}
 function publicSnapshot(){return {type:'fzh-stock-snapshot',schema:1,version:db.version,exportedAt:new Date().toISOString(),categories:db.categories,locations:db.locations,items:db.items.map(i=>({id:i.id,name:i.name,category:i.category,location:i.location,qty:i.qty,unit:i.unit,notes:i.notes||'',photo:''}))};}
+// v4.5: 只由管理员修改库存；修改后延时合并并自动事务提交。
+let autoSyncTimer=null,autoSyncBusy=false;
+function scheduleAutoSync(){
+ if(autoSyncTimer)clearTimeout(autoSyncTimer);
+ if(!fzhAdminReady||!cloudReady||!cloudBaseline)return;
+ autoSyncTimer=setTimeout(async()=>{
+  autoSyncTimer=null;
+  if(autoSyncBusy){scheduleAutoSync();return;}
+  if(!draftDiff().length)return;
+  if(cloudRemoteVersion!==cloudBaseline.version){
+   $('ghPublishStatus').textContent='同步冲突：云端已更新，本机草稿已保留。请备份后刷新核对，不能自动覆盖其他库存操作。';return;
+  }
+  autoSyncBusy=true;
+  try{await publishInventory();}
+  finally{autoSyncBusy=false;}
+ },650);
+}
 async function publishInventory(){
  const status=$('ghPublishStatus'),btn=$('ghPublishButton');
  if(!fzhAdminReady||!cloudReady||cloudRemoteVersion===null)return status.textContent='请先登录并等待云端库存同步成功';
  const changes=draftDiff();if(!changes.length)return status.textContent='没有未发布的库存修改';
- if(cloudRemoteVersion!==cloudBaseline.version)return status.textContent='发布已阻止：云端库存发生变化。请先导出完整备份并核对修改，避免覆盖线上出库或审批结果。';
- if(!confirm('确定将以下 '+changes.length+' 项修改发布到云端吗？'))return;
+ if(cloudRemoteVersion!==cloudBaseline.version){status.textContent='同步冲突：云端库存已变化，已保留本机修改。请先备份并重新打开页面核对。';return;}
+
  btn.disabled=true;
  try{
   const snapshot=publicSnapshot();if(new TextEncoder().encode(JSON.stringify({snapshot})).length>800000)throw Error('库存快照超过800KB');
@@ -315,7 +366,7 @@ async function publishInventory(){
   });
   db.version=newVersion;cloudRemoteVersion=newVersion;cloudBaseline={...snapshot,version:newVersion};
   localStorage.removeItem(FZH_DRAFT_KEY);draft=null;saveLocal(KEY,db);render();renderDraftChanges();
-  status.textContent='发布成功，云端 V'+newVersion+'；家庭端会自动更新。';
+  status.textContent='已自动保存到云端 V'+newVersion+' · '+new Date().toLocaleString();
  }catch(e){status.textContent='发布失败：'+e.message}finally{btn.disabled=false}
 }
 // v4.1 库位移动 / 取用 / 销毁：事务只操作云端权威库存，避免本机旧版本覆盖在线申请。
@@ -336,6 +387,7 @@ async function submitStockAction(){
  const id=stockActionItemId,type=$('stockActionType').value,qty=Number($('stockActionQty').value),location=$('stockActionLocation').value,note=$('stockActionNote').value.trim();
  const error=$('stockActionError'),button=$('stockActionSubmit');error.textContent='';
  if(!fzhAdminReady)return error.textContent='管理员未登录';
+ if(draftDiff().length||autoSyncBusy)return error.textContent='有库存修改正在同步，请等待完成后再执行出库';
  if(!['move','use','destroy'].includes(type))return error.textContent='操作类型无效';
  if(!Number.isSafeInteger(qty)||qty<1)return error.textContent='请输入有效的操作数量';
  if(type==='move'&&!location)return error.textContent='请选择目标库位';
@@ -448,7 +500,39 @@ async function backup(){
  for(const item of copy.items){if(photoCache.has(item.id))item.photo=photoCache.get(item.id);}
  download('福音之家_管理员完整备份_'+Date.now()+'.json',{type:'fzh-admin-backup',schema:1,data:copy});
 }
-async function restore(file){try{let d=await readJSON(file);if(d.type!=='fzh-admin-backup'||d.schema!==1||!Array.isArray(d.data?.items)||!Number.isSafeInteger(d.data.version))throw Error('备份格式不正确');if(confirmThree('导入并覆盖','管理员完整备份')){db=d.data;db.requests=Array.isArray(db.requests)?db.requests:[];db.history=Array.isArray(db.history)?db.history:[];db.categories=Array.isArray(db.categories)?db.categories:['饰品','用品','礼物','未知','图书','工具'];db.locations=Array.isArray(db.locations)?db.locations:['A1','A2','A3','J1','P1','P2','S1'];if(!cloudBaseline){cloudBaseline={version:cloudRemoteVersion||0,items:[],categories:[],locations:[]};}persist();$('ghPublishStatus').textContent='备份已恢复到本机并保存为未发布草稿，请核对下方修改明细后发布。';msg('备份导入成功。请核对库存，再决定是否发布云端。')}}catch(e){msg(e.message)}}
+async function restore(file){
+ try{
+  if(!fzhAdminReady||!cloudReady)throw Error('请先登录并等待云端连接成功');
+  const d=await readJSON(file);
+  if(d.type!=='fzh-admin-backup'||d.schema!==1||!Array.isArray(d.data?.items)||!Number.isSafeInteger(d.data.version))throw Error('备份格式不正确');
+  if(!confirm('确定用这份备份覆盖当前云端库存吗？所有家庭端会自动更新。建议先保存当前完整备份。'))return;
+  if(autoSyncBusy)throw Error('其他库存修改正在同步，请稍后重试');
+  const restored=d.data;
+  if(restored.items.length>5000||restored.items.some(i=>!i.id||!i.name||!Number.isSafeInteger(i.qty)||i.qty<0))throw Error('备份物品数据不完整');
+  const photos=restored.items.filter(i=>typeof i.photo==='string'&&i.photo.startsWith('data:image/')).map(i=>({id:i.id,data:i.photo}));
+  const snap={type:'fzh-stock-snapshot',schema:1,version:0,exportedAt:new Date().toISOString(),
+    categories:Array.isArray(restored.categories)?restored.categories:[],locations:Array.isArray(restored.locations)?restored.locations:[],
+    items:restored.items.map(i=>({...i,photo:''}))};
+  if(new TextEncoder().encode(JSON.stringify({snapshot:snap})).length>800000)throw Error('备份库存内容过大，无法保存到单份云端库存文档');
+  autoSyncBusy=true;
+  const ref=fzhAdminStore.doc('private/inventory');
+  let nextVersion=0;
+  await fzhAdminStore.runTransaction(async tx=>{
+    const current=await tx.get(ref),old=current.exists?current.data().snapshot:null;
+    if(old&&!validSnapshot(old))throw Error('云端库存格式异常');
+    nextVersion=(old?.version||0)+1;
+    tx.set(ref,{snapshot:{...snap,version:nextVersion},updatedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedBy:fzhAdminAuth.currentUser.uid});
+  });
+  db={...restored,items:snap.items.map(i=>({...i})),version:nextVersion,
+    requests:Array.isArray(restored.requests)?restored.requests:[],history:Array.isArray(restored.history)?restored.history:[]};
+  cloudBaseline={...snap,version:nextVersion};cloudRemoteVersion=nextVersion;
+  draft=null;localStorage.removeItem(FZH_DRAFT_KEY);saveLocal(KEY,db);render();renderDraftChanges();
+  let failed=0;
+  for(const p of photos){try{await setCloudPhoto(p.id,p.data)}catch(e){failed++;console.error('备份照片恢复失败',p.id,e)}}
+  $('ghPublishStatus').textContent='备份已自动同步云端 V'+nextVersion+(failed?'；'+failed+' 张照片上传失败，请保留备份并检查':'');
+ }catch(e){$('ghPublishStatus').textContent='备份恢复失败：'+e.message;msg('备份恢复失败：'+e.message)}
+ finally{autoSyncBusy=false;}
+}
 async function importRequest(file){try{let d=await readJSON(file);if(d.type!=='fzh-family-request'||d.schema!==1||typeof d.id!=='string'||d.id.length>100||typeof d.family!=='string'||d.family.length>100||typeof d.itemId!=='string'||!['领取','借用'].includes(d.kind)||!Number.isSafeInteger(d.qty)||d.qty<1||d.qty>10000)throw Error('申请文件格式不正确');if(db.requests.some(r=>r.id===d.id))return msg('这个申请已经导入过，不能重复导入');let i=db.items.find(x=>x.id===d.itemId);if(!i)throw Error('对应物品不存在，可能是旧版库存');if(!confirmThree('导入','家庭申请：'+d.family+' / '+i.name))return;db.requests.unshift({id:d.id,family:d.family,member:String(d.member||'').slice(0,60),itemId:i.id,itemName:i.name,kind:d.kind,qty:d.qty,status:'待审批',date:d.date});db.history.unshift({time:new Date().toLocaleString(),action:'收到申请：'+d.family+' '+i.name});persist();msg('申请已导入，等待审批')}catch(e){msg(e.message)}}
 function decide(id,action){let r=db.requests.find(x=>x.id===id),i=r&&db.items.find(x=>x.id===r.itemId);if(!r)return;if(action==='拒绝'&&r.status==='待审批'){r.status='已拒绝'}else if(action==='批准'&&r.status==='待审批'){if(!i||i.qty<r.qty)return msg('库存不足，不能批准');i.qty-=r.qty;r.status=r.kind==='借用'?'借出中':'已领取'}else if(action==='归还'&&['借出中','部分归还'].includes(r.status)){return processReturn(r)}else return;touch(`${action}：${r.family} ${r.itemName} × ${r.qty}`);persist()}
 

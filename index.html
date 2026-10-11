@@ -47,6 +47,17 @@
 .app-modal-actions{display:flex;gap:12px;margin-top:20px}.app-modal-actions button{flex:1;min-height:48px}
 .modal-error{color:#ad302a}.download-notice{position:fixed;bottom:10px;left:10px;right:10px;z-index:2147483645;border:2px solid #286c51;max-width:500px;margin:auto}
 .download-notice a{display:inline-block;padding:12px;margin:8px 0;color:#126348;font-weight:700;text-decoration:underline}
+
+@media(min-width:681px) and (max-width:1024px){
+ main{padding:14px}.card{padding:15px}
+ .grid{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+ .inventory-scroll{overflow-x:auto}
+ .inventory-scroll table{min-width:660px}
+}
+@media(max-width:680px){
+ #inventoryScroll td:nth-child(6) button{width:100%}
+ #inventoryScroll tr{margin:7px 2px}
+}
 </style><header><h1>福音之家 · 私密家庭端</h1><div>仅授权成员可查看库存</div></header><main><section class="card" id="authPanel"><h2>家庭成员登录 / 注册</h2><p>首次注册后等待管理员批准。未批准前无法查看库存。</p><div class="grid"><label>邮箱<input id="authEmail" type="email" autocomplete="username"></label><label>密码（至少6位）<input id="authPassword" type="password" autocomplete="current-password"></label></div><div class="grid"><label>家庭名称（注册时填写）<input id="registerFamily" maxlength="80"></label><label>联系人（注册时填写）<input id="registerMember" maxlength="60"></label></div><button type="button" onclick="fzhLogin()">登录</button><button type="button" onclick="fzhRegister()">注册并申请加入</button><button type="button" class="alt" onclick="fzhResetPassword()">重置密码</button><button type="button" class="alt" onclick="fzhLogout()">退出登录</button><p id="authStatus" class="warn" aria-live="polite">请登录。</p></section><div id="privateContent" hidden>
 <div class="card"><h2>家庭资料</h2><label>家庭名称 <input id="familyName" placeholder="例如：恩典之家" oninput="savePrefs()"></label><label>申请人名字 <input id="memberName" placeholder="例如：小明" oninput="savePrefs()"></label><p class="muted">仅批准的家庭成员可以查看云端库存，并在线提交借用或领取申请。</p></div>
 <div class="card"><h2>在线库存自动更新</h2><p>仅获批准的成员可以实时读取云端库存；无需导入更新包。</p>
@@ -132,7 +143,7 @@ function limitInventoryToTenRows(){
  const table=panel.querySelector('table');
  const rows=Array.from(table.tBodies[0].rows);
  const headerHeight=table.tHead.getBoundingClientRect().height;
- const visibleHeight=rows.slice(0,10).reduce((total,row)=>{
+ const visibleHeight=rows.slice(0,5).reduce((total,row)=>{
   const style=getComputedStyle(row);
   return total+row.getBoundingClientRect().height+parseFloat(style.marginTop||0)+parseFloat(style.marginBottom||0);
  },0);
