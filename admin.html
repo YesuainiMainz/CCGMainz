@@ -52,7 +52,7 @@ button{touch-action:manipulation}
 <label id="searchChoiceWrap" style="display:none">筛选选项<select id="searchChoice" onchange="render()"></select></label>
 <label id="qtyModeWrap" style="display:none">数量比较<select id="qtyMode" onchange="render()"><option value="eq">等于</option><option value="gte">大于或等于</option><option value="lte">小于或等于</option></select></label>
 </div><div class="scroll inventory-scroll" id="inventoryScroll"><table><thead><tr><th>照片</th><th>名称</th><th>位置</th><th>备注</th><th>数量</th><th>操作</th></tr></thead><tbody id="items"></tbody></table></div></div>
-<div class="card"><h2>出入库记录</h2><button onclick="exportHistoryCSV()">导出记录 Excel CSV</button><button onclick="exportHistoryJSON()">导出记录 JSON</button><div id="history" class="ten-row-scroll"></div></div>
+<div class="card"><h2>出入库记录</h2><button onclick="exportHistoryCSV()">导出记录 Excel CSV</button><button onclick="exportHistoryJSON()">导出记录 JSON</button><button type="button" class="danger" onclick="clearAllHistory()">清空全部记录（确认3次）</button><p class="muted">包含库位移动（移库）、取用、销毁等操作记录。清空仅删除此浏览器保存的记录，不会改变库存数量或云端库存。</p><div id="history" class="ten-row-scroll"></div></div>
 </main><div id="stockActionModal" class="stock-action-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="stockActionTitle"><div class="stock-action-box"><h2 id="stockActionTitle">库存出库 / 库位移动</h2><p id="stockActionItem"></p><label>操作类型<select id="stockActionType" onchange="updateStockActionFields()"><option value="move">库位移动（可移动部分数量）</option><option value="use">取用（扣减库存）</option><option value="destroy">销毁（扣减库存）</option></select></label><label id="stockActionLocationWrap">目标库位<select id="stockActionLocation"></select></label><label id="stockActionQtyWrap" hidden>数量<input id="stockActionQty" type="number" min="1" step="1" value="1"></label><label>操作备注<input id="stockActionNote" maxlength="200" placeholder="可选：操作原因、经手人"></label><p id="stockActionError" class="warn" aria-live="polite"></p><div><button type="button" id="stockActionSubmit" onclick="submitStockAction()">确认操作</button><button type="button" class="alt" onclick="closeStockAction()">取消</button></div></div></div><div id="photoLightbox" class="photo-lightbox" role="dialog" aria-modal="true" aria-label="物品照片放大查看" onclick="closePhotoLightbox()"><button type="button" class="lightbox-close" onclick="closePhotoLightbox()" aria-label="关闭大图">× 关闭</button><img id="lightboxImage" alt="物品大图" onclick="event.stopPropagation()"><div id="lightboxTitle" class="lightbox-title"></div></div><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script><script src="./firebase-config.js"></script><script>
 const $=id=>document.getElementById(id);
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
@@ -336,7 +336,11 @@ async function adminSignIn(){
  catch(e){$('adminAuthStatus').textContent=e.message}
  finally{adminLoginPending=false;setAdminLoginButtonState()}
 }
-async function adminSignOut(){if(fzhAdminAuth)await fzhAdminAuth.signOut()}
+async function adminSignOut(){
+ if(!fzhAdminAuth?.currentUser)return;
+ if(!confirm('确定退出管理员账号吗？'))return;
+ try{await fzhAdminAuth.signOut()}catch(e){$('adminAuthStatus').textContent='退出失败：'+e.message}
+}
 function publicSnapshot(){return {type:'fzh-stock-snapshot',schema:1,version:db.version,exportedAt:new Date().toISOString(),categories:db.categories,locations:db.locations,items:db.items.map(i=>({id:i.id,name:i.name,category:i.category,location:i.location,qty:i.qty,unit:i.unit,notes:i.notes||'',photo:''}))};}
 // v4.5: 只由管理员修改库存；修改后延时合并并自动事务提交。
 let autoSyncTimer=null,autoSyncBusy=false;
@@ -576,6 +580,22 @@ async function importReturn(file){
 }
 function csvEscape(v){let t=String(v??'');return /[",\r\n]/.test(t)?'"'+t.replace(/"/g,'""')+'"':t}
 function downloadCSV(filename,rows){let content='\ufeff'+rows.map(row=>row.map(csvEscape).join(',')).join('\r\n');let a=document.createElement('a'),u=URL.createObjectURL(new Blob([content],{type:'text/csv;charset=utf-8'}));a.href=u;a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}
+// 仅清空本机历史记录，不影响库存及在线申请。
+function clearAllHistory(){
+ if(!Array.isArray(db.history)||db.history.length===0){msg('暂无出入库记录，无需清空');return;}
+ const total=db.history.length;
+ for(let step=1;step<=3;step++){
+  const message=[
+   `第1次确认（共3次）：确定要清空全部 ${total} 条出入库记录吗？`,
+   '第2次确认（共3次）：清空后无法从当前页面撤销，建议先导出记录或完整备份。是否继续？',
+   '第3次确认（共3次）：最后确认。只清空本浏览器的出入库记录，不会改变云端库存。确定清空？'
+  ][step-1];
+  if(!window.confirm(message))return;
+ }
+ db.history=[];
+ if(!saveLocal(KEY,db)){msg('清空失败：无法保存到本机，请检查浏览器存储');return;}
+ render();
+}
 function exportHistoryCSV(){if(!confirmThree('导出','出入库记录 CSV'))return;downloadCSV('MCG Lager_出入库记录_'+Date.now()+'.csv',[['时间','操作记录'],...db.history.map(h=>[h.time,h.action])])}
 function exportHistoryJSON(){if(!confirmThree('导出','出入库记录 JSON'))return;download('MCG Lager_出入库记录_'+Date.now()+'.json',{type:'fzh-history',schema:1,exportedAt:new Date().toISOString(),records:db.history})}
 
