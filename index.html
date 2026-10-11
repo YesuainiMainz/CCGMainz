@@ -1,4 +1,4 @@
-<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>福音之家 · 家庭版</title><style>
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MCG Lager · 家庭版</title><style>
 *{box-sizing:border-box}body{font-family:system-ui,"Microsoft YaHei",sans-serif;background:#f3f6f3;color:#24362b;margin:0}header{background:#24533f;color:white;padding:20px}main{max-width:1050px;margin:auto;padding:18px}.card{background:white;border-radius:14px;padding:18px;margin:14px 0;box-shadow:0 2px 8px #0001}button,.btn{border:0;border-radius:8px;background:#286c51;color:white;padding:9px 12px;cursor:pointer;margin:3px}button.alt{background:#64766a}button.danger{background:#ae4b44}input,select,textarea{padding:9px;border:1px solid #cbd7cf;border-radius:7px;max-width:100%;margin:3px}table{border-collapse:collapse;width:100%}td,th{padding:10px;text-align:left;border-bottom:1px solid #e4ebe6}small{color:#64746a}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}.muted{color:#6b776f}.photo{width:55px;height:55px;object-fit:cover;border-radius:6px}.scroll{overflow:auto}label{display:block;margin:5px 0}.warn{background:#fff2df;padding:10px;border-radius:8px}h2{margin-top:0}@media(max-width:600px){main{padding:10px}td,th{padding:6px;font-size:13px}}.inventory-scroll{overflow-y:auto;overflow-x:auto;overscroll-behavior:contain}.inventory-scroll thead th{position:sticky;top:0;background:white;z-index:2}.item-notes{min-width:120px;max-width:280px;white-space:normal;overflow-wrap:anywhere;line-height:1.45}
 .zoomable-photo{cursor:zoom-in}.photo-lightbox{position:fixed;inset:0;background:rgba(0,0,0,.86);z-index:9999;display:none;align-items:center;justify-content:center;flex-direction:column;padding:24px;gap:12px}.photo-lightbox.open{display:flex}.photo-lightbox img{display:block;max-width:95vw;max-height:78vh;object-fit:contain;border-radius:6px}.photo-lightbox .lightbox-title{color:white;font-size:16px;text-align:center;overflow-wrap:anywhere}.photo-lightbox .lightbox-close{position:absolute;right:16px;top:12px;font-size:22px;background:#fff;color:#222;border-radius:8px;padding:6px 12px;cursor:pointer}
 .photo-open{display:inline-flex;align-items:center;justify-content:center;padding:0;margin:0;border:2px solid transparent;background:transparent;border-radius:8px;cursor:zoom-in;vertical-align:middle}
@@ -58,7 +58,7 @@
  #inventoryScroll td:nth-child(6) button{width:100%}
  #inventoryScroll tr{margin:7px 2px}
 }
-</style><header><h1>福音之家 · 私密家庭端</h1><div>仅授权成员可查看库存</div></header><main><section class="card" id="authPanel"><h2>家庭成员登录 / 注册</h2><p>首次注册后等待管理员批准。未批准前无法查看库存。</p><div class="grid"><label>邮箱<input id="authEmail" type="email" autocomplete="username"></label><label>密码（至少6位）<input id="authPassword" type="password" autocomplete="current-password"></label></div><div class="grid"><label>家庭名称（注册时填写）<input id="registerFamily" maxlength="80"></label><label>联系人（注册时填写）<input id="registerMember" maxlength="60"></label></div><button type="button" onclick="fzhLogin()">登录</button><button type="button" onclick="fzhRegister()">注册并申请加入</button><button type="button" class="alt" onclick="fzhResetPassword()">重置密码</button><button type="button" class="alt" onclick="fzhLogout()">退出登录</button><p id="authStatus" class="warn" aria-live="polite">请登录。</p></section><div id="privateContent" hidden>
+</style><header><h1>MCG Lager · 私密家庭端</h1><div>仅授权成员可查看库存</div></header><main><section class="card" id="authPanel"><h2>家庭成员登录 / 注册</h2><p>首次注册后等待管理员批准。未批准前无法查看库存。</p><div class="grid"><label>邮箱<input id="authEmail" type="email" autocomplete="username"></label><label>密码（至少6位）<input id="authPassword" type="password" autocomplete="current-password"></label></div><div class="grid"><label>家庭名称（注册时填写）<input id="registerFamily" maxlength="80"></label><label>联系人（注册时填写）<input id="registerMember" maxlength="60"></label></div><button type="button" id="familyLoginButton" onclick="fzhLogin()">登录</button><button type="button" onclick="fzhRegister()">注册并申请加入</button><button type="button" class="alt" onclick="fzhResetPassword()">重置密码</button><button type="button" class="alt" onclick="fzhLogout()">退出登录</button><p id="authStatus" class="warn" aria-live="polite">请登录。</p></section><div id="privateContent" hidden>
 <div class="card"><h2>家庭资料</h2><label>家庭名称 <input id="familyName" placeholder="例如：恩典之家" oninput="savePrefs()"></label><label>申请人名字 <input id="memberName" placeholder="例如：小明" oninput="savePrefs()"></label><p class="muted">仅批准的家庭成员可以查看云端库存，并在线提交借用或领取申请。</p></div>
 <div class="card"><h2>在线库存自动更新</h2><p>仅获批准的成员可以实时读取云端库存；无需导入更新包。</p>
 <p id="lastInventoryChange" class="muted">上次更改时间：正在读取…</p>
@@ -215,12 +215,14 @@ render();
 </script><script>
 let fzhAuth, fzhStore, fzhUnsub=null, fzhRequestsUnsub=null, fzhPhotoUnsub=null;window.fzhUser=null;window.fzhApproved=false;
 function fzhSetStatus(t){document.getElementById('authStatus').textContent=t;}
+let familyLoginPending=false;
+function setFamilyLoginButtonState(){const b=$('familyLoginButton');if(!b)return;b.disabled=!!(fzhAuth?.currentUser||familyLoginPending);b.textContent=fzhAuth?.currentUser?'已登录':familyLoginPending?'登录中…':'登录';}
 function fzhInit(){
  const c=window.FZH_FIREBASE_CONFIG;
  if(!c||c.apiKey.startsWith('REPLACE')){fzhSetStatus('尚未配置 Firebase，请管理员先编辑 firebase-config.js');return;}
  firebase.initializeApp(c);fzhAuth=firebase.auth();fzhStore=firebase.firestore();fzhAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e=>console.warn(e));
  fzhAuth.onAuthStateChanged(async u=>{
-  if(fzhUnsub){fzhUnsub();fzhUnsub=null;}if(fzhPhotoUnsub){fzhPhotoUnsub();fzhPhotoUnsub=null;}familyPhotos.clear();if(fzhRequestsUnsub){fzhRequestsUnsub();fzhRequestsUnsub=null;}onlineRequests=[];window.fzhUser=u;window.fzhApproved=false;
+  if(fzhUnsub){fzhUnsub();fzhUnsub=null;}if(fzhPhotoUnsub){fzhPhotoUnsub();fzhPhotoUnsub=null;}familyPhotos.clear();if(fzhRequestsUnsub){fzhRequestsUnsub();fzhRequestsUnsub=null;}onlineRequests=[];window.fzhUser=u;window.fzhApproved=false;setFamilyLoginButtonState();
   document.getElementById('privateContent').hidden=true;
   db.items=[];db.version=-1;db.categories=[];db.locations=[];render();
   if(!u){fzhSetStatus('请登录；新账号需管理员审批。');return;}
@@ -241,7 +243,13 @@ function fzhInit(){
   }catch(e){fzhSetStatus('验证失败：'+e.message);}
  });
 }
-async function fzhLogin(){try{await fzhAuth.signInWithEmailAndPassword(document.getElementById('authEmail').value.trim(),document.getElementById('authPassword').value);}catch(e){fzhSetStatus(e.message)}}
+async function fzhLogin(){
+ if(!fzhAuth||fzhAuth.currentUser||familyLoginPending)return;
+ familyLoginPending=true;setFamilyLoginButtonState();
+ try{await fzhAuth.signInWithEmailAndPassword($('authEmail').value.trim(),$('authPassword').value)}
+ catch(e){fzhSetStatus(e.message)}
+ finally{familyLoginPending=false;setFamilyLoginButtonState()}
+}
 async function fzhRegister(){
  try{const email=document.getElementById('authEmail').value.trim(),pass=document.getElementById('authPassword').value, family=document.getElementById('registerFamily').value.trim(),member=document.getElementById('registerMember').value.trim();
  if(!family||!member)throw Error('请填写家庭名称和联系人');
