@@ -70,11 +70,7 @@ function uniqueName(raw,items,excludeId){
  throw Error('同名物品过多，请修改名称');
 }
 function confirmThree(kind,detail){
- for(let i=1;i<=3;i++){
-  let text=`第${i}次确认（共3次）：确定要${kind}「${detail}」吗？`+(i===3?'（最后一次确认）':'');
-  if(!confirm(text))return false;
- }
- return true;
+ return confirm(`确定要${kind}「${detail}」吗？`);
 }
 function deleteRequest(id){
  let r=db.requests.find(x=>x.id===id);if(!r)return;

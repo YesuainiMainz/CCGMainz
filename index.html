@@ -101,11 +101,7 @@ function showAppModal(title,message,fields=false,maxQty=1){
  });
 }
 async function confirmThree(action,detail){
- for(let n=1;n<=3;n++){
-  const accepted=await showAppModal('第'+n+'次确认（共3次）','确定'+action+'「'+detail+'」吗？');
-  if(!accepted)return false;
- }
- return true;
+ return await showAppModal('确认操作','确定'+action+'「'+detail+'」吗？');
 }
 
 let onlineRequests=[];const KEY='fzh_family_v2';let db=loadLocal(KEY,{version:-1,items:[],requests:[],family:'',member:'',categories:[],locations:[]});
