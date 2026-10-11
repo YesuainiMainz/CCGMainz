@@ -58,6 +58,11 @@
  #inventoryScroll td:nth-child(6) button{width:100%}
  #inventoryScroll tr{margin:7px 2px}
 }
+
+/* 家庭端申请记录最多显示三行，更多记录在容器内上下滚动 */
+#requests.request-history-scroll{overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+#requests.request-history-scroll .request-history-row{margin:0;padding:10px 6px;border-bottom:1px solid #e4ebe6;line-height:1.5;overflow-wrap:anywhere}
+#requests.request-history-scroll .request-history-row:last-child{border-bottom:0}
 </style><header><h1>MCG Lager · 私密家庭端</h1><div>仅授权成员可查看库存</div></header><main><section class="card" id="authPanel"><h2>家庭成员登录 / 注册</h2><p>首次注册后等待管理员批准。未批准前无法查看库存。</p><div class="grid"><label>邮箱<input id="authEmail" type="email" autocomplete="username"></label><label>密码（至少6位）<input id="authPassword" type="password" autocomplete="current-password"></label></div><div class="grid"><label>家庭名称（注册时填写）<input id="registerFamily" maxlength="80"></label><label>联系人（注册时填写）<input id="registerMember" maxlength="60"></label></div><button type="button" id="familyLoginButton" onclick="fzhLogin()">登录</button><button type="button" onclick="fzhRegister()">注册并申请加入</button><button type="button" class="alt" onclick="fzhResetPassword()">重置密码</button><button type="button" class="alt" id="familyLogoutButton" onclick="fzhLogout()">退出登录</button><p id="authStatus" class="warn" aria-live="polite">请登录。</p></section><div id="privateContent" hidden>
 <div class="card"><h2>家庭资料</h2><label>家庭名称 <input id="familyName" placeholder="例如：恩典之家" oninput="savePrefs()"></label><label>申请人名字 <input id="memberName" placeholder="例如：小明" oninput="savePrefs()"></label><p class="muted">仅批准的家庭成员可以查看云端库存，并在线提交借用或领取申请。</p></div>
 <div class="card"><h2>在线库存自动更新</h2><p>仅获批准的成员可以实时读取云端库存；无需导入更新包。</p>
@@ -70,7 +75,7 @@
 <label id="searchChoiceWrap" style="display:none">筛选选项<select id="searchChoice" onchange="render()"></select></label>
 <label id="qtyModeWrap" style="display:none">数量比较<select id="qtyMode" onchange="render()"><option value="eq">等于</option><option value="gte">大于或等于</option><option value="lte">小于或等于</option></select></label>
 </div><div class="scroll inventory-scroll" id="inventoryScroll"><table><thead><tr><th>照片</th><th>名称</th><th>位置</th><th>备注</th><th>库存</th><th>申请</th></tr></thead><tbody id="items"></tbody></table></div></div>
-<div class="card"><h2>在线申请记录</h2><p class="muted">在线申请自动发送管理员审批，状态实时更新。</p><div id="requests"></div></div>
+<div class="card"><h2>在线申请记录</h2><p class="muted">在线申请自动发送管理员审批，状态实时更新。</p><div id="requests" class="request-history-scroll" aria-label="家庭申请记录，可上下滑动"></div></div>
 </div></main><div id="appModal" class="app-modal" hidden role="dialog" aria-modal="true" aria-labelledby="appModalTitle">
  <div class="app-modal-box"><h3 id="appModalTitle">确认操作</h3><p id="appModalMessage"></p>
  <div id="appModalFields" hidden>
@@ -184,8 +189,20 @@ function render(){
  let q=$('search').value.trim().toLowerCase(),mode=$('searchMode').value,choice=$('searchChoice').value;
  $('items').innerHTML=db.items.filter(i=>mode==='name'?i.name.toLowerCase().includes(q):mode==='category'?(!choice||i.category===choice):mode==='location'?(!choice||i.location===choice):q===''?true:(Number.isFinite(Number(q))&&($('qtyMode').value==='eq'?i.qty===Number(q):$('qtyMode').value==='gte'?i.qty>=Number(q):i.qty<=Number(q)))).map(i=>`<tr><td>${familyPhoto(i)?`<button type="button" class="photo-open" data-photo-id="${esc(i.id)}" title="点击查看大图" aria-label="放大查看 ${esc(i.name)} 的图片"><img class="photo zoomable-photo" src="${familyPhoto(i)}" alt="${esc(i.name)}的照片"></button>`:'📦'}</td><td><b>${esc(i.name)}</b><br><small>${esc(i.category)}</small></td><td>${esc(i.location)}</td><td class="item-notes">${i.notes?esc(i.notes):'<span class="muted">—</span>'}</td><td>${i.qty} ${esc(i.unit)}</td><td><button onclick="requestItem('${i.id}')">申请</button></td></tr>`).join('');
  limitInventoryToTenRows();
- $('requests').innerHTML=onlineRequests.map(r=>`<p>📄 ${esc(r.itemName)} × ${r.qty}（${esc(r.kind)}） · <b>${esc(r.status)}</b>${r.kind==='借用'?' · 已归还 '+(r.returnedQty||0)+'/'+r.qty:''}</p>`).join('')||'<p class="muted">暂无在线申请</p>';
+ $('requests').innerHTML=onlineRequests.map(r=>`<div class="request-history-row">📄 ${esc(r.itemName)} × ${r.qty}（${esc(r.kind)}） · <b>${esc(r.status)}</b>${r.kind==='借用'?' · 已归还 '+(r.returnedQty||0)+'/'+r.qty:''}</div>`).join('')||'<p class="muted">暂无在线申请</p>';
+ requestAnimationFrame(limitFamilyRequestRows);
 }
+function limitFamilyRequestRows(){
+ const panel=$('requests');if(!panel)return;
+ const rows=Array.from(panel.querySelectorAll('.request-history-row')).slice(0,3);
+ if(!rows.length){panel.style.maxHeight='';return;}
+ const height=rows.reduce((sum,row)=>{
+  const style=getComputedStyle(row);
+  return sum+row.getBoundingClientRect().height+parseFloat(style.marginTop||0)+parseFloat(style.marginBottom||0);
+ },0);
+ panel.style.maxHeight=Math.ceil(height+2)+'px';
+}
+window.addEventListener('resize',()=>requestAnimationFrame(limitFamilyRequestRows));
 // Firestore 实时同步仅在通过服务端授权后启用。
 let syncingInventory=false;
 
