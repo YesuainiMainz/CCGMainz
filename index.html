@@ -69,25 +69,17 @@
  </div>
  <div class="app-modal-actions"><button type="button" class="alt" id="appModalCancel">取消</button><button type="button" id="appModalOK">确定</button></div></div>
 </div>
-<div id="downloadNotice" class="card download-notice" hidden><b>申请文件已生成</b><p>请点击下方链接保存 JSON 申请文件，再通过微信或邮件发送给管理员。</p><a id="downloadLink" download>点击这里下载申请文件</a><button type="button" class="alt" onclick="document.getElementById('downloadNotice').hidden=true">关闭提示</button></div>
+
 <div id="photoLightbox" class="photo-lightbox" role="dialog" aria-modal="true" aria-label="物品照片放大查看" onclick="closePhotoLightbox()"><button type="button" class="lightbox-close" onclick="closePhotoLightbox()" aria-label="关闭大图">× 关闭</button><img id="lightboxImage" alt="物品大图" onclick="event.stopPropagation()"><div id="lightboxTitle" class="lightbox-title"></div></div><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script><script src="./firebase-config.js"></script><script>
 const $=id=>document.getElementById(id);
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 const uuid=()=>typeof crypto!=='undefined'&&typeof crypto.randomUUID==='function'?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);
-let lastDownloadUrl=null;
-function download(name,obj){
- const b=new Blob([JSON.stringify(obj,null,2)],{type:'application/json'});
- if(lastDownloadUrl)URL.revokeObjectURL(lastDownloadUrl);
- lastDownloadUrl=URL.createObjectURL(b);
- const a=$('downloadLink');a.href=lastDownloadUrl;a.download=name;
- $('downloadNotice').hidden=false;
- // 浏览器可能限制异步流程后的自动下载，明确提供用户手动点击的下载链接。
-}
+
 function readJSON(file){return new Promise((resolve,reject)=>{if(!file||file.size>15000000)return reject(Error('文件过大或未选择'));let r=new FileReader();r.onload=()=>{try{resolve(JSON.parse(r.result))}catch{reject(Error('不是有效的 JSON 文件'))}};r.onerror=()=>reject(Error('无法读取文件'));r.readAsText(file)})}
 function msg(t){const el=$('status');if(el){el.textContent=t;el.scrollIntoView({block:'nearest',behavior:'smooth'})}else console.warn(t)}
 function saveLocal(k,v){if(k==='fzh_family_v2')return true;try{localStorage.setItem(k,JSON.stringify(v));return true}catch{msg('保存失败：可能是浏览器存储已满，请先保存申请文件。');return false}}
 function loadLocal(k,fallback){if(k==='fzh_family_v2')return fallback;try{return JSON.parse(localStorage.getItem(k))||fallback}catch{return fallback}}
-async function photoToData(file){if(!file)return '';return new Promise((resolve,reject)=>{let r=new FileReader();r.onload=()=>{let im=new Image();im.onload=()=>{let c=document.createElement('canvas'),s=Math.min(1,350/Math.max(im.width,im.height));c.width=im.width*s;c.height=im.height*s;c.getContext('2d').drawImage(im,0,0,c.width,c.height);resolve(c.toDataURL('image/jpeg',.55))};im.onerror=()=>reject(Error('图片格式不支持'));im.src=r.result};r.onerror=()=>reject(Error('图片读取失败'));r.readAsDataURL(file)})}
+
 function validSnapshot(x){return x&&x.type==='fzh-stock-snapshot'&&x.schema===1&&Number.isSafeInteger(x.version)&&x.version>=0&&Array.isArray(x.items)&&x.items.length<=5000&&x.items.every(i=>typeof i.id==='string'&&typeof i.name==='string'&&Number.isFinite(i.qty)&&i.qty>=0)}
 
 function showAppModal(title,message,fields=false,maxQty=1){
@@ -160,9 +152,9 @@ document.getElementById('items').addEventListener('click',function(event){
 });
 function showPhotoById(id){
  const item=db.items.find(i=>i.id===id);
- if(!item||!item.photo)return;
+ if(!item||!familyPhoto(item))return;
  const viewer=document.getElementById('photoLightbox');
- document.getElementById('lightboxImage').src=item.photo;
+ document.getElementById('lightboxImage').src=familyPhoto(item);
  document.getElementById('lightboxTitle').textContent=item.name;
  viewer.classList.add('open');
  viewer.style.display='flex';
@@ -177,20 +169,20 @@ function closePhotoLightbox(){
 }
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closePhotoLightbox()});
 
+const familyPhotos=new Map();
+function familyPhoto(i){return familyPhotos.get(i.id)||i.photo||'';}
 function render(){
  updateSearchControls();
- $('status').textContent=db.version<0?'尚未导入库存更新包。':`已导入库存版本 V${db.version} · ${db.items.length} 种物品（离线快照，可能不是实时库存）`;
+ $('status').textContent=db.version<0?'尚未收到云端库存。':`云端库存版本 V${db.version} · ${db.items.length} 种物品（实时同步）`;
  let q=$('search').value.trim().toLowerCase(),mode=$('searchMode').value,choice=$('searchChoice').value;
- $('items').innerHTML=db.items.filter(i=>mode==='name'?i.name.toLowerCase().includes(q):mode==='category'?(!choice||i.category===choice):mode==='location'?(!choice||i.location===choice):q===''?true:(Number.isFinite(Number(q))&&($('qtyMode').value==='eq'?i.qty===Number(q):$('qtyMode').value==='gte'?i.qty>=Number(q):i.qty<=Number(q)))).map(i=>`<tr><td>${i.photo?`<button type="button" class="photo-open" data-photo-id="${esc(i.id)}" title="点击查看大图" aria-label="放大查看 ${esc(i.name)} 的图片"><img class="photo zoomable-photo" src="${i.photo}" alt="${esc(i.name)}的照片"></button>`:'📦'}</td><td><b>${esc(i.name)}</b><br><small>${esc(i.category)}</small></td><td>${esc(i.location)}</td><td class="item-notes">${i.notes?esc(i.notes):'<span class="muted">—</span>'}</td><td>${i.qty} ${esc(i.unit)}</td><td><button onclick="requestItem('${i.id}')">申请</button></td></tr>`).join('');
+ $('items').innerHTML=db.items.filter(i=>mode==='name'?i.name.toLowerCase().includes(q):mode==='category'?(!choice||i.category===choice):mode==='location'?(!choice||i.location===choice):q===''?true:(Number.isFinite(Number(q))&&($('qtyMode').value==='eq'?i.qty===Number(q):$('qtyMode').value==='gte'?i.qty>=Number(q):i.qty<=Number(q)))).map(i=>`<tr><td>${familyPhoto(i)?`<button type="button" class="photo-open" data-photo-id="${esc(i.id)}" title="点击查看大图" aria-label="放大查看 ${esc(i.name)} 的图片"><img class="photo zoomable-photo" src="${familyPhoto(i)}" alt="${esc(i.name)}的照片"></button>`:'📦'}</td><td><b>${esc(i.name)}</b><br><small>${esc(i.category)}</small></td><td>${esc(i.location)}</td><td class="item-notes">${i.notes?esc(i.notes):'<span class="muted">—</span>'}</td><td>${i.qty} ${esc(i.unit)}</td><td><button onclick="requestItem('${i.id}')">申请</button></td></tr>`).join('');
  limitInventoryToTenRows();
  $('requests').innerHTML=onlineRequests.map(r=>`<p>📄 ${esc(r.itemName)} × ${r.qty}（${esc(r.kind)}） · <b>${esc(r.status)}</b>${r.kind==='借用'?' · 已归还 '+(r.returnedQty||0)+'/'+r.qty:''}</p>`).join('')||'<p class="muted">暂无在线申请</p>';
 }
 // Firestore 实时同步仅在通过服务端授权后启用。
 let syncingInventory=false;
 async function syncPublishedInventory(){if(!window.fzhUser||!window.fzhApproved)return; $('syncStatus').textContent='库存已开启实时同步，无需手动更新。';}
-async function importStock(file){throw Error("私密版本不支持绕过身份验证导入库存");}
-async function disabledImportStock(file){try{let d=await readJSON(file);if(!validSnapshot(d))throw Error('不是有效的库存更新包');if(d.version<db.version)throw Error('这是较旧的库存版本，已阻止覆盖');if(!await confirmThree('导入',`库存版本 V${d.version}`))return;
- db.version=d.version;db.items=d.items.map(i=>({...i}));db.categories=Array.isArray(d.categories)?d.categories.filter(x=>typeof x==='string'):[];db.locations=Array.isArray(d.locations)?d.locations.filter(x=>typeof x==='string'):[];delete $('searchChoice').dataset.signature;persist();msg('库存已更新到 V'+db.version)}catch(e){msg(e.message)}}
+
 async function requestItem(id){
  const i=db.items.find(x=>x.id===id);
  if(!i||!window.fzhUser||!window.fzhApproved)return msg('请先登录并通过管理员审批');
@@ -210,29 +202,24 @@ async function requestItem(id){
  }catch(e){msg('在线申请提交失败：'+e.message)}finally{if(button?.tagName==='BUTTON')button.disabled=false}
 }
 
-async function downloadRequest(id,alreadyConfirmed=false){
- const r=db.requests.find(x=>x.id===id);
- if(!r)return;
- if(!alreadyConfirmed&&!await confirmThree('下载','申请文件：'+r.itemName))return;
- download('福音之家_申请_'+r.id.slice(0,8)+'.json',r);
-}
+
 window.addEventListener('resize',()=>{limitInventoryToTenRows()});
 render();
 </script><script>
-let fzhAuth, fzhStore, fzhUnsub=null, fzhRequestsUnsub=null;window.fzhUser=null;window.fzhApproved=false;
+let fzhAuth, fzhStore, fzhUnsub=null, fzhRequestsUnsub=null, fzhPhotoUnsub=null;window.fzhUser=null;window.fzhApproved=false;
 function fzhSetStatus(t){document.getElementById('authStatus').textContent=t;}
 function fzhInit(){
  const c=window.FZH_FIREBASE_CONFIG;
  if(!c||c.apiKey.startsWith('REPLACE')){fzhSetStatus('尚未配置 Firebase，请管理员先编辑 firebase-config.js');return;}
- firebase.initializeApp(c);fzhAuth=firebase.auth();fzhStore=firebase.firestore();
+ firebase.initializeApp(c);fzhAuth=firebase.auth();fzhStore=firebase.firestore();fzhAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e=>console.warn(e));
  fzhAuth.onAuthStateChanged(async u=>{
-  if(fzhUnsub){fzhUnsub();fzhUnsub=null;}if(fzhRequestsUnsub){fzhRequestsUnsub();fzhRequestsUnsub=null;}onlineRequests=[];window.fzhUser=u;window.fzhApproved=false;
+  if(fzhUnsub){fzhUnsub();fzhUnsub=null;}if(fzhPhotoUnsub){fzhPhotoUnsub();fzhPhotoUnsub=null;}familyPhotos.clear();if(fzhRequestsUnsub){fzhRequestsUnsub();fzhRequestsUnsub=null;}onlineRequests=[];window.fzhUser=u;window.fzhApproved=false;
   document.getElementById('privateContent').hidden=true;
   db.items=[];db.version=-1;db.categories=[];db.locations=[];render();
   if(!u){fzhSetStatus('请登录；新账号需管理员审批。');return;}
   try{const p=await fzhStore.doc('members/'+u.uid).get();
    if(!p.exists||p.data().status!=='approved'){fzhSetStatus(p.exists&&p.data().status==='blocked'?'账号已被管理员停用，请联系管理员。':'已登录，等待管理员审批。批准后请退出再登录。');return;}
-   window.fzhApproved=true;document.getElementById('privateContent').hidden=false;fzhSetStatus('身份已验证：'+(p.data().family||u.email));
+   window.fzhApproved=true;fzhPhotoUnsub=fzhStore.collection('itemPhotos').onSnapshot(s=>{familyPhotos.clear();s.forEach(d=>{if(typeof d.data().data==='string')familyPhotos.set(d.id,d.data().data)});render();},e=>{document.getElementById('syncStatus').textContent='照片同步失败：'+e.message});document.getElementById('privateContent').hidden=false;fzhSetStatus('身份已验证：'+(p.data().family||u.email));
    db.family=p.data().family||'';db.member=p.data().member||'';document.getElementById('familyName').value=db.family;document.getElementById('memberName').value=db.member;
    fzhRequestsUnsub=fzhStore.collection('onlineRequests').where('uid','==',u.uid).onSnapshot(s=>{
      onlineRequests=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));render();
