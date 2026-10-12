@@ -63,7 +63,14 @@
 #requests.request-history-scroll{overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y}
 #requests.request-history-scroll .request-history-row{margin:0;padding:10px 6px;border-bottom:1px solid #e4ebe6;line-height:1.5;overflow-wrap:anywhere}
 #requests.request-history-scroll .request-history-row:last-child{border-bottom:0}
-</style><header><h1>MCG Lager · 私密家庭端</h1><div>仅授权成员可查看库存</div></header><main><section class="card" id="authPanel"><h2>家庭成员登录 / 注册</h2><p>首次注册后等待管理员批准。未批准前无法查看库存。</p><div class="grid"><label>邮箱<input id="authEmail" type="email" autocomplete="username"></label><label>密码（至少6位）<input id="authPassword" type="password" autocomplete="current-password"></label></div><div class="grid"><label>家庭名称（注册时填写）<input id="registerFamily" maxlength="80"></label><label>联系人（注册时填写）<input id="registerMember" maxlength="60"></label></div><button type="button" id="familyLoginButton" onclick="fzhLogin()">登录</button><button type="button" onclick="fzhRegister()">注册并申请加入</button><button type="button" class="alt" onclick="fzhResetPassword()">重置密码</button><button type="button" class="alt" id="familyLogoutButton" onclick="fzhLogout()">退出登录</button><p id="authStatus" class="warn" aria-live="polite">请登录。</p></section><div id="privateContent" hidden>
+
+.mcg-language-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.mcg-language-row h1{margin:0}
+#mcgLanguageSwitch{border:1px solid #fff;background:white;color:#24583e;padding:10px 15px;border-radius:9px;min-height:42px;cursor:pointer;font-size:15px}
+#mcgLanguageSwitch:disabled{opacity:.6}
+.mcg-language-status{display:block;font-size:13px;color:#ffe5b8}
+@media(max-width:560px){.mcg-language-row{align-items:stretch}.mcg-language-row h1{flex:1 1 100%}#mcgLanguageSwitch{width:100%}}
+</style><header><div class="mcg-language-row"><h1>MCG Lager · 私密家庭端</h1><button id="mcgLanguageSwitch" type="button" data-no-translate>切換為繁體中文</button></div><span id="mcgLanguageStatus" class="mcg-language-status" data-no-translate role="status"></span><div>仅授权成员可查看库存</div><div style="margin-top:8px"><a href="./platform.html" style="color:#fff">前往 MCG幸福家人数字平台 →</a></div></header><main><section class="card" id="authPanel"><h2>家庭成员登录 / 注册</h2><p>首次注册后等待管理员批准。未批准前无法查看库存。</p><div class="grid"><label>邮箱<input id="authEmail" type="email" autocomplete="username"></label><label>密码（至少6位）<input id="authPassword" type="password" autocomplete="current-password"></label></div><div class="grid"><label>家庭名称（注册时填写）<input id="registerFamily" maxlength="80"></label><label>联系人（注册时填写）<input id="registerMember" maxlength="60"></label></div><button type="button" id="familyLoginButton" onclick="fzhLogin()">登录</button><button type="button" onclick="fzhRegister()">注册并申请加入</button><button type="button" class="alt" onclick="fzhResetPassword()">重置密码</button><button type="button" class="alt" id="familyLogoutButton" onclick="fzhLogout()">退出登录</button><p id="authStatus" class="warn" aria-live="polite">请登录。</p></section><div id="privateContent" hidden>
 <div class="card"><h2>家庭资料</h2><label>家庭名称 <input id="familyName" placeholder="例如：恩典之家" oninput="savePrefs()"></label><label>申请人名字 <input id="memberName" placeholder="例如：小明" oninput="savePrefs()"></label><p class="muted">仅批准的家庭成员可以查看云端库存，并在线提交借用或领取申请。</p></div>
 <div class="card"><h2>在线库存自动更新</h2><p>仅获批准的成员可以实时读取云端库存；无需导入更新包。</p>
 <p id="lastInventoryChange" class="muted">上次更改时间：正在读取…</p>
@@ -291,4 +298,4 @@ async function fzhLogout(){
  finally{familyLogoutPending=false;button.disabled=false}
 }
 try{fzhInit()}catch(e){fzhSetStatus('Firebase 初始化失败：'+e.message)}
-</script></html>
+</script><script src="./zh-toggle.js"></script></html>
