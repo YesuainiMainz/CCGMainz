@@ -1,5 +1,5 @@
 <!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MCG图文社区</title><style>
+<title>MCG爱心站</title><style>
 *{box-sizing:border-box}body{margin:0;background:#f3f6f4;color:#20392b;font-family:system-ui,"Microsoft YaHei",sans-serif}
 header{background:#22583d;color:#fff;padding:20px 16px}header>div{max-width:850px;margin:auto}h1{margin:0 0 6px;font-size:1.65rem}
 main{max-width:850px;margin:16px auto;padding:0 12px}.card{background:white;border-radius:14px;padding:18px;margin:12px 0;box-shadow:0 2px 12px #0001}
@@ -15,26 +15,27 @@ button:disabled{opacity:.55;cursor:wait}.muted{color:#617567;font-size:14px}.war
 #viewer img{max-width:96vw;max-height:85vh;object-fit:contain}#viewer button{position:absolute;right:15px;top:15px;background:white;color:#111}
 a{color:inherit}#more{display:block;margin:15px auto}
 @media(max-width:560px){.card,.post{padding:13px}header{padding:16px 12px}}
+#needDialog[hidden]{display:none}#needDialog{position:fixed;inset:0;background:#000a;z-index:6;display:flex;justify-content:center;align-items:center;padding:12px}#needForm{width:min(100%,500px);max-height:92vh;overflow:auto}#needForm h2{margin-top:0}button.secondary{background:#68776d}button.need{margin-top:12px}
 </style></head><body>
-<header><div><h1>MCG图文社区</h1><span>每个人都可以分享图片和文字 · 无需登录</span></div></header>
-<main><section class="card"><h2>发布新帖子</h2>
+<header><div><h1>MCG爱心站</h1><span>分享家中闲置或多余的物品 · 由管理员安排匹配</span></div></header>
+<main><section class="card"><h2>发布闲置物品</h2>
 <form id="postForm">
-<label for="author">称呼 *</label><input id="author" type="text" maxlength="40" placeholder="请输入您的称呼" required>
-<label for="body">帖子文字</label><textarea id="body" maxlength="1500" placeholder="分享你想说的话（最多1500字）"></textarea>
+<label for="author">您的称呼 *（仅管理员可见）</label><input id="author" type="text" maxlength="40" placeholder="请输入称呼，仅管理员可见" required>
+<label for="body">物品说明（可选）</label><textarea id="body" maxlength="1500" placeholder="请描述闲置或多余的物品（最多1500字）"></textarea>
 <label for="image">上传图片（可选，最多一张）</label><input id="image" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/*">
 <img id="preview" hidden alt="图片预览">
-<p class="muted">文字和图片至少填写一项。图片将在本地压缩后发布。帖子对所有访客公开，请勿上传私人信息或未经许可的照片。</p>
-<button id="publish" type="submit">发布帖子</button><p id="publishStatus" class="muted" role="status"></p>
+<p class="muted">文字和图片至少填写一项。公开页面只显示物品说明和图片，您的称呼单独保存，仅管理员可见。请勿在公开文字或图片中写入个人信息。</p>
+<button id="publish" type="submit">发布物品</button><p id="publishStatus" class="muted" role="status"></p>
 </form></section>
-<section><h2>最新帖子</h2><p class="muted" id="feedStatus">正在加载…</p><div id="feed"></div><button id="more" type="button" hidden>加载更多</button></section>
+<section><h2>最新闲置物品</h2><p class="muted" id="feedStatus">正在加载…</p><div id="feed"></div><button id="more" type="button" hidden>加载更多</button></section>
 </main>
-<div id="viewer" hidden role="dialog" aria-modal="true" aria-label="查看图片"><button id="closeViewer" type="button">关闭 ×</button><img id="largeImage" alt="帖子图片"></div>
+<div id="needDialog" hidden role="dialog" aria-modal="true" aria-labelledby="needTitle"><form id="needForm" class="card"><h2 id="needTitle">我有需要</h2><p id="needItem"></p><label for="requester">您的称呼（仅管理员可见） *</label><input id="requester" type="text" maxlength="40" required placeholder="请输入称呼"><label for="needDetails">大致需要的物品及数量 *</label><textarea id="needDetails" maxlength="500" required placeholder="例如：儿童外套2件、书包1个"></textarea><p class="muted">申请信息仅管理员可见，由管理员安排匹配。请勿在公开物品说明中留下联系方式。</p><button id="sendNeed" type="submit">发送给管理员</button><button id="cancelNeed" type="button" class="secondary">取消</button><p id="needStatus" role="status"></p></form></div><div id="viewer" hidden role="dialog" aria-modal="true" aria-label="查看图片"><button id="closeViewer" type="button">关闭 ×</button><img id="largeImage" alt="物品图片"></div>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="./firebase-config.js"></script>
 <script>
 const $=id=>document.getElementById(id);
-let db=null,posts=[],nextPage=null,loading=false,hasMore=true,selectedPhoto='';
+let db=null,posts=[],nextPage=null,loading=false,hasMore=true,selectedPhoto='',chosenPost=null,needBusy=false;
 function make(tag,text,cls){const el=document.createElement(tag);if(text!==undefined)el.textContent=text;if(cls)el.className=cls;return el}
 function openPhoto(src){$('largeImage').src=src;$('viewer').hidden=false}
 function closePhoto(){$('viewer').hidden=true;$('largeImage').removeAttribute('src')}
@@ -45,22 +46,23 @@ function render(){
  const feed=$('feed');feed.replaceChildren();
  for(const p of posts){
   const card=make('article',undefined,'post'),head=make('div',undefined,'post-head');
-  head.append(make('strong',p.author||'访客'));
+  head.append(make('strong','匿名分享'));
   const t=make('time',p.createdAt?.toDate?.()?.toLocaleString('zh-CN')||'刚刚');head.append(t);card.append(head);
   if(p.text)card.append(make('p',p.text));
   if(p.photo?.startsWith('data:image/jpeg;base64,')){
-   const img=document.createElement('img');img.src=p.photo;img.alt='帖子图片';img.loading='lazy';
+   const img=document.createElement('img');img.src=p.photo;img.alt='物品图片';img.loading='lazy';
    img.addEventListener('click',()=>openPhoto(p.photo));card.append(img);
   }
+  const need=make('button','❤️ 我有需要','need');need.type='button';need.addEventListener('click',()=>{chosenPost=p;$('needItem').textContent='您正在申请这条闲置物品：'+(p.text||'图片所示物品');$('requester').value='';$('needDetails').value='';$('needStatus').textContent='';$('needDialog').hidden=false;$('requester').focus()});card.append(need);
   feed.append(card);
  }
- $('feedStatus').textContent=posts.length?'已显示 '+posts.length+' 条帖子':'暂无帖子，欢迎发布第一条！';
+ $('feedStatus').textContent=posts.length?'已显示 '+posts.length+' 条帖子':'暂无闲置物品，欢迎发布第一条！';
  $('more').hidden=!hasMore;
 }
 async function loadMore(reset=false){
  if(!db||loading)return;loading=true;$('more').disabled=true;
  try{
-  let q=db.collection('communityPosts').orderBy('createdAt','desc').limit(10);
+  let q=db.collection('carePosts').orderBy('createdAt','desc').limit(10);
   if(!reset&&nextPage)q=q.startAfter(nextPage);
   const snap=await q.get();
   if(reset)posts=[];
@@ -99,6 +101,21 @@ $('image').addEventListener('change',async e=>{
  try{selectedPhoto=await compressImage(f);$('preview').src=selectedPhoto;$('preview').hidden=false;$('publishStatus').textContent='图片已准备好'}
  catch(err){e.target.value='';$('publishStatus').textContent=err.message}
 });
+$('cancelNeed').onclick=()=>{if(!needBusy){$('needDialog').hidden=true;chosenPost=null}};
+$('needDialog').addEventListener('click',e=>{if(e.target===$('needDialog'))$('cancelNeed').click()});
+$('needForm').addEventListener('submit',async e=>{
+ e.preventDefault();if(!db||!chosenPost||needBusy)return;
+ const requester=$('requester').value.trim(),details=$('needDetails').value.trim();
+ if(!requester||requester.length>40||!details||details.length>500){$('needStatus').textContent='请填写称呼及需要的物品、数量';return}
+ needBusy=true;$('sendNeed').disabled=true;$('needStatus').textContent='正在发送…';
+ try{
+  await db.collection('careNeeds').add({postId:chosenPost.id,requester,details,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+  $('needStatus').textContent='已发送给管理员，等待人工安排匹配。';
+  $('sendNeed').textContent='已发送';
+  setTimeout(()=>{$('needDialog').hidden=true;chosenPost=null;$('sendNeed').textContent='发送给管理员'},1100);
+ }catch(err){$('needStatus').textContent='发送失败：'+err.message}
+ finally{needBusy=false;$('sendNeed').disabled=false}
+});
 $('postForm').addEventListener('submit',async e=>{
  e.preventDefault();if(!db)return;
  const author=$('author').value.trim(),text=$('body').value.trim();
@@ -106,9 +123,13 @@ $('postForm').addEventListener('submit',async e=>{
  if(!text&&!selectedPhoto){$('publishStatus').textContent='请填写文字或上传图片';return}
  const btn=$('publish');btn.disabled=true;$('publishStatus').textContent='正在发布…';
  try{
-  await db.collection('communityPosts').add({author,text,photo:selectedPhoto,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+  const id=db.collection('carePosts').doc().id;
+  const batch=db.batch();const stamp=firebase.firestore.FieldValue.serverTimestamp();
+  batch.set(db.collection('carePosts').doc(id),{text,photo:selectedPhoto,createdAt:stamp});
+  batch.set(db.collection('carePostContacts').doc(id),{author,createdAt:stamp});
+  await batch.commit();
   $('body').value='';$('image').value='';$('preview').hidden=true;selectedPhoto='';
-  $('publishStatus').textContent='发布成功！';nextPage=null;await loadMore(true);
+  $('publishStatus').textContent='发布成功！公开页面不会显示您的称呼。';nextPage=null;await loadMore(true);
  }catch(err){$('publishStatus').textContent='发布失败：'+err.message}
  finally{btn.disabled=false}
 });

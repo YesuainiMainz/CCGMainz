@@ -74,9 +74,10 @@ button{touch-action:manipulation}
 <div id="managementHome"><div class="card" id="firebasePublisher"><h2>管理员登录</h2><div class="grid"><label>管理员账号<input autocapitalize="none" autocomplete="username" id="adminEmail" name="username" placeholder="请输入管理员账号" spellcheck="false" type="email"/></label><label>管理员密码<input autocomplete="current-password" id="adminPassword" name="password" type="password"/></label></div><button id="adminLoginButton" onclick="adminSignIn()" type="button">管理员登录</button><button class="alt" onclick="adminSignOut()" type="button">退出</button><p class="warn" id="adminAuthStatus">尚未登录。</p><p class="muted" id="latestStockTime">最新库存更新时间：等待云端加载…</p></div><nav class="management-nav" id="managementNav" aria-label="管理中心功能导航">
  <button class="management-nav-button" type="button" onclick="showManagementView('inventory')">📦 库存 <span aria-hidden="true">→</span></button>
  <button class="management-nav-button" type="button" onclick="showManagementView('library')">📚 MCG图书馆 <span aria-hidden="true">→</span></button>
+ <button class="management-nav-button" type="button" onclick="showManagementView('care')">❤️ MCG爱心站 <span aria-hidden="true">→</span></button>
  <button class="management-nav-button" type="button" onclick="showManagementView('privacy')">🔒 隐私管理 <span aria-hidden="true">→</span></button>
 </nav>
-<p><a href="./posts.html" target="_blank" rel="noopener">📝 打开 MCG图文社区（公开发布帖子）</a></p>
+<p><a href="./posts.html" target="_blank" rel="noopener">❤️ 打开 MCG爱心站（公开发布帖子）</a></p>
 </div>
 <div id="managementSubpageHeader" class="management-subpage-header" hidden>
  <button class="alt back-button" type="button" onclick="showManagementView('home')">← 返回管理中心</button>
@@ -94,6 +95,8 @@ button{touch-action:manipulation}
  <p><a href="./library.html" rel="noopener" target="_blank">查看 MCG图书馆（无需登录）</a></p></div>
  <div class="card"><h2>MCG图书馆 · 借书意向通知</h2><p class="muted">访客只需填写姓名即可发送通知；此处仅供查看，不进行审批或出入库操作。该列表与家庭端申请完全独立。</p><p class="muted" id="libraryRequestStatus">登录后自动加载通知。</p><div class="scroll" id="libraryRequestScroll"><table><thead><tr><th>图书</th><th>姓名</th><th>提交时间</th></tr></thead><tbody id="libraryRequestRows"></tbody></table></div></div>
 </section>
+<section id="careManagement" class="management-view" hidden>
+<div class="card"><h2>MCG爱心站 · 匿名匹配管理</h2><p class="muted">访客看不到任何一方的称呼；此处只有管理员登录后可以查看发布者与需要者信息。管理员自行联系并安排匹配，本站不自动交换联系方式。</p><p><a href="./posts.html" target="_blank" rel="noopener">查看公开爱心站</a></p><p id="careAdminStatus" class="muted">请先登录管理员账号。</p><div id="careAdminList"></div></div></section>
 <section id="privacyManagement" class="management-view" hidden>
  <div class="card" id="memberApproval"><h2>家庭成员审批</h2><button onclick="loadMembers()" type="button">刷新申请列表</button><p class="muted" id="memberStatus">请先以管理员身份登录。</p><div id="memberList"></div></div>
 </section></main><div id="stockActionModal" class="stock-action-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="stockActionTitle"><div class="stock-action-box"><h2 id="stockActionTitle">库存出库 / 库位移动</h2><p id="stockActionItem"></p><label>操作类型<select id="stockActionType" onchange="updateStockActionFields()"><option value="move">库位移动（可移动部分数量）</option><option value="use">取用（扣减库存）</option><option value="destroy">销毁（扣减库存）</option></select></label><label id="stockActionLocationWrap">目标库位<select id="stockActionLocation"></select></label><label id="stockActionQtyWrap" hidden>数量<input id="stockActionQty" type="number" min="1" step="1" value="1"></label><label>操作备注<input id="stockActionNote" maxlength="200" placeholder="可选：操作原因、经手人"></label><p id="stockActionError" class="warn" aria-live="polite"></p><div><button type="button" id="stockActionSubmit" onclick="submitStockAction()">确认操作</button><button type="button" class="alt" onclick="closeStockAction()">取消</button></div></div></div><div id="photoLightbox" class="photo-lightbox" role="dialog" aria-modal="true" aria-label="物品照片放大查看" onclick="closePhotoLightbox()"><button type="button" class="lightbox-close" onclick="closePhotoLightbox()" aria-label="关闭大图">× 关闭</button><img id="lightboxImage" alt="物品大图" onclick="event.stopPropagation()"><div id="lightboxTitle" class="lightbox-title"></div></div><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script><script src="./firebase-config.js"></script><script>
@@ -461,10 +464,37 @@ function startCloudListener(){
 }
 
 // Firebase Auth + Firestore：管理员授权由 Firestore 规则验证。
+let careAdminUnsubs=[];
+function stopCareAdmin(){for(const stop of careAdminUnsubs)stop();careAdminUnsubs=[];}
+let carePublic=[],carePrivate=[],careNeeds=[];
+function renderCareAdmin(){
+ const list=$('careAdminList');if(!list)return;list.replaceChildren();
+ const contacts=new Map(carePrivate.map(p=>[p.id,p]));
+ const needsByPost=new Map();for(const n of careNeeds){if(!needsByPost.has(n.postId))needsByPost.set(n.postId,[]);needsByPost.get(n.postId).push(n)}
+ for(const p of carePublic){
+  const card=document.createElement('div');card.style.cssText='border:1px solid #dce6dd;border-radius:10px;padding:12px;margin:12px 0;overflow-wrap:anywhere';
+  const h=document.createElement('h3');h.textContent='发布 #'+p.id.slice(0,8);card.append(h);
+  const contact=contacts.get(p.id);
+  for(const t of ['发布者称呼：'+(contact?.author||'待加载'), '物品说明：'+(p.text||'仅图片'), '发布时间：'+(p.createdAt?.toDate?.()?.toLocaleString('zh-CN')||'—')]){const el=document.createElement('p');el.textContent=t;card.append(el)}
+  if(p.photo?.startsWith('data:image/jpeg;base64,')){const img=document.createElement('img');img.src=p.photo;img.alt='闲置物品';img.style.cssText='max-width:180px;max-height:150px;object-fit:contain';card.append(img)}
+  const needList=needsByPost.get(p.id)||[];
+  const sub=document.createElement('strong');sub.textContent='需要申请：'+needList.length+' 条';card.append(sub);
+  for(const n of needList){const el=document.createElement('p');el.style.cssText='padding:9px;background:#f2f7f3;border-radius:8px';el.textContent='需要者：'+n.requester+'｜需要物品与数量：'+n.details+'｜'+(n.createdAt?.toDate?.()?.toLocaleString('zh-CN')||'刚刚');card.append(el)}
+  list.append(card);
+ }
+ $('careAdminStatus').textContent='共 '+carePublic.length+' 条发布，'+careNeeds.length+' 条需求申请（显示最近100条）';
+}
+function listenCareAdmin(){
+ stopCareAdmin();if(!fzhAdminReady)return;
+ const collections=[['carePosts',v=>carePublic=v],['carePostContacts',v=>carePrivate=v],['careNeeds',v=>careNeeds=v]];
+ for(const [name,set] of collections){
+  const unsub=fzhAdminStore.collection(name).orderBy('createdAt','desc').limit(100).onSnapshot(s=>{set(s.docs.map(d=>({id:d.id,...d.data()})));renderCareAdmin()},e=>{$('careAdminStatus').textContent='爱心站读取失败：'+e.message});careAdminUnsubs.push(unsub);
+ }
+}
 let fzhAdminAuth=null,fzhAdminStore=null,fzhAdminReady=false,cloudBaseVersion=null;
 function setAdminLoginButtonState(){const b=$('adminLoginButton');if(!b)return;b.disabled=!!(fzhAdminAuth?.currentUser||adminLoginPending);b.textContent=fzhAdminAuth?.currentUser?'已登录':adminLoginPending?'登录中…':'管理员登录';}
 let adminLoginPending=false;
-function initAdminFirebase(){const c=window.FZH_FIREBASE_CONFIG;if(!c||c.apiKey.startsWith('REPLACE')){document.getElementById('adminAuthStatus').textContent='请先配置 firebase-config.js';return;}firebase.initializeApp(c);fzhAdminAuth=firebase.auth();fzhAdminStore=firebase.firestore();fzhAdminAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e=>console.warn('持久登录设置失败',e));fzhAdminAuth.onAuthStateChanged(async u=>{fzhAdminReady=false;setAdminLoginButtonState();if(!u){stopLibraryRequestNotifications();if(photoUnsub){photoUnsub();photoUnsub=null;}photoCache.clear();libraryCloudItems=null;document.getElementById('adminAuthStatus').textContent='尚未登录';stopCloudListener();return;}try{const d=await fzhAdminStore.doc('admins/'+u.uid).get();if(!d.exists){document.getElementById('adminAuthStatus').textContent='账号已登录，但不是管理员。请按说明在 Firestore 添加 admins/'+u.uid;return;}fzhAdminReady=true;listenLibraryRequestNotifications();listenAdminPhotos();startCloudListener();loadOnlineRequests();document.getElementById('adminAuthStatus').textContent='管理员已验证：'+u.email;loadMembers();}catch(e){document.getElementById('adminAuthStatus').textContent='权限检查失败：'+e.message;}});}
+function initAdminFirebase(){const c=window.FZH_FIREBASE_CONFIG;if(!c||c.apiKey.startsWith('REPLACE')){document.getElementById('adminAuthStatus').textContent='请先配置 firebase-config.js';return;}firebase.initializeApp(c);fzhAdminAuth=firebase.auth();fzhAdminStore=firebase.firestore();fzhAdminAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e=>console.warn('持久登录设置失败',e));fzhAdminAuth.onAuthStateChanged(async u=>{fzhAdminReady=false;setAdminLoginButtonState();if(!u){stopCareAdmin();stopLibraryRequestNotifications();if(photoUnsub){photoUnsub();photoUnsub=null;}photoCache.clear();libraryCloudItems=null;document.getElementById('adminAuthStatus').textContent='尚未登录';stopCloudListener();return;}try{const d=await fzhAdminStore.doc('admins/'+u.uid).get();if(!d.exists){document.getElementById('adminAuthStatus').textContent='账号已登录，但不是管理员。请按说明在 Firestore 添加 admins/'+u.uid;return;}fzhAdminReady=true;listenCareAdmin();listenLibraryRequestNotifications();listenAdminPhotos();startCloudListener();loadOnlineRequests();document.getElementById('adminAuthStatus').textContent='管理员已验证：'+u.email;loadMembers();}catch(e){document.getElementById('adminAuthStatus').textContent='权限检查失败：'+e.message;}});}
 // 保存账号（仅邮箱，不保存密码），并让浏览器密码管理器识别 username 字段。
 const FZH_ADMIN_ACCOUNT_KEY='fzh_admin_account';
 try{$('adminEmail').value=localStorage.getItem(FZH_ADMIN_ACCOUNT_KEY)||'';}catch(e){}
@@ -753,13 +783,14 @@ function updateLatestStockTime(){
  }catch(e){el.textContent='最新库存更新时间：时间暂不可用';}
 }
 function showManagementView(view,fromHash=false){
- if(!['home','inventory','library','privacy'].includes(view))view='home';
+ if(!['home','inventory','library','privacy','care'].includes(view))view='home';
  $('managementHome').hidden=view!=='home';
  $('inventoryManagement').hidden=view!=='inventory';
  $('libraryManagement').hidden=view!=='library';
  $('privacyManagement').hidden=view!=='privacy';
+ $('careManagement').hidden=view!=='care';
  $('managementSubpageHeader').hidden=view==='home';
- if(view!=='home')$('managementPageTitle').textContent=view==='inventory'?'库存管理':view==='library'?'MCG图书馆':'隐私管理';
+ if(view!=='home')$('managementPageTitle').textContent=view==='inventory'?'库存管理':view==='library'?'MCG图书馆':view==='care'?'MCG爱心站':'隐私管理';
  if(!fromHash){const hash=view==='home'?'':('#'+view);if(location.hash!==hash){
   if(view==='home')history.pushState(null,'',location.pathname+location.search);
   else history.pushState(null,'',hash);
@@ -768,7 +799,7 @@ function showManagementView(view,fromHash=false){
  if(view==='inventory')requestAnimationFrame(()=>{try{render()}catch(e){console.warn('库存布局刷新失败',e)}});
  if(view==='library')requestAnimationFrame(()=>{try{limitLibraryRequestRows()}catch(e){console.warn(e)}});
 }
-function syncManagementRoute(){showManagementView(location.hash==='#inventory'?'inventory':location.hash==='#library'?'library':location.hash==='#privacy'?'privacy':'home',true)}
+function syncManagementRoute(){showManagementView(location.hash==='#inventory'?'inventory':location.hash==='#library'?'library':location.hash==='#privacy'?'privacy':location.hash==='#care'?'care':'home',true)}
 window.addEventListener('popstate',syncManagementRoute);
 window.addEventListener('hashchange',syncManagementRoute);
 syncManagementRoute();
