@@ -16,8 +16,15 @@ button:disabled{opacity:.55;cursor:wait}.muted{color:#617567;font-size:14px}.war
 a{color:inherit}#more{display:block;margin:15px auto}
 @media(max-width:560px){.card,.post{padding:13px}header{padding:16px 12px}}
 #needDialog[hidden]{display:none}#needDialog{position:fixed;inset:0;background:#000a;z-index:6;display:flex;justify-content:center;align-items:center;padding:12px}#needForm{width:min(100%,500px);max-height:92vh;overflow:auto}#needForm h2{margin-top:0}button.secondary{background:#68776d}button.need{margin-top:12px}
+
+.mcg-language-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.mcg-language-row h1{margin:0}
+#mcgLanguageSwitch{background:#fff;color:#22583d;border:1px solid #fff;border-radius:9px;padding:9px 14px;min-height:42px;cursor:pointer;font-size:15px;font-weight:600}
+#mcgLanguageSwitch:disabled{opacity:.6;cursor:wait}
+.mcg-language-status{display:block;color:#ffe7bf;font-size:13px;margin-top:5px}
+@media(max-width:560px){.mcg-language-row{align-items:stretch}.mcg-language-row h1{flex:1 1 100%}#mcgLanguageSwitch{width:100%}}
 </style></head><body>
-<header><div><h1>MCG爱心站</h1><span>分享家中闲置或多余的物品 · 由管理员安排匹配</span></div></header>
+<header><div><div class="mcg-language-row"><h1>MCG爱心站</h1><button id="mcgLanguageSwitch" type="button" data-no-translate>切換為繁體中文</button></div><span id="mcgLanguageStatus" class="mcg-language-status" role="status" data-no-translate></span><span>分享家中闲置或多余的物品 · 由管理员安排匹配</span></div></header>
 <main><section class="card"><h2>发布闲置物品</h2>
 <form id="postForm">
 <label for="author">您的称呼 *（仅管理员可见）</label><input id="author" type="text" maxlength="40" placeholder="请输入称呼，仅管理员可见" required>
@@ -147,4 +154,4 @@ try{
  if(!firebase.apps.length)firebase.initializeApp(config);
  db=firebase.firestore();loadMore(true);
 }catch(err){$('feedStatus').textContent='初始化失败：'+err.message}
-</script></body></html>
+</script><script src="./zh-toggle.js"></script></body></html>

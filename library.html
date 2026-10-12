@@ -37,8 +37,15 @@ th{position:sticky;top:0;background:white;z-index:2}img{width:74px;height:74px;o
 #borrowPanel .actions button{padding:10px 16px;border-radius:8px;border:1px solid #ccd6ce}
 #sendBorrow{background:#28684a;color:white;border:0}
 #borrowMessage{min-height:24px;overflow-wrap:anywhere}
+
+.mcg-language-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.mcg-language-row h1{margin:0}
+#mcgLanguageSwitch{background:#fff;color:#22583d;border:1px solid #fff;border-radius:9px;padding:9px 14px;min-height:42px;cursor:pointer;font-size:15px;font-weight:600}
+#mcgLanguageSwitch:disabled{opacity:.6;cursor:wait}
+.mcg-language-status{display:block;color:#ffe7bf;font-size:13px;margin-top:5px}
+@media(max-width:560px){.mcg-language-row{align-items:stretch}.mcg-language-row h1{flex:1 1 100%}#mcgLanguageSwitch{width:100%}}
 </style></head>
-<body><header><h1>MCG图书馆</h1><div>公开图书目录 · 无需登录</div></header>
+<body><header><div class="mcg-language-row"><h1>MCG图书馆</h1><button id="mcgLanguageSwitch" type="button" data-no-translate>切換為繁體中文</button></div><span id="mcgLanguageStatus" class="mcg-language-status" role="status" data-no-translate></span><div>公开图书目录 · 无需登录</div></header>
 <main><p><a href="./posts.html">❤️ 前往 MCG爱心站</a></p><section class="card"><label for="search">搜索图书</label><input id="search" placeholder="输入图书名称或备注" autocomplete="off">
 <p id="status" class="muted" aria-live="polite">正在加载图书…</p></section>
 <section class="card"><div id="bookScroll"><table><thead><tr><th>图片</th><th>名称</th><th>备注</th><th>库存 / 借书</th></tr></thead><tbody id="books"></tbody></table></div></section>
@@ -129,4 +136,4 @@ try{
    .sort((a,b)=>a.name.localeCompare(b.name,'zh-CN'));render();
  },e=>{$('status').textContent='图书加载失败：'+e.message+'。请确认已部署新版 Firestore 安全规则。'});
 }catch(e){$('status').textContent='初始化失败：'+e.message}
-</script></body></html>
+</script><script src="./zh-toggle.js"></script></body></html>
