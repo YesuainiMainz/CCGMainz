@@ -1,0 +1,121 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MCG图文社区</title><style>
+*{box-sizing:border-box}body{margin:0;background:#f3f6f4;color:#20392b;font-family:system-ui,"Microsoft YaHei",sans-serif}
+header{background:#22583d;color:#fff;padding:20px 16px}header>div{max-width:850px;margin:auto}h1{margin:0 0 6px;font-size:1.65rem}
+main{max-width:850px;margin:16px auto;padding:0 12px}.card{background:white;border-radius:14px;padding:18px;margin:12px 0;box-shadow:0 2px 12px #0001}
+label{display:block;font-weight:600;margin:12px 0 6px}input[type=text],textarea{display:block;width:100%;border:1px solid #c5d4c9;border-radius:9px;padding:12px;font-size:16px;font:inherit}
+textarea{min-height:110px;resize:vertical}button{border:0;border-radius:9px;background:#276c4b;color:white;padding:11px 18px;min-height:44px;font-size:15px;cursor:pointer}
+button:disabled{opacity:.55;cursor:wait}.muted{color:#617567;font-size:14px}.warn{color:#9a441e}
+#preview{max-height:240px;max-width:100%;object-fit:contain;border-radius:10px;margin-top:10px}
+#feed{display:grid;gap:12px}.post{background:#fff;border-radius:14px;padding:18px;box-shadow:0 2px 12px #0001;overflow-wrap:anywhere}
+.post-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.post time{color:#6b7e70;font-size:13px}.post p{white-space:pre-wrap;line-height:1.7;margin:9px 0}
+.post img{display:block;max-width:100%;max-height:550px;object-fit:contain;border-radius:10px;cursor:zoom-in}
+#viewer[hidden]{display:none}#viewer{position:fixed;inset:0;background:#000e;z-index:5;display:flex;align-items:center;justify-content:center;padding:12px}
+#viewer img{max-width:96vw;max-height:85vh;object-fit:contain}#viewer button{position:absolute;right:15px;top:15px;background:white;color:#111}
+a{color:inherit}#more{display:block;margin:15px auto}
+@media(max-width:560px){.card,.post{padding:13px}header{padding:16px 12px}}
+</style></head><body>
+<header><div><h1>MCG图文社区</h1><span>每个人都可以分享图片和文字 · 无需登录</span></div></header>
+<main><section class="card"><h2>发布新帖子</h2>
+<form id="postForm">
+<label for="author">称呼 *</label><input id="author" type="text" maxlength="40" placeholder="请输入您的称呼" required>
+<label for="body">帖子文字</label><textarea id="body" maxlength="1500" placeholder="分享你想说的话（最多1500字）"></textarea>
+<label for="image">上传图片（可选，最多一张）</label><input id="image" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/*">
+<img id="preview" hidden alt="图片预览">
+<p class="muted">文字和图片至少填写一项。图片将在本地压缩后发布。帖子对所有访客公开，请勿上传私人信息或未经许可的照片。</p>
+<button id="publish" type="submit">发布帖子</button><p id="publishStatus" class="muted" role="status"></p>
+</form></section>
+<section><h2>最新帖子</h2><p class="muted" id="feedStatus">正在加载…</p><div id="feed"></div><button id="more" type="button" hidden>加载更多</button></section>
+</main>
+<div id="viewer" hidden role="dialog" aria-modal="true" aria-label="查看图片"><button id="closeViewer" type="button">关闭 ×</button><img id="largeImage" alt="帖子图片"></div>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="./firebase-config.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+let db=null,posts=[],nextPage=null,loading=false,hasMore=true,selectedPhoto='';
+function make(tag,text,cls){const el=document.createElement(tag);if(text!==undefined)el.textContent=text;if(cls)el.className=cls;return el}
+function openPhoto(src){$('largeImage').src=src;$('viewer').hidden=false}
+function closePhoto(){$('viewer').hidden=true;$('largeImage').removeAttribute('src')}
+$('closeViewer').onclick=closePhoto;
+$('viewer').addEventListener('click',e=>{if(e.target===$('viewer'))closePhoto()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closePhoto()});
+function render(){
+ const feed=$('feed');feed.replaceChildren();
+ for(const p of posts){
+  const card=make('article',undefined,'post'),head=make('div',undefined,'post-head');
+  head.append(make('strong',p.author||'访客'));
+  const t=make('time',p.createdAt?.toDate?.()?.toLocaleString('zh-CN')||'刚刚');head.append(t);card.append(head);
+  if(p.text)card.append(make('p',p.text));
+  if(p.photo?.startsWith('data:image/jpeg;base64,')){
+   const img=document.createElement('img');img.src=p.photo;img.alt='帖子图片';img.loading='lazy';
+   img.addEventListener('click',()=>openPhoto(p.photo));card.append(img);
+  }
+  feed.append(card);
+ }
+ $('feedStatus').textContent=posts.length?'已显示 '+posts.length+' 条帖子':'暂无帖子，欢迎发布第一条！';
+ $('more').hidden=!hasMore;
+}
+async function loadMore(reset=false){
+ if(!db||loading)return;loading=true;$('more').disabled=true;
+ try{
+  let q=db.collection('communityPosts').orderBy('createdAt','desc').limit(10);
+  if(!reset&&nextPage)q=q.startAfter(nextPage);
+  const snap=await q.get();
+  if(reset)posts=[];
+  posts.push(...snap.docs.map(d=>({id:d.id,...d.data()})));
+  if(snap.docs.length)nextPage=snap.docs[snap.docs.length-1];
+  hasMore=snap.size===10;render();
+ }catch(e){$('feedStatus').textContent='帖子加载失败：'+e.message}
+ finally{loading=false;$('more').disabled=false}
+}
+$('more').onclick=()=>loadMore();
+async function compressImage(file){
+ if(!file)return '';
+ if(file.size>15*1024*1024)throw Error('图片文件不能超过15 MB');
+ const url=URL.createObjectURL(file);
+ try{
+  const img=new Image();
+  await new Promise((ok,no)=>{img.onload=ok;img.onerror=()=>no(Error('无法读取此图片，请改用 JPG 或 PNG'));img.src=url});
+  if(img.width*img.height>42000000)throw Error('图片像素过大，请先缩小图片');
+  for(const side of [1000,800,650,500,400]){
+   const scale=Math.min(1,side/Math.max(img.width,img.height));
+   const canvas=document.createElement('canvas');
+   canvas.width=Math.max(1,Math.round(img.width*scale));canvas.height=Math.max(1,Math.round(img.height*scale));
+   canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+   for(const quality of [.72,.55,.4]){
+    const data=canvas.toDataURL('image/jpeg',quality);
+    if(data.length<220000)return data;
+   }
+  }
+  throw Error('图片压缩后仍过大，请换一张图片');
+ }finally{URL.revokeObjectURL(url)}
+}
+$('image').addEventListener('change',async e=>{
+ const f=e.target.files?.[0];selectedPhoto='';$('preview').hidden=true;
+ if(!f)return;
+ $('publishStatus').textContent='正在处理图片…';
+ try{selectedPhoto=await compressImage(f);$('preview').src=selectedPhoto;$('preview').hidden=false;$('publishStatus').textContent='图片已准备好'}
+ catch(err){e.target.value='';$('publishStatus').textContent=err.message}
+});
+$('postForm').addEventListener('submit',async e=>{
+ e.preventDefault();if(!db)return;
+ const author=$('author').value.trim(),text=$('body').value.trim();
+ if(!author||author.length>40){$('publishStatus').textContent='请填写不超过40字的称呼';return}
+ if(!text&&!selectedPhoto){$('publishStatus').textContent='请填写文字或上传图片';return}
+ const btn=$('publish');btn.disabled=true;$('publishStatus').textContent='正在发布…';
+ try{
+  await db.collection('communityPosts').add({author,text,photo:selectedPhoto,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+  $('body').value='';$('image').value='';$('preview').hidden=true;selectedPhoto='';
+  $('publishStatus').textContent='发布成功！';nextPage=null;await loadMore(true);
+ }catch(err){$('publishStatus').textContent='发布失败：'+err.message}
+ finally{btn.disabled=false}
+});
+try{
+ const config=window.FZH_FIREBASE_CONFIG;
+ if(!config?.apiKey)throw Error('Firebase 配置缺失');
+ if(!firebase.apps.length)firebase.initializeApp(config);
+ db=firebase.firestore();loadMore(true);
+}catch(err){$('feedStatus').textContent='初始化失败：'+err.message}
+</script></body></html>
