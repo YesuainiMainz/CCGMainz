@@ -1,4 +1,4 @@
-<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MCG线上管理中心</title><style>
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CCG Mainz线上管理中心</title><style>
 *{box-sizing:border-box}body{font-family:system-ui,"Microsoft YaHei",sans-serif;background:#f3f6f3;color:#24362b;margin:0}header{background:#24533f;color:white;padding:20px}main{max-width:1050px;margin:auto;padding:18px}.card{background:white;border-radius:14px;padding:18px;margin:14px 0;box-shadow:0 2px 8px #0001}button,.btn{border:0;border-radius:8px;background:#286c51;color:white;padding:9px 12px;cursor:pointer;margin:3px}button.alt{background:#64766a}button.danger{background:#ae4b44}input,select,textarea{padding:9px;border:1px solid #cbd7cf;border-radius:7px;max-width:100%;margin:3px}table{border-collapse:collapse;width:100%}td,th{padding:10px;text-align:left;border-bottom:1px solid #e4ebe6}small{color:#64746a}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}.muted{color:#6b776f}.photo{width:55px;height:55px;object-fit:cover;border-radius:6px}.scroll{overflow:auto}label{display:block;margin:5px 0}.warn{background:#fff2df;padding:10px;border-radius:8px}h2{margin-top:0}@media(max-width:600px){main{padding:10px}td,th{padding:6px;font-size:13px}}.inventory-scroll{overflow-y:auto;overflow-x:auto;overscroll-behavior:contain}.inventory-scroll thead th{position:sticky;top:0;background:white;z-index:2}.item-notes{min-width:120px;max-width:280px;white-space:normal;overflow-wrap:anywhere;line-height:1.45}#itemEditorSection{scroll-margin-top:12px}
 .zoomable-photo{cursor:zoom-in}.photo-lightbox{position:fixed;inset:0;background:rgba(0,0,0,.86);z-index:9999;display:none;align-items:center;justify-content:center;flex-direction:column;padding:24px;gap:12px}.photo-lightbox.open{display:flex}.photo-lightbox img{display:block;max-width:95vw;max-height:78vh;object-fit:contain;border-radius:6px}.photo-lightbox .lightbox-title{color:white;font-size:16px;text-align:center;overflow-wrap:anywhere}.photo-lightbox .lightbox-close{position:absolute;right:16px;top:12px;font-size:22px;background:#fff;color:#222;border-radius:8px;padding:6px 12px;cursor:pointer}
 .photo-open{display:inline-flex;align-items:center;justify-content:center;padding:0;margin:0;border:2px solid transparent;background:transparent;border-radius:8px;cursor:zoom-in;vertical-align:middle}
@@ -70,12 +70,12 @@ button{touch-action:manipulation}
 }
 
 #carePostScroll{overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}#carePostList>.care-post-row{padding:12px 2px;border-bottom:1px solid #dce6dd;overflow-wrap:anywhere}#carePostList>.care-post-row:last-child{border-bottom:0}\n#careMatchedScroll{overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}#careMatchedList>.match-record{border-bottom:1px solid #dce6dd;padding:10px 2px;overflow-wrap:anywhere}#careMatchedList>.match-record:last-child{border-bottom:0}@media(max-width:600px){#careMatchedScroll{width:100%}}
-</style><header><h1>MCG线上管理中心</h1></header><main>
+</style><header><h1>CCG Mainz线上管理中心</h1></header><main>
 
 <div id="managementHome"><div class="card" id="firebasePublisher"><h2>管理员登录</h2><div class="grid"><label>管理员账号<input autocapitalize="none" autocomplete="username" id="adminEmail" name="username" placeholder="请输入管理员账号" spellcheck="false" type="email"/></label><label>管理员密码<input autocomplete="current-password" id="adminPassword" name="password" type="password"/></label></div><button id="adminLoginButton" onclick="adminSignIn()" type="button">管理员登录</button><button class="alt" onclick="adminSignOut()" type="button">退出</button><p class="warn" id="adminAuthStatus">尚未登录。</p><p class="muted" id="latestStockTime">最新库存更新时间：等待云端加载…</p></div><nav class="management-nav" id="managementNav" aria-label="管理中心功能导航">
  <button class="management-nav-button" type="button" onclick="showManagementView('inventory')">📦 库存 <span aria-hidden="true">→</span></button>
- <button class="management-nav-button" type="button" onclick="showManagementView('library')">📚 MCG图书馆 <span aria-hidden="true">→</span></button>
- <button class="management-nav-button" type="button" onclick="showManagementView('care')">❤️ MCG爱心站 <span aria-hidden="true">→</span></button>
+ <button class="management-nav-button" type="button" onclick="showManagementView('library')">📚 CCG Mainz图书馆 <span aria-hidden="true">→</span></button>
+ <button class="management-nav-button" type="button" onclick="showManagementView('care')">❤️ CCG Mainz爱心站 <span aria-hidden="true">→</span></button>
  <button class="management-nav-button" type="button" onclick="showManagementView('privacy')">🔒 隐私管理 <span aria-hidden="true">→</span></button>
 </nav>
 
@@ -91,13 +91,13 @@ button{touch-action:manipulation}
 <label id="qtyModeWrap" style="display:none">数量比较<select id="qtyMode" onchange="render()"><option value="eq">等于</option><option value="gte">大于或等于</option><option value="lte">小于或等于</option></select></label>
 </div><div class="scroll inventory-scroll" id="inventoryScroll"><table><thead><tr><th>照片</th><th>名称</th><th>位置</th><th>备注</th><th>数量</th><th>操作</th></tr></thead><tbody id="items"></tbody></table></div></div><div class="card"><h2>出入库记录</h2><button onclick="exportHistoryCSV()">导出记录 Excel CSV</button><button onclick="exportHistoryJSON()">导出记录 JSON</button><button class="danger" onclick="clearAllHistory()" type="button">清空全部记录（确认3次）</button><p class="muted">包含库位移动（移库）、取用、销毁等操作记录。清空仅删除此浏览器保存的记录，不会改变库存数量或云端库存。</p><div class="ten-row-scroll" id="history"></div></div></section>
 <section id="libraryManagement" class="management-view" hidden>
- <div class="card"><h2>MCG图书馆 · 公开目录</h2>
- <p class="muted" id="libraryMirrorStatus">MCG图书馆公开目录：管理员登录后自动同步。</p>
- <p><a href="./library.html" rel="noopener" target="_blank">查看 MCG图书馆（无需登录）</a></p></div>
- <div class="card"><h2>MCG图书馆 · 借书意向通知</h2><p class="muted">访客只需填写姓名即可发送通知；此处仅供查看，不进行审批或出入库操作。该列表与家庭端申请完全独立。</p><p class="muted" id="libraryRequestStatus">登录后自动加载通知。</p><div class="scroll" id="libraryRequestScroll"><table><thead><tr><th>图书</th><th>姓名</th><th>提交时间</th></tr></thead><tbody id="libraryRequestRows"></tbody></table></div></div>
+ <div class="card"><h2>CCG Mainz图书馆 · 公开目录</h2>
+ <p class="muted" id="libraryMirrorStatus">CCG Mainz图书馆公开目录：管理员登录后自动同步。</p>
+ <p><a href="./library.html" rel="noopener" target="_blank">查看 CCG Mainz图书馆（无需登录）</a></p></div>
+ <div class="card"><h2>CCG Mainz图书馆 · 借书意向通知</h2><p class="muted">访客只需填写姓名即可发送通知；此处仅供查看，不进行审批或出入库操作。该列表与家庭端申请完全独立。</p><p class="muted" id="libraryRequestStatus">登录后自动加载通知。</p><div class="scroll" id="libraryRequestScroll"><table><thead><tr><th>图书</th><th>姓名</th><th>提交时间</th></tr></thead><tbody id="libraryRequestRows"></tbody></table></div></div>
 </section>
 <section id="careManagement" class="management-view" hidden>
-<div class="card"><h2>MCG爱心站 · 匿名匹配管理</h2><p class="muted">访客看不到任何一方的称呼；此处只有管理员登录后可以查看发布者与需要者信息。管理员自行联系并安排匹配，本站不自动交换联系方式。</p><p><a href="./posts.html" target="_blank" rel="noopener">查看公开爱心站</a></p><h3>帖子浏览与管理</h3><p class="muted">可直接删除任何帖子，包括尚未匹配的帖子。最多显示5条，其余上下滑动；删除帖子也会删除关联的需求申请，但保留已匹配历史。</p><p id="carePostStatus" class="muted">登录后自动加载帖子。</p><div id="carePostScroll"><div id="carePostList"></div></div><h3>需求申请与匹配操作</h3><p id="careAdminStatus" class="muted">请先登录管理员账号。</p><div id="careAdminList"></div><h3>已匹配记录</h3><p class="muted">最多显示5条，其余上下滑动；删除记录不会删除对应帖子。</p><p id="careMatchedStatus" class="muted"></p><div id="careMatchedScroll"><div id="careMatchedList"></div></div></div></section>
+<div class="card"><h2>CCG Mainz爱心站 · 匿名匹配管理</h2><p class="muted">访客看不到任何一方的称呼；此处只有管理员登录后可以查看发布者与需要者信息。管理员自行联系并安排匹配，本站不自动交换联系方式。</p><p><a href="./posts.html" target="_blank" rel="noopener">查看公开爱心站</a></p><h3>帖子浏览与管理</h3><p class="muted">可直接删除任何帖子，包括尚未匹配的帖子。最多显示5条，其余上下滑动；删除帖子也会删除关联的需求申请，但保留已匹配历史。</p><p id="carePostStatus" class="muted">登录后自动加载帖子。</p><div id="carePostScroll"><div id="carePostList"></div></div><h3>需求申请与匹配操作</h3><p id="careAdminStatus" class="muted">请先登录管理员账号。</p><div id="careAdminList"></div><h3>已匹配记录</h3><p class="muted">最多显示5条，其余上下滑动；删除记录不会删除对应帖子。</p><p id="careMatchedStatus" class="muted"></p><div id="careMatchedScroll"><div id="careMatchedList"></div></div></div></section>
 <section id="privacyManagement" class="management-view" hidden>
  <div class="card" id="memberApproval"><h2>家庭成员审批</h2><button onclick="loadMembers()" type="button">刷新申请列表</button><p class="muted" id="memberStatus">请先以管理员身份登录。</p><div id="memberList"></div></div>
 </section></main><div id="stockActionModal" class="stock-action-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="stockActionTitle"><div class="stock-action-box"><h2 id="stockActionTitle">库存出库 / 库位移动</h2><p id="stockActionItem"></p><label>操作类型<select id="stockActionType" onchange="updateStockActionFields()"><option value="move">库位移动（可移动部分数量）</option><option value="use">取用（扣减库存）</option><option value="destroy">销毁（扣减库存）</option></select></label><label id="stockActionLocationWrap">目标库位<select id="stockActionLocation"></select></label><label id="stockActionQtyWrap" hidden>数量<input id="stockActionQty" type="number" min="1" step="1" value="1"></label><label>操作备注<input id="stockActionNote" maxlength="200" placeholder="可选：操作原因、经手人"></label><p id="stockActionError" class="warn" aria-live="polite"></p><div><button type="button" id="stockActionSubmit" onclick="submitStockAction()">确认操作</button><button type="button" class="alt" onclick="closeStockAction()">取消</button></div></div></div><div id="photoLightbox" class="photo-lightbox" role="dialog" aria-modal="true" aria-label="物品照片放大查看" onclick="closePhotoLightbox()"><button type="button" class="lightbox-close" onclick="closePhotoLightbox()" aria-label="关闭大图">× 关闭</button><img id="lightboxImage" alt="物品大图" onclick="event.stopPropagation()"><div id="lightboxTitle" class="lightbox-title"></div></div><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script><script src="./firebase-config.js"></script><script>
@@ -296,7 +296,7 @@ function scheduleLibraryMirror(){
  if(!fzhAdminReady||!libraryCloudItems)return;
  if(libraryMirrorTimer)clearTimeout(libraryMirrorTimer);
  libraryMirrorTimer=setTimeout(()=>{libraryMirrorTimer=null;syncPublicLibrary().catch(e=>{
-  console.warn('MCG图书馆同步失败',e);
+  console.warn('CCG Mainz图书馆同步失败',e);
   const el=$('libraryMirrorStatus');if(el)el.textContent='图书馆同步失败：'+e.message;
  });},800);
 }
@@ -759,12 +759,12 @@ async function loadMembers(){const area=document.getElementById('memberList'),st
 async function changeMemberStatus(uid,status){if(!fzhAdminReady)return;if(!confirmThree(status==='approved'?'批准':'停用','家庭账号 '+uid))return;try{await fzhAdminStore.doc('members/'+uid).update({status});await loadMembers()}catch(e){document.getElementById('memberStatus').textContent='操作失败：'+e.message}}
 try{initAdminFirebase()}catch(e){document.getElementById('adminAuthStatus').textContent=e.message}
 
-function exportStock(){if(!confirmThree('导出','库存更新包'))return;download('MCG Lager_库存_V'+db.version+'.json',{type:'fzh-stock-snapshot',schema:1,version:db.version,exportedAt:new Date().toISOString(),categories:db.categories,locations:db.locations,items:db.items})}
+function exportStock(){if(!confirmThree('导出','库存更新包'))return;download('CCG Mainz Lager_库存_V'+db.version+'.json',{type:'fzh-stock-snapshot',schema:1,version:db.version,exportedAt:new Date().toISOString(),categories:db.categories,locations:db.locations,items:db.items})}
 async function backup(){
  if(!confirmThree('导出','完整备份'))return;
  const copy=JSON.parse(JSON.stringify(db));
  for(const item of copy.items){if(photoCache.has(item.id))item.photo=photoCache.get(item.id);}
- download('MCG Lager_管理员完整备份_'+Date.now()+'.json',{type:'fzh-admin-backup',schema:1,data:copy});
+ download('CCG Mainz Lager_管理员完整备份_'+Date.now()+'.json',{type:'fzh-admin-backup',schema:1,data:copy});
 }
 async function restore(file){
  try{
@@ -850,8 +850,8 @@ function clearAllHistory(){
  if(!saveLocal(KEY,db)){msg('清空失败：无法保存到本机，请检查浏览器存储');return;}
  render();
 }
-function exportHistoryCSV(){if(!confirmThree('导出','出入库记录 CSV'))return;downloadCSV('MCG Lager_出入库记录_'+Date.now()+'.csv',[['时间','操作记录'],...db.history.map(h=>[h.time,h.action])])}
-function exportHistoryJSON(){if(!confirmThree('导出','出入库记录 JSON'))return;download('MCG Lager_出入库记录_'+Date.now()+'.json',{type:'fzh-history',schema:1,exportedAt:new Date().toISOString(),records:db.history})}
+function exportHistoryCSV(){if(!confirmThree('导出','出入库记录 CSV'))return;downloadCSV('CCG Mainz Lager_出入库记录_'+Date.now()+'.csv',[['时间','操作记录'],...db.history.map(h=>[h.time,h.action])])}
+function exportHistoryJSON(){if(!confirmThree('导出','出入库记录 JSON'))return;download('CCG Mainz Lager_出入库记录_'+Date.now()+'.json',{type:'fzh-history',schema:1,exportedAt:new Date().toISOString(),records:db.history})}
 
 render();
 
@@ -872,7 +872,7 @@ function showManagementView(view,fromHash=false){
  $('privacyManagement').hidden=view!=='privacy';
  $('careManagement').hidden=view!=='care';
  $('managementSubpageHeader').hidden=view==='home';
- if(view!=='home')$('managementPageTitle').textContent=view==='inventory'?'库存管理':view==='library'?'MCG图书馆':view==='care'?'MCG爱心站':'隐私管理';
+ if(view!=='home')$('managementPageTitle').textContent=view==='inventory'?'库存管理':view==='library'?'CCG Mainz图书馆':view==='care'?'CCG Mainz爱心站':'隐私管理';
  if(!fromHash){const hash=view==='home'?'':('#'+view);if(location.hash!==hash){
   if(view==='home')history.pushState(null,'',location.pathname+location.search);
   else history.pushState(null,'',hash);
