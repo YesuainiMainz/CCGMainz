@@ -69,7 +69,7 @@ button{touch-action:manipulation}
  #firebasePublisher input{width:100%}
 }
 
-#careMatchedScroll{overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}#careMatchedList>.match-record{border-bottom:1px solid #dce6dd;padding:10px 2px;overflow-wrap:anywhere}#careMatchedList>.match-record:last-child{border-bottom:0}@media(max-width:600px){#careMatchedScroll{width:100%}}
+#carePostScroll{overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}#carePostList>.care-post-row{padding:12px 2px;border-bottom:1px solid #dce6dd;overflow-wrap:anywhere}#carePostList>.care-post-row:last-child{border-bottom:0}\n#careMatchedScroll{overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}#careMatchedList>.match-record{border-bottom:1px solid #dce6dd;padding:10px 2px;overflow-wrap:anywhere}#careMatchedList>.match-record:last-child{border-bottom:0}@media(max-width:600px){#careMatchedScroll{width:100%}}
 </style><header><h1>MCG线上管理中心</h1></header><main>
 
 <div id="managementHome"><div class="card" id="firebasePublisher"><h2>管理员登录</h2><div class="grid"><label>管理员账号<input autocapitalize="none" autocomplete="username" id="adminEmail" name="username" placeholder="请输入管理员账号" spellcheck="false" type="email"/></label><label>管理员密码<input autocomplete="current-password" id="adminPassword" name="password" type="password"/></label></div><button id="adminLoginButton" onclick="adminSignIn()" type="button">管理员登录</button><button class="alt" onclick="adminSignOut()" type="button">退出</button><p class="warn" id="adminAuthStatus">尚未登录。</p><p class="muted" id="latestStockTime">最新库存更新时间：等待云端加载…</p></div><nav class="management-nav" id="managementNav" aria-label="管理中心功能导航">
@@ -78,7 +78,7 @@ button{touch-action:manipulation}
  <button class="management-nav-button" type="button" onclick="showManagementView('care')">❤️ MCG爱心站 <span aria-hidden="true">→</span></button>
  <button class="management-nav-button" type="button" onclick="showManagementView('privacy')">🔒 隐私管理 <span aria-hidden="true">→</span></button>
 </nav>
-<p><a href="./posts.html" target="_blank" rel="noopener">❤️ 打开 MCG爱心站（公开发布帖子）</a></p>
+
 </div>
 <div id="managementSubpageHeader" class="management-subpage-header" hidden>
  <button class="alt back-button" type="button" onclick="showManagementView('home')">← 返回管理中心</button>
@@ -97,7 +97,7 @@ button{touch-action:manipulation}
  <div class="card"><h2>MCG图书馆 · 借书意向通知</h2><p class="muted">访客只需填写姓名即可发送通知；此处仅供查看，不进行审批或出入库操作。该列表与家庭端申请完全独立。</p><p class="muted" id="libraryRequestStatus">登录后自动加载通知。</p><div class="scroll" id="libraryRequestScroll"><table><thead><tr><th>图书</th><th>姓名</th><th>提交时间</th></tr></thead><tbody id="libraryRequestRows"></tbody></table></div></div>
 </section>
 <section id="careManagement" class="management-view" hidden>
-<div class="card"><h2>MCG爱心站 · 匿名匹配管理</h2><p class="muted">访客看不到任何一方的称呼；此处只有管理员登录后可以查看发布者与需要者信息。管理员自行联系并安排匹配，本站不自动交换联系方式。</p><p><a href="./posts.html" target="_blank" rel="noopener">查看公开爱心站</a></p><p id="careAdminStatus" class="muted">请先登录管理员账号。</p><div id="careAdminList"></div><h3>已匹配记录</h3><p class="muted">最多显示5条，其余上下滑动；删除记录不会删除对应帖子。</p><p id="careMatchedStatus" class="muted"></p><div id="careMatchedScroll"><div id="careMatchedList"></div></div></div></section>
+<div class="card"><h2>MCG爱心站 · 匿名匹配管理</h2><p class="muted">访客看不到任何一方的称呼；此处只有管理员登录后可以查看发布者与需要者信息。管理员自行联系并安排匹配，本站不自动交换联系方式。</p><p><a href="./posts.html" target="_blank" rel="noopener">查看公开爱心站</a></p><h3>帖子浏览与管理</h3><p class="muted">可直接删除任何帖子，包括尚未匹配的帖子。最多显示5条，其余上下滑动；删除帖子也会删除关联的需求申请，但保留已匹配历史。</p><p id="carePostStatus" class="muted">登录后自动加载帖子。</p><div id="carePostScroll"><div id="carePostList"></div></div><h3>需求申请与匹配操作</h3><p id="careAdminStatus" class="muted">请先登录管理员账号。</p><div id="careAdminList"></div><h3>已匹配记录</h3><p class="muted">最多显示5条，其余上下滑动；删除记录不会删除对应帖子。</p><p id="careMatchedStatus" class="muted"></p><div id="careMatchedScroll"><div id="careMatchedList"></div></div></div></section>
 <section id="privacyManagement" class="management-view" hidden>
  <div class="card" id="memberApproval"><h2>家庭成员审批</h2><button onclick="loadMembers()" type="button">刷新申请列表</button><p class="muted" id="memberStatus">请先以管理员身份登录。</p><div id="memberList"></div></div>
 </section></main><div id="stockActionModal" class="stock-action-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="stockActionTitle"><div class="stock-action-box"><h2 id="stockActionTitle">库存出库 / 库位移动</h2><p id="stockActionItem"></p><label>操作类型<select id="stockActionType" onchange="updateStockActionFields()"><option value="move">库位移动（可移动部分数量）</option><option value="use">取用（扣减库存）</option><option value="destroy">销毁（扣减库存）</option></select></label><label id="stockActionLocationWrap">目标库位<select id="stockActionLocation"></select></label><label id="stockActionQtyWrap" hidden>数量<input id="stockActionQty" type="number" min="1" step="1" value="1"></label><label>操作备注<input id="stockActionNote" maxlength="200" placeholder="可选：操作原因、经手人"></label><p id="stockActionError" class="warn" aria-live="polite"></p><div><button type="button" id="stockActionSubmit" onclick="submitStockAction()">确认操作</button><button type="button" class="alt" onclick="closeStockAction()">取消</button></div></div></div><div id="photoLightbox" class="photo-lightbox" role="dialog" aria-modal="true" aria-label="物品照片放大查看" onclick="closePhotoLightbox()"><button type="button" class="lightbox-close" onclick="closePhotoLightbox()" aria-label="关闭大图">× 关闭</button><img id="lightboxImage" alt="物品大图" onclick="event.stopPropagation()"><div id="lightboxTitle" class="lightbox-title"></div></div><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script><script src="./firebase-config.js"></script><script>
@@ -494,20 +494,60 @@ async function deleteCareMatch(id){
  if(!fzhAdminReady||!confirm('确定永久删除这条已匹配记录吗？（不会删除帖子或需求）'))return;
  try{await fzhAdminStore.collection('careMatches').doc(id).delete()}catch(e){alert('删除失败：'+e.message)}
 }
-async function deleteMatchedCarePost(postId){
+async function deleteCarePost(postId){
  if(!fzhAdminReady)return;
- const related=careNeeds.filter(n=>n.postId===postId);
- if(!related.some(n=>n.matched))return alert('该帖子还没有已匹配的需求');
- if(!confirm('确定删除这条已匹配帖子吗？帖子将从公开爱心站消失，相关需求申请也会删除；已匹配历史记录仍会保留，可单独删除。'))return;
+ const post=carePublic.find(p=>p.id===postId);
+ if(!post)return alert('帖子已不存在或尚未加载完成');
+ if(!confirm('确定删除这条爱心站帖子吗？不论是否已匹配，帖子及相关需求申请都会被删除；已匹配历史记录将保留。'))return;
  try{
-  // Fetch all needs, not only the 100 displayed in admin listener.
-  const needs=await fzhAdminStore.collection('careNeeds').where('postId','==',postId).get();
-  const refs=[fzhAdminStore.collection('carePosts').doc(postId),fzhAdminStore.collection('carePostContacts').doc(postId),...needs.docs.map(d=>d.ref)];
-  for(let i=0;i<refs.length;i+=400){const batch=fzhAdminStore.batch();for(const ref of refs.slice(i,i+400))batch.delete(ref);await batch.commit()}
+  const needsCol=fzhAdminStore.collection('careNeeds');
+  while(true){
+   const snap=await needsCol.where('postId','==',postId).limit(350).get();
+   if(snap.empty)break;
+   const batch=fzhAdminStore.batch();
+   for(const d of snap.docs)batch.delete(d.ref);
+   await batch.commit();
+  }
+  const batch=fzhAdminStore.batch();
+  batch.delete(fzhAdminStore.collection('carePosts').doc(postId));
+  batch.delete(fzhAdminStore.collection('carePostContacts').doc(postId));
+  await batch.commit();
  }catch(e){alert('删除帖子失败：'+e.message)}
+}
+function limitCarePostRows(){
+ const wrap=$('carePostScroll');if(!wrap)return;
+ const rows=[...$('carePostList').children].slice(0,5);
+ wrap.style.maxHeight=(rows.reduce((sum,r)=>sum+r.getBoundingClientRect().height,0)+2)+'px';
+}
+function renderCarePosts(){
+ const list=$('carePostList');if(!list)return;
+ list.replaceChildren();
+ const contacts=new Map(carePrivate.map(p=>[p.id,p]));
+ const counts=new Map();
+ for(const n of careNeeds)counts.set(n.postId,(counts.get(n.postId)||0)+1);
+ for(const post of carePublic){
+  const row=document.createElement('article');row.className='care-post-row';
+  const contact=contacts.get(post.id);
+  for(const value of [
+   '帖子：'+(post.text||'（仅图片）'),
+   '发布者：'+(contact?.author||'等待加载'),
+   '发布时间：'+(post.createdAt?.toDate?.()?.toLocaleString('zh-CN')||'—'),
+   '需求申请：'+(counts.get(post.id)||0)+' 条（最近100条范围内）'
+  ]){const line=document.createElement('div');line.textContent=value;line.style.marginBottom='5px';row.append(line)}
+  if(post.photo?.startsWith('data:image/jpeg;base64,')){
+   const img=document.createElement('img');img.src=post.photo;img.alt='帖子物品照片';
+   img.style.cssText='max-width:170px;max-height:125px;object-fit:contain;display:block;margin:7px 0';row.append(img);
+  }
+  const button=document.createElement('button');button.type='button';button.className='danger';
+  button.textContent='删除此帖子';button.onclick=()=>deleteCarePost(post.id);row.append(button);
+  list.append(row);
+ }
+ $('carePostStatus').textContent='当前显示最近 '+carePublic.length+' 条帖子；每屏最多5条';
+ requestAnimationFrame(limitCarePostRows);
 }
 
 function renderCareAdmin(){
+ renderCarePosts();
  const list=$('careAdminList');if(!list)return;list.replaceChildren();
  const contacts=new Map(carePrivate.map(p=>[p.id,p]));
  const needsByPost=new Map();for(const n of careNeeds){if(!needsByPost.has(n.postId))needsByPost.set(n.postId,[]);needsByPost.get(n.postId).push(n)}
@@ -520,7 +560,7 @@ function renderCareAdmin(){
   const needList=needsByPost.get(p.id)||[];
   const sub=document.createElement('strong');sub.textContent='需要申请：'+needList.length+' 条';card.append(sub);
   for(const n of needList){const el=document.createElement('div');el.style.cssText='padding:9px;background:#f2f7f3;border-radius:8px;margin:6px 0';el.textContent='需要者：'+n.requester+'｜需要物品与数量：'+n.details+'｜'+(n.createdAt?.toDate?.()?.toLocaleString('zh-CN')||'刚刚')+(n.matched?'｜已匹配':'｜待匹配');if(!n.matched){const b=document.createElement('button');b.type='button';b.textContent='标记已匹配';b.onclick=()=>markCareMatched(p.id,n.id);el.append(b)}card.append(el)}
-  if(needList.some(n=>n.matched)){const del=document.createElement('button');del.type='button';del.className='danger';del.textContent='一键删除已匹配帖子';del.onclick=()=>deleteMatchedCarePost(p.id);card.append(del)}
+  if(needList.some(n=>n.matched)){const del=document.createElement('button');del.type='button';del.className='danger';del.textContent='一键删除已匹配帖子';del.onclick=()=>deleteCarePost(p.id);card.append(del)}
   list.append(card);
  }
  $('careAdminStatus').textContent='共 '+carePublic.length+' 条发布，'+careNeeds.length+' 条需求申请（显示最近100条）';
