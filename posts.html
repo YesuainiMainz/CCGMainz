@@ -7,7 +7,7 @@ label{display:block;font-weight:600;margin:12px 0 6px}input[type=text],textarea{
 textarea{min-height:110px;resize:vertical}button{border:0;border-radius:9px;background:#276c4b;color:white;padding:11px 18px;min-height:44px;font-size:15px;cursor:pointer}
 button:disabled{opacity:.55;cursor:wait}.muted{color:#617567;font-size:14px}.warn{color:#9a441e}
 #preview{max-height:240px;max-width:100%;object-fit:contain;border-radius:10px;margin-top:10px}
-#feed{display:grid;gap:12px}.post{background:#fff;border-radius:14px;padding:18px;box-shadow:0 2px 12px #0001;overflow-wrap:anywhere}
+#feed{display:grid;gap:12px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}.post{background:#fff;border-radius:14px;padding:18px;box-shadow:0 2px 12px #0001;overflow-wrap:anywhere}
 .post-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
 .post time{color:#6b7e70;font-size:13px}.post p{white-space:pre-wrap;line-height:1.7;margin:9px 0}
 .post img{display:block;max-width:100%;max-height:550px;object-fit:contain;border-radius:10px;cursor:zoom-in}
@@ -42,6 +42,12 @@ function closePhoto(){$('viewer').hidden=true;$('largeImage').removeAttribute('s
 $('closeViewer').onclick=closePhoto;
 $('viewer').addEventListener('click',e=>{if(e.target===$('viewer'))closePhoto()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closePhoto()});
+function limitFeedTen(){
+ const feed=$('feed');const cards=[...feed.children].slice(0,10);
+ const style=getComputedStyle(feed),gap=parseFloat(style.rowGap)||12;
+ feed.style.maxHeight=cards.length?Math.ceil(cards.reduce((n,card)=>n+card.getBoundingClientRect().height,0)+gap*Math.max(0,cards.length-1)+2)+'px':'none';
+}
+window.addEventListener('resize',limitFeedTen);
 function render(){
  const feed=$('feed');feed.replaceChildren();
  for(const p of posts){
@@ -107,6 +113,7 @@ $('needForm').addEventListener('submit',async e=>{
  e.preventDefault();if(!db||!chosenPost||needBusy)return;
  const requester=$('requester').value.trim(),details=$('needDetails').value.trim();
  if(!requester||requester.length>40||!details||details.length>500){$('needStatus').textContent='请填写称呼及需要的物品、数量';return}
+ if(!confirm('确定将您的称呼、所需物品及数量发送给管理员吗？仅管理员可见。'))return;
  needBusy=true;$('sendNeed').disabled=true;$('needStatus').textContent='正在发送…';
  try{
   await db.collection('careNeeds').add({postId:chosenPost.id,requester,details,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
@@ -121,6 +128,7 @@ $('postForm').addEventListener('submit',async e=>{
  const author=$('author').value.trim(),text=$('body').value.trim();
  if(!author||author.length>40){$('publishStatus').textContent='请填写不超过40字的称呼';return}
  if(!text&&!selectedPhoto){$('publishStatus').textContent='请填写文字或上传图片';return}
+ if(!confirm('确定发布这条闲置物品信息吗？物品说明和照片会公开，但称呼仅管理员可见。'))return;
  const btn=$('publish');btn.disabled=true;$('publishStatus').textContent='正在发布…';
  try{
   const id=db.collection('carePosts').doc().id;
