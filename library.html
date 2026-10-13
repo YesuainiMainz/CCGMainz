@@ -45,29 +45,29 @@ th{position:sticky;top:0;background:white;z-index:2}img{width:74px;height:74px;o
 .mcg-language-status{display:block;color:#ffe7bf;font-size:13px;margin-top:5px}
 @media(max-width:560px){.mcg-language-row{align-items:stretch}.mcg-language-row h1{flex:1 1 100%}#mcgLanguageSwitch{width:100%}}
 </style></head>
-<body><header><div class="mcg-language-row"><h1>CCG Mainz图书馆</h1><button id="mcgLanguageSwitch" type="button" data-no-translate>切換為繁體中文</button></div><span id="mcgLanguageStatus" class="mcg-language-status" role="status" data-no-translate></span><div>公开图书目录 · 无需登录</div></header>
+<body><header><div class="mcg-language-row"><h1>CCG Mainz图书馆</h1><button id="mcgLanguageSwitch" type="button" data-no-translate>切換為繁體中文</button></div><span id="mcgLanguageStatus" class="mcg-language-status" role="status" data-no-translate></span><div>会员图书目录 · 登录后可借阅</div></header>
 <main><p><a href="./platform.html">← 返回 CCG Mainz幸福家人数字平台</a></p><section class="card"><label for="search">搜索图书</label><input id="search" placeholder="输入图书名称或备注" autocomplete="off">
 <p id="status" class="muted" aria-live="polite">正在加载图书…</p></section>
 <section class="card"><div id="bookScroll"><table><thead><tr><th>图片</th><th>名称</th><th>备注</th><th>库存 / 借书</th></tr></thead><tbody id="books"></tbody></table></div></section>
 </main>
 <div id="borrowDialog" hidden role="dialog" aria-modal="true" aria-labelledby="borrowTitle">
 <form id="borrowPanel"><h2 id="borrowTitle">我想借这本书</h2>
-<p id="borrowBookName"></p><label>您的姓名 <input id="borrowerName" maxlength="60" required autocomplete="name" placeholder="请输入姓名"></label>
+<p id="borrowBookName"></p><label>借阅人姓名 <input id="borrowerName" maxlength="60" readonly required></label>
 <p id="borrowMessage" class="muted" aria-live="polite"></p>
 <div class="actions"><button id="cancelBorrow" type="button">取消</button><button id="sendBorrow" type="submit">发送借书申请</button></div>
 </form></div>
 <div id="lightbox" hidden role="dialog" aria-modal="true" aria-label="查看图书照片"><button id="closePhoto" type="button">关闭 ×</button><img id="bigPhoto" alt="图书照片"></div>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="./firebase-config.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="./firebase-config.js"></script><script src="./member-session.js"></script>
 <script>
 const $=id=>document.getElementById(id);
-let books=[],publicDb=null,borrowBook=null,borrowSubmitting=false;
+let books=[],publicDb=null,borrowBook=null,borrowSubmitting=false,loanStates={};
 function openBorrow(book){
  if(borrowSubmitting)return;
  borrowBook=book;
  $('borrowBookName').textContent='图书：'+book.name;
- $('borrowerName').value='';$('borrowMessage').textContent='';
+ $('borrowerName').value=window.CCGMember?.profile?.name||'';$('borrowMessage').textContent='';
  $('borrowDialog').hidden=false;$('borrowerName').focus();
 }
 function closeBorrow(){
@@ -78,17 +78,17 @@ $('cancelBorrow').addEventListener('click',closeBorrow);
 $('borrowDialog').addEventListener('click',e=>{if(e.target===$('borrowDialog'))closeBorrow()});
 $('borrowPanel').addEventListener('submit',async e=>{
  e.preventDefault();
- if(borrowSubmitting||!borrowBook||!publicDb)return;
+ if(borrowSubmitting||!borrowBook||!publicDb||!window.CCGMember?.user)return;
  const name=$('borrowerName').value.trim();
  if(!name||name.length>60){$('borrowMessage').textContent='请输入不超过60字的姓名';return;}
  borrowSubmitting=true;$('sendBorrow').disabled=true;
  $('borrowMessage').textContent='正在发送…';
  try{
   await publicDb.collection('libraryRequests').add({
-   bookId:borrowBook.id,bookName:borrowBook.name,borrowerName:name,
+   bookId:borrowBook.id,bookName:borrowBook.name,borrowerName:name,uid:window.CCGMember.user.uid,status:"pending",
    createdAt:firebase.firestore.FieldValue.serverTimestamp()
   });
-  $('borrowMessage').textContent='已发送给管理员。此申请仅用于通知，不代表借阅已批准。';
+  $('borrowMessage').textContent='借阅申请已发送，等待管理员审批。';
   $('sendBorrow').textContent='已发送';
   setTimeout(()=>{borrowSubmitting=false;$('sendBorrow').disabled=false;$('sendBorrow').textContent='发送借书申请';closeBorrow();},1200);
  }catch(err){$('borrowMessage').textContent='发送失败：'+err.message;borrowSubmitting=false;$('sendBorrow').disabled=false;}
@@ -115,7 +115,7 @@ function render(){
   tr.append(td);makeCell(tr,book.name);
   makeCell(tr,book.notes||'—','note');const stock=makeCell(tr,String(book.qty)+' '+(book.unit||'个'));
   const ask=document.createElement('button');ask.type='button';ask.className='borrow';ask.textContent='📖 我想借';
-  ask.addEventListener('click',()=>openBorrow(book));stock.append(document.createTextNode(' '),ask);
+  const frozen=!!loanStates[book.id]?.frozen;ask.disabled=frozen||book.qty<=0;ask.textContent=frozen?'🔒 暂停借阅':book.qty<=0?'暂无库存':'📖 我想借';ask.addEventListener('click',()=>{if(!frozen&&book.qty>0)openBorrow(book)});stock.append(document.createTextNode(' '),ask);
   tbody.append(tr);
  }
  $('status').textContent='共 '+visible.length+' 种图书 · 目录自动更新';
@@ -131,9 +131,12 @@ try{
  if(!c||!c.apiKey||c.apiKey.startsWith('REPLACE'))throw Error('尚未配置 Firebase');
  firebase.initializeApp(c);
  publicDb=firebase.firestore();
+ window.CCGMember.ready.then(()=>{
+ publicDb.collection('libraryLoanStates').onSnapshot(s=>{loanStates={};s.docs.forEach(d=>loanStates[d.id]=d.data());render()},e=>console.warn('借阅冻结状态加载失败',e));
  publicDb.collection('publicLibrary').onSnapshot(s=>{
   books=s.docs.map(d=>({id:d.id,...d.data()})).filter(b=>b.category==='图书'&&typeof b.name==='string')
    .sort((a,b)=>a.name.localeCompare(b.name,'zh-CN'));render();
  },e=>{$('status').textContent='图书加载失败：'+e.message+'。请确认已部署新版 Firestore 安全规则。'});
+ });
 }catch(e){$('status').textContent='初始化失败：'+e.message}
 </script><script src="./zh-toggle.js"></script></body></html>

@@ -15,14 +15,21 @@ a.tile:hover,a.tile:focus-visible{border-color:#3b805a;box-shadow:0 6px 18px #00
 #mcgLanguageSwitch{border:1px solid #fff;background:white;color:#24583e;padding:10px 15px;border-radius:9px;cursor:pointer;font-size:15px}
 #mcgLanguageSwitch:disabled{opacity:.6}.mcg-language-status{color:#ffe4b5;font-size:13px}
 @media(max-width:650px){.grid{grid-template-columns:1fr}a.tile{min-height:165px;padding:20px}.mcg-language-row{align-items:stretch}#mcgLanguageSwitch{width:100%}}
+ .auth-card{background:white;padding:20px;border-radius:14px;margin-bottom:20px;box-shadow:0 2px 12px #0001}
+.auth-card label{display:block;margin:12px 0}.auth-card input{display:block;width:100%;max-width:460px;padding:12px;border:1px solid #bbcfc2;border-radius:8px;font-size:16px;margin-top:6px}
+.auth-actions{display:flex;gap:10px;flex-wrap:wrap}.auth-actions button{background:#246746;color:white;border:0;border-radius:8px;padding:12px 20px;cursor:pointer;min-height:44px}.auth-actions button:disabled{opacity:.6}
 </style></head><body>
 <header><div><div class="mcg-language-row"><h1>CCG Mainz幸福家人数字平台</h1><button id="mcgLanguageSwitch" type="button" data-no-translate>切換為繁體中文</button></div>
 <span id="mcgLanguageStatus" class="mcg-language-status" data-no-translate role="status"></span>
 <p>分享知识 · 传递爱心 · 彼此帮助</p></div></header>
-<main><div class="grid">
+<main><section class="auth-card" id="memberAuth"><h2>平台会员登录 / 注册</h2><p class="note">请先注册并登录，才能进入图书馆和爱心站。注册时填写真实姓名；爱心站帖子将公开显示此姓名。</p>
+<form id="memberForm"><label>真实姓名（注册时必填）<input id="realName" maxlength="40" autocomplete="name" placeholder="请填写真实姓名"></label><label>电子邮箱<input id="memberEmail" type="email" required autocomplete="username"></label><label>密码（至少6位）<input id="memberPassword" type="password" required minlength="6" autocomplete="current-password"></label><div class="auth-actions"><button id="register" type="button">注册新账号</button><button id="completeProfile" type="button" hidden>补充实名资料</button><button id="login" type="submit">登录</button><button id="logout" type="button" hidden>退出登录</button></div></form><p id="memberStatus" role="status">正在检查登录状态…</p></section><div id="memberServices" hidden><div class="grid">
 <a class="tile" href="./library.html"><span class="tile-icon" aria-hidden="true">📚</span><span class="tile-title">CCG Mainz图书馆</span>
 <span class="tile-sub">查看教会图书、浏览照片、查询库存，并提交借书意向。</span><span class="tile-arrow">进入图书馆 →</span></a>
 <a class="tile" href="./posts.html"><span class="tile-icon" aria-hidden="true">❤️</span><span class="tile-title">CCG Mainz爱心站</span>
 <span class="tile-sub">分享闲置物品，查看他人的分享，提交需求，由管理员安排匹配。</span><span class="tile-arrow">进入爱心站 →</span></a>
-</div><p class="note">两个服务均可直接浏览，无需登录。图书借阅申请和爱心站需求申请由管理员分别处理。</p></main>
-<script src="./zh-toggle.js"></script></body></html>
+</div><p class="note">已登录会员可访问图书馆与爱心站。借书申请由管理员处理；爱心站发布者姓名公开。</p></div></main>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="./firebase-config.js"></script><script src="./platform-auth.js"></script><script src="./zh-toggle.js"></script></body></html>

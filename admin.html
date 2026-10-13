@@ -94,10 +94,10 @@ button{touch-action:manipulation}
  <div class="card"><h2>CCG Mainz图书馆 · 公开目录</h2>
  <p class="muted" id="libraryMirrorStatus">CCG Mainz图书馆公开目录：管理员登录后自动同步。</p>
  <p><a href="./library.html" rel="noopener" target="_blank">查看 CCG Mainz图书馆（无需登录）</a></p></div>
- <div class="card"><h2>CCG Mainz图书馆 · 借书意向通知</h2><p class="muted">访客只需填写姓名即可发送通知；此处仅供查看，不进行审批或出入库操作。该列表与家庭端申请完全独立。</p><p class="muted" id="libraryRequestStatus">登录后自动加载通知。</p><div class="scroll" id="libraryRequestScroll"><table><thead><tr><th>图书</th><th>姓名</th><th>提交时间</th></tr></thead><tbody id="libraryRequestRows"></tbody></table></div></div>
+ <div class="card"><h2>CCG Mainz图书馆 · 借阅申请审批与归还</h2><p class="muted">会员登录后可提交借阅申请。管理员可批准、拒绝、登记归还，也可手动冻结或解冻图书；冻结期间不能提交新申请。与库存家庭端申请独立。</p><p class="muted" id="libraryRequestStatus">登录后自动加载通知。</p><div class="scroll" id="libraryRequestScroll"><table><thead><tr><th>图书</th><th>姓名</th><th>提交时间</th><th>状态</th><th>操作</th></tr></thead><tbody id="libraryRequestRows"></tbody></table></div><h3>图书冻结管理</h3><p class="muted">管理员可暂停某种图书的新借阅申请；已借出的书登记归还后可解冻。</p><div id="libraryFreezeList"></div></div>
 </section>
 <section id="careManagement" class="management-view" hidden>
-<div class="card"><h2>CCG Mainz爱心站 · 匿名匹配管理</h2><p class="muted">访客看不到任何一方的称呼；此处只有管理员登录后可以查看发布者与需要者信息。管理员自行联系并安排匹配，本站不自动交换联系方式。</p><p><a href="./posts.html" target="_blank" rel="noopener">查看公开爱心站</a></p><h3>帖子浏览与管理</h3><p class="muted">可直接删除任何帖子，包括尚未匹配的帖子。最多显示5条，其余上下滑动；删除帖子也会删除关联的需求申请，但保留已匹配历史。</p><p id="carePostStatus" class="muted">登录后自动加载帖子。</p><div id="carePostScroll"><div id="carePostList"></div></div><h3>需求申请与匹配操作</h3><p id="careAdminStatus" class="muted">请先登录管理员账号。</p><div id="careAdminList"></div><h3>已匹配记录</h3><p class="muted">最多显示5条，其余上下滑动；删除记录不会删除对应帖子。</p><p id="careMatchedStatus" class="muted"></p><div id="careMatchedScroll"><div id="careMatchedList"></div></div></div></section>
+<div class="card"><h2>CCG Mainz爱心站 · 实名匹配管理</h2><p class="muted">发布者姓名将在爱心站公开显示；需求者的姓名及需求详情仅管理员可见。管理员自行联系并安排匹配，本站不自动交换联系方式。</p><p><a href="./posts.html" target="_blank" rel="noopener">查看公开爱心站</a></p><h3>帖子浏览与管理</h3><p class="muted">可直接删除任何帖子，包括尚未匹配的帖子。最多显示5条，其余上下滑动；删除帖子也会删除关联的需求申请，但保留已匹配历史。</p><p id="carePostStatus" class="muted">登录后自动加载帖子。</p><div id="carePostScroll"><div id="carePostList"></div></div><h3>需求申请与匹配操作</h3><p id="careAdminStatus" class="muted">请先登录管理员账号。</p><div id="careAdminList"></div><h3>已匹配记录</h3><p class="muted">最多显示5条，其余上下滑动；删除记录不会删除对应帖子。</p><p id="careMatchedStatus" class="muted"></p><div id="careMatchedScroll"><div id="careMatchedList"></div></div></div></section>
 <section id="privacyManagement" class="management-view" hidden>
  <div class="card" id="memberApproval"><h2>家庭成员审批</h2><button onclick="loadMembers()" type="button">刷新申请列表</button><p class="muted" id="memberStatus">请先以管理员身份登录。</p><div id="memberList"></div></div>
 </section></main><div id="stockActionModal" class="stock-action-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="stockActionTitle"><div class="stock-action-box"><h2 id="stockActionTitle">库存出库 / 库位移动</h2><p id="stockActionItem"></p><label>操作类型<select id="stockActionType" onchange="updateStockActionFields()"><option value="move">库位移动（可移动部分数量）</option><option value="use">取用（扣减库存）</option><option value="destroy">销毁（扣减库存）</option></select></label><label id="stockActionLocationWrap">目标库位<select id="stockActionLocation"></select></label><label id="stockActionQtyWrap" hidden>数量<input id="stockActionQty" type="number" min="1" step="1" value="1"></label><label>操作备注<input id="stockActionNote" maxlength="200" placeholder="可选：操作原因、经手人"></label><p id="stockActionError" class="warn" aria-live="polite"></p><div><button type="button" id="stockActionSubmit" onclick="submitStockAction()">确认操作</button><button type="button" class="alt" onclick="closeStockAction()">取消</button></div></div></div><div id="photoLightbox" class="photo-lightbox" role="dialog" aria-modal="true" aria-label="物品照片放大查看" onclick="closePhotoLightbox()"><button type="button" class="lightbox-close" onclick="closePhotoLightbox()" aria-label="关闭大图">× 关闭</button><img id="lightboxImage" alt="物品大图" onclick="event.stopPropagation()"><div id="lightboxTitle" class="lightbox-title"></div></div><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script><script src="./firebase-config.js"></script><script>
@@ -263,27 +263,87 @@ function removeItem(id){let i=db.items.find(x=>x.id===id);if(i&&confirmThree('�
 // Only the admin can write publicLibrary; visitors cannot read private/inventory or itemPhotos.
 let libraryMirrorTimer=null,libraryMirrorRunning=false,libraryMirrorQueued=false;
 let libraryCloudItems=null;
-let libraryRequestsUnsub=null;
+let libraryRequestsUnsub=null,libraryLoanUnsub=null,libraryLoanStates={},libraryRequests=[];
 function stopLibraryRequestNotifications(){
  if(libraryRequestsUnsub){libraryRequestsUnsub();libraryRequestsUnsub=null;}
+ if(libraryLoanUnsub){libraryLoanUnsub();libraryLoanUnsub=null;}
+ libraryLoanStates={};libraryRequests=[];
 }
 function listenLibraryRequestNotifications(){
- stopLibraryRequestNotifications();
- if(!fzhAdminReady)return;
- libraryRequestsUnsub=fzhAdminStore.collection('libraryRequests').orderBy('createdAt','desc').limit(100)
- .onSnapshot(s=>{
-  const tbody=$('libraryRequestRows');tbody.replaceChildren();
-  for(const d of s.docs){
-   const r=d.data(),tr=document.createElement('tr');
-   for(const value of [r.bookName||'—',r.borrowerName||'—',r.createdAt?.toDate?.()?.toLocaleString('zh-CN')||'—']){
-    const td=document.createElement('td');td.textContent=value;tr.append(td);
-   }
-   tbody.append(tr);
-  }
-  $('libraryRequestStatus').textContent='共显示最近 '+s.size+' 条借书意向（仅通知）';
-  requestAnimationFrame(()=>limitLibraryRequestRows());
- },e=>{$('libraryRequestStatus').textContent='借书通知加载失败：'+e.message;});
+ stopLibraryRequestNotifications();if(!fzhAdminReady)return;
+ libraryLoanUnsub=fzhAdminStore.collection('libraryLoanStates').onSnapshot(s=>{
+  libraryLoanStates={};for(const d of s.docs)libraryLoanStates[d.id]=d.data();renderLibraryFreeze();
+ },e=>{$('libraryRequestStatus').textContent='冻结状态加载失败：'+e.message});
+ libraryRequestsUnsub=fzhAdminStore.collection('libraryRequests').orderBy('createdAt','desc').limit(100).onSnapshot(s=>{
+  libraryRequests=s.docs.map(d=>({id:d.id,...d.data()}));renderLibraryRequests();
+ },e=>{$('libraryRequestStatus').textContent='借阅申请加载失败：'+e.message});
 }
+function libraryButton(label,action){const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=action;b.style.margin='2px';return b}
+function renderLibraryRequests(){
+ const tbody=$('libraryRequestRows');tbody.replaceChildren();
+ for(const r of libraryRequests){
+  const tr=document.createElement('tr');
+  for(const value of [r.bookName||'—',r.borrowerName||'—',r.createdAt?.toDate?.()?.toLocaleString('zh-CN')||'—',
+    ({pending:'待审批',approved:'借出未归还',returned:'已归还',rejected:'已拒绝'})[r.status||'pending']||r.status]){
+   const td=document.createElement('td');td.textContent=value;tr.append(td);
+  }
+  const ops=document.createElement('td'),status=r.status||'pending';
+  if(status==='pending'){
+   ops.append(libraryButton('批准借出并冻结',()=>handleLibraryRequest(r,'approve')));
+   ops.append(libraryButton('拒绝',()=>handleLibraryRequest(r,'reject')));
+  }else if(status==='approved')ops.append(libraryButton('登记归还并解冻',()=>handleLibraryRequest(r,'return')));
+  tr.append(ops);tbody.append(tr);
+ }
+ $('libraryRequestStatus').textContent='最近 '+libraryRequests.length+' 条借阅申请';requestAnimationFrame(limitLibraryRequestRows);
+}
+async function handleLibraryRequest(r,action){
+ if(!fzhAdminReady)return;
+ const labels={approve:'批准借出并冻结图书',reject:'拒绝借阅申请',return:'登记归还并解冻图书'};
+ if(!confirm('确定'+labels[action]+'「'+r.bookName+'」吗？'))return;
+ try{
+  const requestRef=fzhAdminStore.collection('libraryRequests').doc(r.id),stateRef=fzhAdminStore.collection('libraryLoanStates').doc(r.bookId);
+  await fzhAdminStore.runTransaction(async tx=>{
+   const req=await tx.get(requestRef),state=await tx.get(stateRef);
+   if(!req.exists)throw Error('申请不存在');
+   const data=req.data(),status=data.status||'pending',frozen=state.exists&&state.data().frozen===true;
+   if(action==='approve'){
+    if(status!=='pending'||frozen)throw Error('申请已处理或图书已冻结');
+    tx.update(requestRef,{status:'approved',reviewedAt:firebase.firestore.FieldValue.serverTimestamp()});
+    tx.set(stateRef,{frozen:true,activeRequestId:r.id,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+   }else if(action==='reject'){
+    if(status!=='pending')throw Error('申请已处理');
+    tx.update(requestRef,{status:'rejected',reviewedAt:firebase.firestore.FieldValue.serverTimestamp()});
+   }else{
+    if(status!=='approved'||!state.exists||state.data().activeRequestId!==r.id)throw Error('借阅记录与冻结状态不一致，无法自动解冻');
+    tx.update(requestRef,{status:'returned',returnedAt:firebase.firestore.FieldValue.serverTimestamp()});
+    tx.set(stateRef,{frozen:false,activeRequestId:'',updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+   }
+  });
+ }catch(e){alert('处理失败：'+e.message)}
+}
+async function setLibraryFrozen(bookId,freeze){
+ if(!fzhAdminReady)return;
+ if(!confirm('确定'+(freeze?'冻结':'解冻')+'这本图书的新借阅申请吗？'))return;
+ try{
+  const ref=fzhAdminStore.collection('libraryLoanStates').doc(bookId);
+  await fzhAdminStore.runTransaction(async tx=>{
+   const d=await tx.get(ref),old=d.exists?d.data():{};
+   if(!freeze&&old.activeRequestId)throw Error('该书有未归还的借阅，须先登记归还');
+   tx.set(ref,{frozen:freeze,activeRequestId:old.activeRequestId||'',updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+  });
+ }catch(e){alert('操作失败：'+e.message)}
+}
+function renderLibraryFreeze(){
+ const el=$('libraryFreezeList');if(!el)return;el.replaceChildren();
+ const items=Array.isArray(libraryCloudItems)?libraryCloudItems:[];
+ for(const book of items.filter(b=>b.category==='图书')){
+  const line=document.createElement('div');line.style.cssText='display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px;border-bottom:1px solid #ddd';
+  const frozen=!!libraryLoanStates[book.id]?.frozen;
+  const title=document.createElement('span');title.textContent=book.name+' · '+(frozen?'🔒 已冻结':'可借阅');line.append(title);
+  line.append(libraryButton(frozen?'解冻':'冻结',()=>setLibraryFrozen(book.id,!frozen)));el.append(line);
+ }
+}
+
 function limitLibraryRequestRows(){
  const p=$('libraryRequestScroll'),t=p?.querySelector('table');if(!p||!t)return;
  const rows=Array.from(t.tBodies[0].rows).slice(0,3);
@@ -293,6 +353,7 @@ function limitLibraryRequestRows(){
 window.addEventListener('resize',()=>requestAnimationFrame(limitLibraryRequestRows));
 
 function scheduleLibraryMirror(){
+ renderLibraryFreeze();
  if(!fzhAdminReady||!libraryCloudItems)return;
  if(libraryMirrorTimer)clearTimeout(libraryMirrorTimer);
  libraryMirrorTimer=setTimeout(()=>{libraryMirrorTimer=null;syncPublicLibrary().catch(e=>{
@@ -480,7 +541,7 @@ function renderCareMatches(){
 }
 async function markCareMatched(postId,needId){
  if(!fzhAdminReady)return;
- const post=carePublic.find(x=>x.id===postId),contact=carePrivate.find(x=>x.id===postId),need=careNeeds.find(x=>x.id===needId);
+ const post=carePublic.find(x=>x.id===postId),contact=carePrivate.find(x=>x.id===postId)||{author:carePublic.find(x=>x.id===postId)?.author||'历史匿名发布'},need=careNeeds.find(x=>x.id===needId);
  if(!post||!need||!contact)return alert('记录尚未加载完整，请稍后重试');
  if(need.matched)return alert('此需求已经匹配');
  if(!confirm('确认已为这条需求安排匹配，并保存到已匹配记录吗？'))return;
@@ -527,7 +588,7 @@ function renderCarePosts(){
  for(const n of careNeeds)counts.set(n.postId,(counts.get(n.postId)||0)+1);
  for(const post of carePublic){
   const row=document.createElement('article');row.className='care-post-row';
-  const contact=contacts.get(post.id);
+  const contact=contacts.get(post.id)||{author:post.author||'历史匿名发布'};
   for(const value of [
    '帖子：'+(post.text||'（仅图片）'),
    '发布者：'+(contact?.author||'等待加载'),
@@ -554,7 +615,7 @@ function renderCareAdmin(){
  for(const p of carePublic){
   const card=document.createElement('div');card.style.cssText='border:1px solid #dce6dd;border-radius:10px;padding:12px;margin:12px 0;overflow-wrap:anywhere';
   const h=document.createElement('h3');h.textContent='发布 #'+p.id.slice(0,8);card.append(h);
-  const contact=contacts.get(p.id);
+  const contact=contacts.get(p.id)||{author:p.author||'历史匿名发布'};
   for(const t of ['发布者称呼：'+(contact?.author||'待加载'), '物品说明：'+(p.text||'仅图片'), '发布时间：'+(p.createdAt?.toDate?.()?.toLocaleString('zh-CN')||'—')]){const el=document.createElement('p');el.textContent=t;card.append(el)}
   if(p.photo?.startsWith('data:image/jpeg;base64,')){const img=document.createElement('img');img.src=p.photo;img.alt='闲置物品';img.style.cssText='max-width:180px;max-height:150px;object-fit:contain';card.append(img)}
   const needList=needsByPost.get(p.id)||[];

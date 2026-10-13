@@ -27,19 +27,19 @@ a{color:inherit}#more{display:block;margin:15px auto}
 <header><div><div class="mcg-language-row"><h1>CCG Mainz爱心站</h1><button id="mcgLanguageSwitch" type="button" data-no-translate>切換為繁體中文</button></div><span id="mcgLanguageStatus" class="mcg-language-status" role="status" data-no-translate></span><span>分享家中闲置或多余的物品 · 由管理员安排匹配</span></div></header>
 <main><p><a href="./platform.html" style="color:#22583d">← 返回 CCG Mainz幸福家人数字平台</a></p><section class="card"><h2>发布闲置物品</h2>
 <form id="postForm">
-<label for="author">您的称呼 *（仅管理员可见）</label><input id="author" type="text" maxlength="40" placeholder="请输入称呼，仅管理员可见" required>
+<p id="postingIdentity" class="muted">正在验证会员身份…</p>
 <label for="body">物品说明（可选）</label><textarea id="body" maxlength="1500" placeholder="请描述闲置或多余的物品（最多1500字）"></textarea>
 <label for="image">上传图片（可选，最多一张）</label><input id="image" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/*">
 <img id="preview" hidden alt="图片预览">
-<p class="muted">文字和图片至少填写一项。公开页面只显示物品说明和图片，您的称呼单独保存，仅管理员可见。请勿在公开文字或图片中写入个人信息。</p>
+<p class="muted">文字和图片至少填写一项。发布帖子将公开显示您注册的真实姓名。请勿在公开文字或图片中写入电话、地址等隐私。</p>
 <button id="publish" type="submit">发布物品</button><p id="publishStatus" class="muted" role="status"></p>
 </form></section>
 <section><h2>最新闲置物品</h2><p class="muted" id="feedStatus">正在加载…</p><div id="feed"></div><button id="more" type="button" hidden>加载更多</button></section>
 </main>
-<div id="needDialog" hidden role="dialog" aria-modal="true" aria-labelledby="needTitle"><form id="needForm" class="card"><h2 id="needTitle">我有需要</h2><p id="needItem"></p><label for="requester">您的称呼（仅管理员可见） *</label><input id="requester" type="text" maxlength="40" required placeholder="请输入称呼"><label for="needDetails">大致需要的物品及数量 *</label><textarea id="needDetails" maxlength="500" required placeholder="例如：儿童外套2件、书包1个"></textarea><p class="muted">申请信息仅管理员可见，由管理员安排匹配。请勿在公开物品说明中留下联系方式。</p><button id="sendNeed" type="submit">发送给管理员</button><button id="cancelNeed" type="button" class="secondary">取消</button><p id="needStatus" role="status"></p></form></div><div id="viewer" hidden role="dialog" aria-modal="true" aria-label="查看图片"><button id="closeViewer" type="button">关闭 ×</button><img id="largeImage" alt="物品图片"></div>
+<div id="needDialog" hidden role="dialog" aria-modal="true" aria-labelledby="needTitle"><form id="needForm" class="card"><h2 id="needTitle">我有需要</h2><p id="needItem"></p><label for="requester">您的真实姓名（由账号自动填写） *</label><input id="requester" type="text" maxlength="40" readonly required><label for="needDetails">大致需要的物品及数量 *</label><textarea id="needDetails" maxlength="500" required placeholder="例如：儿童外套2件、书包1个"></textarea><p class="muted">需求内容仅管理员可见，由管理员安排匹配。请勿在公开物品说明中留下联系方式。</p><button id="sendNeed" type="submit">发送给管理员</button><button id="cancelNeed" type="button" class="secondary">取消</button><p id="needStatus" role="status"></p></form></div><div id="viewer" hidden role="dialog" aria-modal="true" aria-label="查看图片"><button id="closeViewer" type="button">关闭 ×</button><img id="largeImage" alt="物品图片"></div>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="./firebase-config.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="./firebase-config.js"></script><script src="./member-session.js"></script>
 <script>
 const $=id=>document.getElementById(id);
 let db=null,posts=[],nextPage=null,loading=false,hasMore=true,selectedPhoto='',chosenPost=null,needBusy=false;
@@ -57,19 +57,20 @@ function limitFeedTen(){
 window.addEventListener('resize',limitFeedTen);
 function render(){
  const feed=$('feed');feed.replaceChildren();
- for(const p of posts){
+ for(const p of posts.filter(x=>x.author&&x.uid)){
   const card=make('article',undefined,'post'),head=make('div',undefined,'post-head');
-  head.append(make('strong','匿名分享'));
+  head.append(make('strong',p.author||'历史匿名发布'));
   const t=make('time',p.createdAt?.toDate?.()?.toLocaleString('zh-CN')||'刚刚');head.append(t);card.append(head);
   if(p.text)card.append(make('p',p.text));
   if(p.photo?.startsWith('data:image/jpeg;base64,')){
    const img=document.createElement('img');img.src=p.photo;img.alt='物品图片';img.loading='lazy';
    img.addEventListener('click',()=>openPhoto(p.photo));card.append(img);
   }
-  const need=make('button','❤️ 我有需要','need');need.type='button';need.addEventListener('click',()=>{chosenPost=p;$('needItem').textContent='您正在申请这条闲置物品：'+(p.text||'图片所示物品');$('requester').value='';$('needDetails').value='';$('needStatus').textContent='';$('needDialog').hidden=false;$('requester').focus()});card.append(need);
+  const need=make('button','❤️ 我有需要','need');need.type='button';need.addEventListener('click',()=>{chosenPost=p;$('needItem').textContent='您正在申请这条闲置物品：'+(p.text||'图片所示物品');$('requester').value=window.CCGMember?.profile?.name||'';$('needDetails').value='';$('needStatus').textContent='';$('needDialog').hidden=false;$('requester').focus()});card.append(need);
   feed.append(card);
  }
- $('feedStatus').textContent=posts.length?'已显示 '+posts.length+' 条帖子':'暂无闲置物品，欢迎发布第一条！';
+ const shown=posts.filter(x=>x.author&&x.uid).length;
+ $('feedStatus').textContent=shown?'已显示 '+shown+' 条实名帖子':'暂无实名帖子，欢迎发布第一条！';
  $('more').hidden=!hasMore;
 }
 async function loadMore(reset=false){
@@ -117,13 +118,13 @@ $('image').addEventListener('change',async e=>{
 $('cancelNeed').onclick=()=>{if(!needBusy){$('needDialog').hidden=true;chosenPost=null}};
 $('needDialog').addEventListener('click',e=>{if(e.target===$('needDialog'))$('cancelNeed').click()});
 $('needForm').addEventListener('submit',async e=>{
- e.preventDefault();if(!db||!chosenPost||needBusy)return;
+ e.preventDefault();if(!db||!chosenPost||needBusy||!window.CCGMember?.user)return;
  const requester=$('requester').value.trim(),details=$('needDetails').value.trim();
  if(!requester||requester.length>40||!details||details.length>500){$('needStatus').textContent='请填写称呼及需要的物品、数量';return}
  if(!confirm('确定将您的称呼、所需物品及数量发送给管理员吗？仅管理员可见。'))return;
  needBusy=true;$('sendNeed').disabled=true;$('needStatus').textContent='正在发送…';
  try{
-  await db.collection('careNeeds').add({postId:chosenPost.id,requester,details,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+  await db.collection('careNeeds').add({postId:chosenPost.id,requester,uid:window.CCGMember.user.uid,details,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
   $('needStatus').textContent='已发送给管理员，等待人工安排匹配。';
   $('sendNeed').textContent='已发送';
   setTimeout(()=>{$('needDialog').hidden=true;chosenPost=null;$('sendNeed').textContent='发送给管理员'},1100);
@@ -132,19 +133,18 @@ $('needForm').addEventListener('submit',async e=>{
 });
 $('postForm').addEventListener('submit',async e=>{
  e.preventDefault();if(!db)return;
- const author=$('author').value.trim(),text=$('body').value.trim();
+ const author=window.CCGMember?.profile?.name||'',text=$('body').value.trim();
  if(!author||author.length>40){$('publishStatus').textContent='请填写不超过40字的称呼';return}
  if(!text&&!selectedPhoto){$('publishStatus').textContent='请填写文字或上传图片';return}
- if(!confirm('确定发布这条闲置物品信息吗？物品说明和照片会公开，但称呼仅管理员可见。'))return;
+ if(!confirm('确定发布这条闲置物品信息吗？物品说明、照片和您的真实姓名会公开。'))return;
  const btn=$('publish');btn.disabled=true;$('publishStatus').textContent='正在发布…';
  try{
   const id=db.collection('carePosts').doc().id;
   const batch=db.batch();const stamp=firebase.firestore.FieldValue.serverTimestamp();
-  batch.set(db.collection('carePosts').doc(id),{text,photo:selectedPhoto,createdAt:stamp});
-  batch.set(db.collection('carePostContacts').doc(id),{author,createdAt:stamp});
+  batch.set(db.collection('carePosts').doc(id),{text,photo:selectedPhoto,author,uid:window.CCGMember.user.uid,createdAt:stamp});
   await batch.commit();
   $('body').value='';$('image').value='';$('preview').hidden=true;selectedPhoto='';
-  $('publishStatus').textContent='发布成功！公开页面不会显示您的称呼。';nextPage=null;await loadMore(true);
+  $('publishStatus').textContent='发布成功！您的真实姓名将公开显示。';nextPage=null;await loadMore(true);
  }catch(err){$('publishStatus').textContent='发布失败：'+err.message}
  finally{btn.disabled=false}
 });
@@ -152,6 +152,6 @@ try{
  const config=window.FZH_FIREBASE_CONFIG;
  if(!config?.apiKey)throw Error('Firebase 配置缺失');
  if(!firebase.apps.length)firebase.initializeApp(config);
- db=firebase.firestore();loadMore(true);
+ db=firebase.firestore();window.CCGMember.ready.then(m=>{$('postingIdentity').textContent='实名发布：'+m.profile.name;loadMore(true)});
 }catch(err){$('feedStatus').textContent='初始化失败：'+err.message}
 </script><script src="./zh-toggle.js"></script></body></html>
