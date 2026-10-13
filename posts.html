@@ -42,7 +42,7 @@ a{color:inherit}#more{display:block;margin:15px auto}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="./firebase-config.js"></script><script src="./member-session.js"></script>
 <script>
 const $=id=>document.getElementById(id);
-let db=null,posts=[],nextPage=null,loading=false,hasMore=true,selectedPhoto='',chosenPost=null,needBusy=false;
+let editingPostId=null;let db=null,posts=[],nextPage=null,loading=false,hasMore=true,selectedPhoto='',chosenPost=null,needBusy=false;
 function make(tag,text,cls){const el=document.createElement(tag);if(text!==undefined)el.textContent=text;if(cls)el.className=cls;return el}
 function openPhoto(src){$('largeImage').src=src;$('viewer').hidden=false}
 function closePhoto(){$('viewer').hidden=true;$('largeImage').removeAttribute('src')}
@@ -67,6 +67,17 @@ function render(){
    img.addEventListener('click',()=>openPhoto(p.photo));card.append(img);
   }
   const need=make('button','❤️ 我有需要','need');need.type='button';need.addEventListener('click',()=>{chosenPost=p;$('needItem').textContent='您正在申请这条闲置物品：'+(p.text||'图片所示物品');$('requester').value=window.CCGMember?.profile?.name||'';$('needDetails').value='';$('needStatus').textContent='';$('needDialog').hidden=false;$('requester').focus()});card.append(need);
+  if(p.uid===window.CCGMember?.user?.uid){
+   const edit=make('button','编辑我的帖子');edit.type='button';edit.style.marginRight='8px';
+   edit.onclick=()=>{editingPostId=p.id;$('body').value=p.text||'';selectedPhoto=p.photo||'';
+    $('preview').hidden=!selectedPhoto;if(selectedPhoto)$('preview').src=selectedPhoto;
+    $('publish').textContent='保存修改';$('publishStatus').textContent='正在编辑自己的帖子；不选新图片则保留原图片。';
+    $('postForm').scrollIntoView({behavior:'smooth'});};
+   const del=make('button','删除我的帖子');del.type='button';
+   del.onclick=async()=>{if(!confirm('确定删除自己的帖子吗？已提交的需求通知仍会保留在管理员记录中。'))return;
+    try{await db.collection('carePosts').doc(p.id).delete();nextPage=null;await loadMore(true)}catch(e){alert('删除失败：'+e.message)}};
+   card.append(edit,del);
+  }
   feed.append(card);
  }
  const shown=posts.filter(x=>x.author&&x.uid).length;
@@ -124,7 +135,10 @@ $('needForm').addEventListener('submit',async e=>{
  if(!confirm('确定将您的称呼、所需物品及数量发送给管理员吗？仅管理员可见。'))return;
  needBusy=true;$('sendNeed').disabled=true;$('needStatus').textContent='正在发送…';
  try{
-  await db.collection('careNeeds').add({postId:chosenPost.id,requester,uid:window.CCGMember.user.uid,details,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+  const id=db.collection('careNeeds').doc().id,stamp=firebase.firestore.FieldValue.serverTimestamp();
+  const batch=db.batch();batch.set(db.collection('careNeeds').doc(id),{postId:chosenPost.id,requester,uid:window.CCGMember.user.uid,details,createdAt:stamp});
+  if(chosenPost.uid)batch.set(db.collection('memberNotifications').doc(id),{uid:chosenPost.uid,postId:chosenPost.id,needId:id,text:details,createdAt:stamp});
+  await batch.commit();
   $('needStatus').textContent='已发送给管理员，等待人工安排匹配。';
   $('sendNeed').textContent='已发送';
   setTimeout(()=>{$('needDialog').hidden=true;chosenPost=null;$('sendNeed').textContent='发送给管理员'},1100);
@@ -136,13 +150,11 @@ $('postForm').addEventListener('submit',async e=>{
  const author=window.CCGMember?.profile?.name||'',text=$('body').value.trim();
  if(!author||author.length>40){$('publishStatus').textContent='请填写不超过40字的称呼';return}
  if(!text&&!selectedPhoto){$('publishStatus').textContent='请填写文字或上传图片';return}
- if(!confirm('确定发布这条闲置物品信息吗？物品说明、照片和您的真实姓名会公开。'))return;
+ if(!confirm(editingPostId?'确定保存对这条帖子的修改吗？':'确定发布这条闲置物品信息吗？物品说明、照片和您的真实姓名会公开。'))return;
  const btn=$('publish');btn.disabled=true;$('publishStatus').textContent='正在发布…';
  try{
-  const id=db.collection('carePosts').doc().id;
-  const batch=db.batch();const stamp=firebase.firestore.FieldValue.serverTimestamp();
-  batch.set(db.collection('carePosts').doc(id),{text,photo:selectedPhoto,author,uid:window.CCGMember.user.uid,createdAt:stamp});
-  await batch.commit();
+  if(editingPostId){await db.collection('carePosts').doc(editingPostId).update({text,photo:selectedPhoto});editingPostId=null;$('publish').textContent='发布物品';}
+  else{const id=db.collection('carePosts').doc().id;await db.collection('carePosts').doc(id).set({text,photo:selectedPhoto,author,uid:window.CCGMember.user.uid,createdAt:firebase.firestore.FieldValue.serverTimestamp()});}
   $('body').value='';$('image').value='';$('preview').hidden=true;selectedPhoto='';
   $('publishStatus').textContent='发布成功！您的真实姓名将公开显示。';nextPage=null;await loadMore(true);
  }catch(err){$('publishStatus').textContent='发布失败：'+err.message}

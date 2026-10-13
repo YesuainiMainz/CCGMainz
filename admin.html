@@ -272,7 +272,13 @@ function stopLibraryRequestNotifications(){
 function listenLibraryRequestNotifications(){
  stopLibraryRequestNotifications();if(!fzhAdminReady)return;
  libraryLoanUnsub=fzhAdminStore.collection('libraryLoanStates').onSnapshot(s=>{
-  libraryLoanStates={};for(const d of s.docs)libraryLoanStates[d.id]=d.data();renderLibraryFreeze();
+  libraryLoanStates={};for(const d of s.docs){
+   const data=d.data();libraryLoanStates[d.id]=data;
+   if(!Number.isInteger(data.borrowedCount)){
+    const legacyCount=data.activeRequestId?1:0;
+    fzhAdminStore.collection('libraryLoanStates').doc(d.id).set({frozen:data.activeRequestId?false:!!data.frozen,borrowedCount:legacyCount,updatedAt:firebase.firestore.FieldValue.serverTimestamp()}).catch(e=>console.warn('旧借阅冻结状态迁移失败',e));
+   }
+  }renderLibraryFreeze();
  },e=>{$('libraryRequestStatus').textContent='冻结状态加载失败：'+e.message});
  libraryRequestsUnsub=fzhAdminStore.collection('libraryRequests').orderBy('createdAt','desc').limit(100).onSnapshot(s=>{
   libraryRequests=s.docs.map(d=>({id:d.id,...d.data()}));renderLibraryRequests();
@@ -289,34 +295,35 @@ function renderLibraryRequests(){
   }
   const ops=document.createElement('td'),status=r.status||'pending';
   if(status==='pending'){
-   ops.append(libraryButton('批准借出并冻结',()=>handleLibraryRequest(r,'approve')));
+   ops.append(libraryButton('批准借出',()=>handleLibraryRequest(r,'approve')));
    ops.append(libraryButton('拒绝',()=>handleLibraryRequest(r,'reject')));
-  }else if(status==='approved')ops.append(libraryButton('登记归还并解冻',()=>handleLibraryRequest(r,'return')));
+  }else if(status==='approved')ops.append(libraryButton('登记归还',()=>handleLibraryRequest(r,'return')));
   tr.append(ops);tbody.append(tr);
  }
  $('libraryRequestStatus').textContent='最近 '+libraryRequests.length+' 条借阅申请';requestAnimationFrame(limitLibraryRequestRows);
 }
 async function handleLibraryRequest(r,action){
  if(!fzhAdminReady)return;
- const labels={approve:'批准借出并冻结图书',reject:'拒绝借阅申请',return:'登记归还并解冻图书'};
+ const labels={approve:'批准借出图书',reject:'拒绝借阅申请',return:'登记归还图书'};
  if(!confirm('确定'+labels[action]+'「'+r.bookName+'」吗？'))return;
  try{
   const requestRef=fzhAdminStore.collection('libraryRequests').doc(r.id),stateRef=fzhAdminStore.collection('libraryLoanStates').doc(r.bookId);
   await fzhAdminStore.runTransaction(async tx=>{
    const req=await tx.get(requestRef),state=await tx.get(stateRef);
    if(!req.exists)throw Error('申请不存在');
-   const data=req.data(),status=data.status||'pending',frozen=state.exists&&state.data().frozen===true;
+   const data=req.data(),status=data.status||'pending',old=state.exists?state.data():{},frozen=old.frozen===true,count=old.borrowedCount||0;
+   const book=libraryCloudItems?.find(b=>b.id===r.bookId);if(!book)throw Error('找不到图书库存，请先同步云端库存');
    if(action==='approve'){
-    if(status!=='pending'||frozen)throw Error('申请已处理或图书已冻结');
+    if(status!=='pending'||frozen||count>=book.qty)throw Error('申请已处理、图书已冻结或全部借出');
     tx.update(requestRef,{status:'approved',reviewedAt:firebase.firestore.FieldValue.serverTimestamp()});
-    tx.set(stateRef,{frozen:true,activeRequestId:r.id,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+    tx.set(stateRef,{frozen:false,borrowedCount:count+1,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
    }else if(action==='reject'){
     if(status!=='pending')throw Error('申请已处理');
     tx.update(requestRef,{status:'rejected',reviewedAt:firebase.firestore.FieldValue.serverTimestamp()});
    }else{
-    if(status!=='approved'||!state.exists||state.data().activeRequestId!==r.id)throw Error('借阅记录与冻结状态不一致，无法自动解冻');
+    if(status!=='approved'||!state.exists||count<1)throw Error('借阅记录与借出数量不一致');
     tx.update(requestRef,{status:'returned',returnedAt:firebase.firestore.FieldValue.serverTimestamp()});
-    tx.set(stateRef,{frozen:false,activeRequestId:'',updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+    tx.set(stateRef,{frozen:old.frozen===true,borrowedCount:count-1,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
    }
   });
  }catch(e){alert('处理失败：'+e.message)}
@@ -328,8 +335,7 @@ async function setLibraryFrozen(bookId,freeze){
   const ref=fzhAdminStore.collection('libraryLoanStates').doc(bookId);
   await fzhAdminStore.runTransaction(async tx=>{
    const d=await tx.get(ref),old=d.exists?d.data():{};
-   if(!freeze&&old.activeRequestId)throw Error('该书有未归还的借阅，须先登记归还');
-   tx.set(ref,{frozen:freeze,activeRequestId:old.activeRequestId||'',updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+   tx.set(ref,{frozen:freeze,borrowedCount:old.borrowedCount||0,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
   });
  }catch(e){alert('操作失败：'+e.message)}
 }
@@ -338,8 +344,8 @@ function renderLibraryFreeze(){
  const items=Array.isArray(libraryCloudItems)?libraryCloudItems:[];
  for(const book of items.filter(b=>b.category==='图书')){
   const line=document.createElement('div');line.style.cssText='display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px;border-bottom:1px solid #ddd';
-  const frozen=!!libraryLoanStates[book.id]?.frozen;
-  const title=document.createElement('span');title.textContent=book.name+' · '+(frozen?'🔒 已冻结':'可借阅');line.append(title);
+  const state=libraryLoanStates[book.id]||{},frozen=!!state.frozen,count=state.borrowedCount||0;
+  const title=document.createElement('span');title.textContent=book.name+' · 已借 '+count+'/'+book.qty+' · '+(count>=book.qty?'📕 已借出':frozen?'🔒 已冻结':'可借阅');line.append(title);
   line.append(libraryButton(frozen?'解冻':'冻结',()=>setLibraryFrozen(book.id,!frozen)));el.append(line);
  }
 }

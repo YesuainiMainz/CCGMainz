@@ -1,0 +1,9 @@
+(()=>{'use strict';const $=id=>document.getElementById(id);
+if(!window.firebase)return;const auth=firebase.auth(),db=firebase.firestore();let off=[],loans=[],needs=[];
+function clear(){off.forEach(f=>f());off=[];loans=[];needs=[];$('memberInbox').replaceChildren()}
+function render(){const rows=[...loans.map(x=>({kind:'图书借阅',title:x.bookName,status:({pending:'待审批',approved:'已借出未归还',returned:'已归还',rejected:'已拒绝'})[x.status]||x.status,time:x.createdAt})),...needs.map(x=>({kind:'爱心站需求提醒',title:'有人需要您分享的物品',status:x.text,time:x.createdAt}))].sort((a,b)=>(b.time?.seconds||0)-(a.time?.seconds||0));
+ const root=$('memberInbox');root.replaceChildren();for(const x of rows){const div=document.createElement('div');div.style.cssText='padding:12px 0;border-bottom:1px solid #e1e7e2';const title=document.createElement('strong');title.textContent=x.kind+' · '+x.title;const text=document.createElement('div');text.textContent=x.status||'';const time=document.createElement('small');time.textContent=x.time?.toDate?.()?.toLocaleString('zh-CN')||'';div.append(title,text,time);root.append(div)}$('inboxStatus').textContent=rows.length?'共 '+rows.length+' 条消息':'暂无消息';}
+auth.onAuthStateChanged(u=>{clear();if(!u){$('inboxStatus').textContent='请先登录';return;}
+ off.push(db.collection('libraryRequests').where('uid','==',u.uid).onSnapshot(s=>{loans=s.docs.map(d=>d.data());render()},e=>{$('inboxStatus').textContent='借阅消息加载失败：'+e.message}));
+ off.push(db.collection('memberNotifications').where('uid','==',u.uid).onSnapshot(s=>{needs=s.docs.map(d=>d.data());render()},e=>{$('inboxStatus').textContent='爱心站消息加载失败：'+e.message}));
+});})();

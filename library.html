@@ -115,7 +115,8 @@ function render(){
   tr.append(td);makeCell(tr,book.name);
   makeCell(tr,book.notes||'—','note');const stock=makeCell(tr,String(book.qty)+' '+(book.unit||'个'));
   const ask=document.createElement('button');ask.type='button';ask.className='borrow';ask.textContent='📖 我想借';
-  const frozen=!!loanStates[book.id]?.frozen;ask.disabled=frozen||book.qty<=0;ask.textContent=frozen?'🔒 暂停借阅':book.qty<=0?'暂无库存':'📖 我想借';ask.addEventListener('click',()=>{if(!frozen&&book.qty>0)openBorrow(book)});stock.append(document.createTextNode(' '),ask);
+  const state=loanStates[book.id]||{},remaining=Math.max(0,book.qty-(state.borrowedCount||0)),frozen=!!state.frozen;
+  ask.disabled=frozen||remaining<=0;ask.textContent=remaining<=0?'📕 已借出':frozen?'🔒 暂停借阅':'📖 我想借';ask.addEventListener('click',()=>{if(!frozen&&remaining>0)openBorrow(book)});stock.append(document.createTextNode(' '),ask);
   tbody.append(tr);
  }
  $('status').textContent='共 '+visible.length+' 种图书 · 目录自动更新';
