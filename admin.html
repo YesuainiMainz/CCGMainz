@@ -77,6 +77,24 @@ button{touch-action:manipulation}
 #careAdminList>.match-record:nth-child(even),#careMatchedList>.match-record:nth-child(even){background:#f7faf8}
 #careAdminList>.match-record>div,#careMatchedList>.match-record>div{margin:3px 0}
 @media(max-width:600px){#careAdminList>.match-record,#careMatchedList>.match-record,#carePostList>.care-post-row{padding:12px!important}}
+#careManagement .card{min-width:0;overflow:visible}
+#carePostScroll,#careRequestScroll,#careMatchedScroll{width:100%;min-width:0;max-width:100%;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;max-height:520px}
+#carePostList,#careAdminList,#careMatchedList{display:flex;flex-direction:column;gap:0;min-width:0}
+#carePostList>*,#careAdminList>*,#careMatchedList>*{width:100%;min-width:0;max-width:100%;box-sizing:border-box;overflow-wrap:anywhere;white-space:normal}
+#carePostList img{max-width:100%;height:auto}
+
+/* v6.8: accordion management cards, independent two-record scroll areas */
+#careManagement .care-accordion{border:1px solid #dce6dd;border-radius:12px;margin:14px 0;background:#fff;overflow:hidden;min-width:0}
+#careManagement .care-accordion>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;list-style:none;font-weight:700;font-size:1.12rem;padding:18px 20px;background:#f6faf7;user-select:none}
+#careManagement .care-accordion>summary::-webkit-details-marker{display:none}
+#careManagement .care-accordion>summary:hover{background:#edf5ef}
+#careManagement .care-accordion>summary:focus-visible{outline:3px solid #6ea184;outline-offset:-3px}
+#careManagement .care-chevron{transition:transform .2s;font-size:1.3rem;color:#47745b}
+#careManagement .care-accordion[open] .care-chevron{transform:rotate(180deg)}
+#careManagement .care-accordion-body{padding:16px 18px;min-width:0}
+#careManagement .care-accordion-body>p:first-child{margin-top:0}
+#carePostScroll,#careRequestScroll,#careMatchedScroll{overflow-y:auto;overflow-x:hidden;max-width:100%;scrollbar-gutter:stable}
+@media(max-width:600px){#careManagement .care-accordion>summary{padding:15px}#careManagement .care-accordion-body{padding:12px}}
 </style><header><h1>CCG Mainz线上管理中心</h1></header><main>
 
 <div id="managementHome"><div class="card" id="firebasePublisher"><h2>管理员登录</h2><div class="grid"><label>管理员账号<input autocapitalize="none" autocomplete="username" id="adminEmail" name="username" placeholder="请输入管理员账号" spellcheck="false" type="email"/></label><label>管理员密码<input autocomplete="current-password" id="adminPassword" name="password" type="password"/></label></div><button id="adminLoginButton" onclick="adminSignIn()" type="button">管理员登录</button><button class="alt" onclick="adminSignOut()" type="button">退出</button><p class="warn" id="adminAuthStatus">尚未登录。</p><p class="muted" id="latestStockTime">最新库存更新时间：等待云端加载…</p></div><nav class="management-nav" id="managementNav" aria-label="管理中心功能导航">
@@ -104,7 +122,7 @@ button{touch-action:manipulation}
  <div class="card"><h2>CCG Mainz图书馆 · 借阅申请审批与归还</h2><p class="muted">会员登录后可提交借阅申请。管理员可批准、拒绝、登记归还，也可手动冻结或解冻图书；冻结期间不能提交新申请。与库存家庭端申请独立。</p><p class="muted" id="libraryRequestStatus">登录后自动加载通知。</p><div class="scroll" id="libraryRequestScroll"><table><thead><tr><th>图书</th><th>姓名</th><th>提交时间</th><th>状态</th><th>操作</th></tr></thead><tbody id="libraryRequestRows"></tbody></table></div><h3>图书冻结管理</h3><p class="muted">管理员可暂停某种图书的新借阅申请；已借出的书登记归还后可解冻。</p><div id="libraryFreezeList"></div></div>
 </section>
 <section id="careManagement" class="management-view" hidden>
-<div class="card"><h2>CCG Mainz爱心站 · 需求通知记录</h2><p class="muted">发布者姓名将在爱心站公开显示；需求者的姓名及需求详情仅管理员可见。申请发送后直接通知发布者，双方自行联系。管理员只查看发送记录和旧版匹配历史。</p><p><a href="./posts.html" target="_blank" rel="noopener">查看公开爱心站</a></p><h3>帖子浏览与管理</h3><p class="muted">可直接删除任何帖子，包括尚未匹配的帖子。最多显示5条，其余上下滑动；删除帖子会清理关联的需求申请，但保留已匹配历史。</p><p id="carePostStatus" class="muted">登录后自动加载帖子。</p><div id="carePostScroll"><div id="carePostList"></div></div><h3>需求申请发送记录</h3><p class="muted">每屏最多5条，其余上下滑动查看。仅供查询，管理员不参与匹配。</p><p id="careAdminStatus" class="muted">请先登录管理员账号。</p><div id="careRequestScroll" style="overflow-y:auto;overscroll-behavior:contain;min-width:0;max-width:100%"><div id="careAdminList"></div></div><h3>旧版匹配历史</h3><p class="muted">最多显示5条，其余上下滑动；这是旧版历史数据；新版需求不再需要线上匹配。</p><p id="careMatchedStatus" class="muted"></p><div id="careMatchedScroll"><div id="careMatchedList"></div></div></div></section>
+<div class="card"><h2>CCG Mainz爱心站 · 需求通知记录</h2><p class="muted">发布者姓名将在爱心站公开显示；需求者的姓名及需求详情仅管理员可见。申请发送后直接通知发布者，双方自行联系。管理员只查看发送记录和旧版匹配历史。</p><p><a href="./posts.html" target="_blank" rel="noopener">查看公开爱心站</a></p><details class="care-accordion"><summary>帖子浏览与管理<span class="care-chevron" aria-hidden="true">⌄</span></summary><div class="care-accordion-body"><p class="muted">可直接删除任何帖子。展开后每屏最多显示2条，其余上下滑动。删除帖子后仍保留需求发送记录与旧版匹配历史。</p><p id="carePostStatus" class="muted">登录后自动加载帖子。</p><button type="button" class="alt" id="careLoadMore" onclick="loadMoreCarePosts()" style="margin:0 0 10px;display:none">加载更多旧帖子（每次30条）</button><div id="carePostScroll"><div id="carePostList"></div></div> </div></details><details class="care-accordion"><summary>需求申请发送记录<span class="care-chevron" aria-hidden="true">⌄</span></summary><div class="care-accordion-body"><p class="muted">每屏最多2条，其余上下滑动查看。即使帖子删除也保留发送记录；管理员不参与匹配。</p><p id="careAdminStatus" class="muted">请先登录管理员账号。</p><div id="careRequestScroll" style="overflow-y:auto;overscroll-behavior:contain;min-width:0;max-width:100%"><div id="careAdminList"></div></div> </div></details><details class="care-accordion"><summary>旧版匹配历史<span class="care-chevron" aria-hidden="true">⌄</span></summary><div class="care-accordion-body"><p class="muted">每屏最多2条，其余上下滑动；这是旧版历史数据；新版需求不再需要线上匹配。</p><p id="careMatchedStatus" class="muted"></p><div id="careMatchedScroll"><div id="careMatchedList"></div></div> </div></details></div></section>
 <section id="privacyManagement" class="management-view" hidden>
  <div class="card"><h2>平台会员账号（不显示密码）</h2><p class="muted">管理员可查看注册姓名和邮箱账号。密码由 Firebase Authentication 安全管理，管理员无法读取。</p><button type="button" onclick="loadPlatformAccounts()">刷新会员与找回请求</button><p id="platformAccountStatus" class="muted">登录后可查看。</p><div id="platformAccountList" style="max-height:360px;overflow-y:auto"></div><h3>忘记账号密码 · 找回请求</h3><p class="muted">显示申请者提交的姓名和邮箱，便于人工核对。管理员不能查看或发送原密码。</p><div id="accountRecoveryList" style="max-height:360px;overflow-y:auto"></div></div><div class="card" id="memberApproval"><h2>家庭成员审批</h2><button onclick="loadMembers()" type="button">刷新申请列表</button><p class="muted" id="memberStatus">请先以管理员身份登录。</p><div id="memberList"></div></div>
 </section></main><div id="stockActionModal" class="stock-action-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="stockActionTitle"><div class="stock-action-box"><h2 id="stockActionTitle">库存出库 / 库位移动</h2><p id="stockActionItem"></p><label>操作类型<select id="stockActionType" onchange="updateStockActionFields()"><option value="move">库位移动（可移动部分数量）</option><option value="use">取用（扣减库存）</option><option value="destroy">销毁（扣减库存）</option></select></label><label id="stockActionLocationWrap">目标库位<select id="stockActionLocation"></select></label><label id="stockActionQtyWrap" hidden>数量<input id="stockActionQty" type="number" min="1" step="1" value="1"></label><label>操作备注<input id="stockActionNote" maxlength="200" placeholder="可选：操作原因、经手人"></label><p id="stockActionError" class="warn" aria-live="polite"></p><div><button type="button" id="stockActionSubmit" onclick="submitStockAction()">确认操作</button><button type="button" class="alt" onclick="closeStockAction()">取消</button></div></div></div><div id="photoLightbox" class="photo-lightbox" role="dialog" aria-modal="true" aria-label="物品照片放大查看" onclick="closePhotoLightbox()"><button type="button" class="lightbox-close" onclick="closePhotoLightbox()" aria-label="关闭大图">× 关闭</button><img id="lightboxImage" alt="物品大图" onclick="event.stopPropagation()"><div id="lightboxTitle" class="lightbox-title"></div></div><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script><script src="./firebase-config.js"></script><script>
@@ -540,9 +558,10 @@ function startCloudListener(){
 
 // Firebase Auth + Firestore：管理员授权由 Firestore 规则验证。
 let careAdminUnsubs=[];
-function stopCareAdmin(){for(const stop of careAdminUnsubs)stop();careAdminUnsubs=[];}
+function stopCareAdmin(){if(carePostListener){carePostListener();carePostListener=null;}for(const stop of careAdminUnsubs)stop();careAdminUnsubs=[];}
 let carePublic=[],carePrivate=[],careNeeds=[],careMatches=[];
-function limitCareMatches(){const wrap=$('careMatchedScroll');if(!wrap)return;const rows=[...$('careMatchedList').children].slice(0,5);wrap.style.maxHeight=(rows.reduce((n,r)=>n+r.getBoundingClientRect().height,0)+2)+'px';}
+let carePostLimit=30,carePostListener=null;
+function limitCareMatches(){const wrap=$('careMatchedScroll');if(!wrap)return;const rows=[...$('careMatchedList').children].slice(0,2);wrap.style.maxHeight=rows.length?Math.ceil(rows.reduce((n,r)=>n+r.getBoundingClientRect().height,0)+2)+'px':'none';}
 function renderCareMatches(){
  const el=$('careMatchedList');if(!el)return;el.replaceChildren();
  for(const m of careMatches){
@@ -560,16 +579,8 @@ async function deleteCarePost(postId){
  if(!fzhAdminReady)return;
  const post=carePublic.find(p=>p.id===postId);
  if(!post)return alert('帖子已不存在或尚未加载完成');
- if(!confirm('确定删除这条爱心站帖子吗？不论是否已匹配，帖子及相关需求申请都会被删除；已匹配历史记录将保留。'))return;
+ if(!confirm('确定删除这条爱心站帖子吗？帖子会从公开列表移除，但需求申请发送记录与旧版匹配历史将永久保留供管理员查询。'))return;
  try{
-  const needsCol=fzhAdminStore.collection('careNeeds');
-  while(true){
-   const snap=await needsCol.where('postId','==',postId).limit(350).get();
-   if(snap.empty)break;
-   const batch=fzhAdminStore.batch();
-   for(const d of snap.docs)batch.delete(d.ref);
-   await batch.commit();
-  }
   const batch=fzhAdminStore.batch();
   batch.delete(fzhAdminStore.collection('carePosts').doc(postId));
   batch.delete(fzhAdminStore.collection('carePostContacts').doc(postId));
@@ -578,8 +589,8 @@ async function deleteCarePost(postId){
 }
 function limitCarePostRows(){
  const wrap=$('carePostScroll');if(!wrap)return;
- const rows=[...$('carePostList').children].slice(0,5);
- wrap.style.maxHeight=(rows.reduce((sum,r)=>sum+r.getBoundingClientRect().height,0)+2)+'px';
+ const rows=[...$('carePostList').children].slice(0,2);
+ wrap.style.maxHeight=rows.length?(Math.ceil(rows.reduce((sum,r)=>sum+r.getBoundingClientRect().height,0)+2))+'px':'none';
 }
 function renderCarePosts(){
  const list=$('carePostList');if(!list)return;
@@ -594,27 +605,27 @@ function renderCarePosts(){
    '帖子：'+(post.text||'（仅图片）'),
    '发布者：'+(contact?.author||'等待加载'),
    '发布时间：'+(post.createdAt?.toDate?.()?.toLocaleString('zh-CN')||'—'),
-   '需求申请：'+(counts.get(post.id)||0)+' 条（最近100条范围内）'
+   '需求申请：'+(counts.get(post.id)||0)+' 条（近期记录范围内）'
   ]){const line=document.createElement('div');line.textContent=value;line.style.marginBottom='5px';row.append(line)}
-  if(post.photo?.startsWith('data:image/jpeg;base64,')){
-   const img=document.createElement('img');img.src=post.photo;img.alt='帖子物品照片';
+  if(post.photo?.startsWith('data:image/')){
+   const img=document.createElement('img');img.src=post.photo;img.loading='lazy';img.decoding='async';img.alt='帖子物品照片';
    img.style.cssText='max-width:170px;max-height:125px;object-fit:contain;display:block;margin:7px 0';row.append(img);
   }
   const button=document.createElement('button');button.type='button';button.className='danger';
   button.textContent='删除此帖子';button.onclick=()=>deleteCarePost(post.id);row.append(button);
   list.append(row);
  }
- $('carePostStatus').textContent='当前显示最近 '+carePublic.length+' 条帖子；每屏最多5条';
+ $('carePostStatus').textContent='当前显示最近 '+carePublic.length+' 条帖子；每屏最多2条';
+ const more=$('careLoadMore');if(more)more.style.display=carePublic.length>=carePostLimit?'inline-block':'none';
  requestAnimationFrame(limitCarePostRows);
 }
 
 function limitCareRequestRows(){
  const wrap=$('careRequestScroll');if(!wrap)return;
- const rows=[...$('careAdminList').children].slice(0,5);
+ const rows=[...$('careAdminList').children].slice(0,2);
  wrap.style.maxHeight=rows.length?Math.ceil(rows.reduce((sum,r)=>sum+r.getBoundingClientRect().height,0)+2)+'px':'none';
 }
 function renderCareAdmin(){
- renderCarePosts();
  const list=$('careAdminList');if(!list)return;list.replaceChildren();
  const postById=new Map(carePublic.map(p=>[p.id,p]));
  for(const n of careNeeds){
@@ -622,21 +633,65 @@ function renderCareAdmin(){
   const card=document.createElement('div');card.className='match-record';
   card.style.cssText='padding:12px 4px;border-bottom:1px solid #dce6dd;overflow-wrap:anywhere';
   const status=n.status==='accepted'||n.matched?'历史：已接受':n.status==='rejected'?'历史：已拒绝':'已通知发布者';
-  for(const line of ['物品：'+(p?.text||'图片所示物品 / 历史帖子'), '发布者：'+(p?.author||'历史记录'), '申请者：'+(n.requester||'—'), '申请内容：'+(n.details||'—'), '发送时间：'+(n.createdAt?.toDate?.()?.toLocaleString('zh-CN')||'—'), '状态：'+status]){
+  for(const line of ['物品：'+(n.postText||p?.text||'原帖子已删除 / 旧记录'), '发布者：'+(n.ownerName||p?.author||'历史记录'), '申请者：'+(n.requester||'—'), '申请内容：'+(n.details||'—'), '发送时间：'+(n.createdAt?.toDate?.()?.toLocaleString('zh-CN')||'—'), '状态：'+status]){
    const div=document.createElement('div');div.textContent=line;card.append(div);
   }
   list.append(card);
  }
- $('careAdminStatus').textContent='最近 '+careNeeds.length+' 条请求发送记录（每屏最多5条）';
+ $('careAdminStatus').textContent='最近 '+careNeeds.length+' 条请求发送记录（每屏最多2条）';
  requestAnimationFrame(limitCareRequestRows);
 }
+let careRefreshFrame=0;
+function queueCareRefresh(){
+ if(careRefreshFrame)return;
+ careRefreshFrame=requestAnimationFrame(()=>{
+  careRefreshFrame=0;
+  if($('careManagement').hidden)return;
+  refreshCareView();
+ });
+}
+function refreshCareView(){
+ if(!fzhAdminReady)return;
+ const sections=[...document.querySelectorAll('#careManagement .care-accordion')];
+ if(sections[0]?.open)renderCarePosts();
+ if(sections[1]?.open)renderCareAdmin();
+ if(sections[2]?.open)renderCareMatches();
+ requestAnimationFrame(()=>{limitCarePostRows();limitCareRequestRows();limitCareMatches()});
+}
+function listenCarePosts(){
+ if(carePostListener){carePostListener();carePostListener=null;}
+ carePostListener=fzhAdminStore.collection('carePosts').orderBy('createdAt','desc').limit(carePostLimit).onSnapshot(
+  snap=>{carePublic=snap.docs.map(d=>({id:d.id,...d.data()}));queueCareRefresh()},
+  err=>{$('carePostStatus').textContent='帖子读取失败：'+err.message}
+ );
+
+}
+function loadMoreCarePosts(){
+ if(!fzhAdminReady)return;
+ carePostLimit=Math.min(carePostLimit+30,300);
+ listenCarePosts();
+ $('carePostStatus').textContent='正在加载更多帖子…';
+}
+document.querySelectorAll('#careManagement .care-accordion').forEach((section,i)=>{
+ section.addEventListener('toggle',()=>{if(section.open&&fzhAdminReady){
+  if(i===0)renderCarePosts();else if(i===1)renderCareAdmin();else renderCareMatches();
+  requestAnimationFrame(()=>{limitCarePostRows();limitCareRequestRows();limitCareMatches()});
+ }});
+});
 function listenCareAdmin(){
  stopCareAdmin();if(!fzhAdminReady)return;
- const collections=[['carePosts',v=>carePublic=v],['carePostContacts',v=>carePrivate=v],['careNeeds',v=>careNeeds=v]];
- for(const [name,set] of collections){
-  const unsub=fzhAdminStore.collection(name).orderBy('createdAt','desc').limit(100).onSnapshot(s=>{set(s.docs.map(d=>({id:d.id,...d.data()})));renderCareAdmin()},e=>{$('careAdminStatus').textContent='爱心站读取失败：'+e.message});careAdminUnsubs.push(unsub);
- }
- careAdminUnsubs.push(fzhAdminStore.collection('careMatches').orderBy('matchedAt','desc').limit(100).onSnapshot(s=>{careMatches=s.docs.map(d=>({id:d.id,...d.data()}));renderCareMatches()},e=>{$('careMatchedStatus').textContent='已匹配记录加载失败：'+e.message}));
+ // 只取近期帖子，减少图片 base64 导致的重复传输与 DOM 重绘。
+ const subscribe=(name,order,limit,assign,section,statusId)=>{
+  const unsubscribe=fzhAdminStore.collection(name).orderBy(order,'desc').limit(limit).onSnapshot(
+   snap=>{assign(snap.docs.map(d=>({id:d.id,...d.data()})));queueCareRefresh()},
+   err=>{const target=$(statusId);if(target)target.textContent='读取 '+name+' 失败：'+err.message+'。请检查网络与 Firestore 权限。'}
+  );
+  careAdminUnsubs.push(unsubscribe);
+ };
+ listenCarePosts();
+ subscribe('carePostContacts','createdAt',30,v=>carePrivate=v,'contacts','carePostStatus');
+ subscribe('careNeeds','createdAt',100,v=>careNeeds=v,'needs','careAdminStatus');
+ subscribe('careMatches','matchedAt',100,v=>careMatches=v,'matches','careMatchedStatus');
 }
 let fzhAdminAuth=null,fzhAdminStore=null,fzhAdminReady=false,cloudBaseVersion=null;
 function setAdminLoginButtonState(){const b=$('adminLoginButton');if(!b)return;b.disabled=!!(fzhAdminAuth?.currentUser||adminLoginPending);b.textContent=fzhAdminAuth?.currentUser?'已登录':adminLoginPending?'登录中…':'管理员登录';}
@@ -647,7 +702,7 @@ const FZH_ADMIN_ACCOUNT_KEY='fzh_admin_account';
 try{$('adminEmail').value=localStorage.getItem(FZH_ADMIN_ACCOUNT_KEY)||'';}catch(e){}
 const requestScrollObserver=new MutationObserver(()=>requestAnimationFrame(()=>limitTableToTen('onlineRequestsScroll')));
 requestScrollObserver.observe($('onlineRequestRows'),{childList:true});
-window.addEventListener('resize',()=>{limitTableToTen('onlineRequestsScroll');limitCareMatches();});
+window.addEventListener('resize',()=>{limitTableToTen('onlineRequestsScroll');limitCareMatches();limitCarePostRows();limitCareRequestRows();});
 async function adminSignIn(){
  if(!fzhAdminAuth||fzhAdminAuth.currentUser||adminLoginPending)return;
  adminLoginPending=true;setAdminLoginButtonState();
@@ -949,6 +1004,7 @@ function showManagementView(view,fromHash=false){
  $('privacyManagement').hidden=view!=='privacy';
  $('careManagement').hidden=view!=='care';
  $('managementSubpageHeader').hidden=view==='home';
+ if(view==='care')requestAnimationFrame(refreshCareView);
  if(view!=='home')$('managementPageTitle').textContent=view==='inventory'?'库存管理':view==='library'?'CCG Mainz图书馆':view==='care'?'CCG Mainz爱心站':'隐私管理';
  if(!fromHash){const hash=view==='home'?'':('#'+view);if(location.hash!==hash){
   if(view==='home')history.pushState(null,'',location.pathname+location.search);

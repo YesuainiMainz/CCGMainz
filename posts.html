@@ -8,7 +8,7 @@ textarea{min-height:110px;resize:vertical}button{border:0;border-radius:9px;back
 button:disabled{opacity:.55;cursor:wait}.muted{color:#617567;font-size:14px}.warn{color:#9a441e}
 #preview{max-height:240px;max-width:100%;object-fit:contain;border-radius:10px;margin-top:10px}
 #feed{display:grid;gap:12px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}.post{background:#fff;border-radius:14px;padding:18px;box-shadow:0 2px 12px #0001;overflow-wrap:anywhere}
-.post-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.post:target{outline:3px solid #348b62;outline-offset:3px}.post-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
 .post time{color:#6b7e70;font-size:13px}.post p{white-space:pre-wrap;line-height:1.7;margin:9px 0}
 .post img{display:block;max-width:100%;max-height:550px;object-fit:contain;border-radius:10px;cursor:zoom-in}
 #viewer[hidden]{display:none}#viewer{position:fixed;inset:0;background:#000e;z-index:5;display:flex;align-items:center;justify-content:center;padding:12px}
@@ -42,6 +42,7 @@ a{color:inherit}#more{display:block;margin:15px auto}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="./firebase-config.js"></script><script src="./member-session.js"></script>
 <script>
 const $=id=>document.getElementById(id);
+let focusPostId=new URLSearchParams(location.search).get('post');
 let selectedPhotos=[];let editingPostId=null;let db=null,posts=[],nextPage=null,loading=false,hasMore=true,selectedPhoto='',chosenPost=null,needBusy=false;
 function make(tag,text,cls){const el=document.createElement(tag);if(text!==undefined)el.textContent=text;if(cls)el.className=cls;return el}
 function openPhoto(src){$('largeImage').src=src;$('viewer').hidden=false}
@@ -58,7 +59,7 @@ window.addEventListener('resize',limitFeedTen);
 function render(){
  const feed=$('feed');feed.replaceChildren();
  for(const p of posts.filter(x=>x.author&&x.uid)){
-  const card=make('article',undefined,'post'),head=make('div',undefined,'post-head');
+  const card=make('article',undefined,'post'),head=make('div',undefined,'post-head');card.id='care-post-'+p.id;
   head.append(make('strong',p.author||'历史匿名发布'));
   const t=make('time',p.createdAt?.toDate?.()?.toLocaleString('zh-CN')||'刚刚');head.append(t);card.append(head);
   if(p.text)card.append(make('p',p.text));
@@ -82,6 +83,7 @@ function render(){
   feed.append(card);
  }
  const shown=posts.filter(x=>x.author&&x.uid).length;
+ if(focusPostId){const target=document.getElementById('care-post-'+focusPostId);if(target){target.scrollIntoView({block:'center'});focusPostId=null;}}
  $('feedStatus').textContent=shown?'已显示 '+shown+' 条实名帖子':'暂无实名帖子，欢迎发布第一条！';
  $('more').hidden=!hasMore;
 }
@@ -92,9 +94,17 @@ async function loadMore(reset=false){
   if(!reset&&nextPage)q=q.startAfter(nextPage);
   const snap=await q.get();
   if(reset)posts=[];
-  posts.push(...snap.docs.map(d=>({id:d.id,...d.data()})));
+  for(const d of snap.docs){const entry={id:d.id,...d.data()};if(!posts.some(p=>p.id===entry.id))posts.push(entry);}
   if(snap.docs.length)nextPage=snap.docs[snap.docs.length-1];
-  hasMore=snap.size===10;render();
+  hasMore=snap.size===10;
+  if(focusPostId&&!posts.some(x=>x.id===focusPostId)){
+   try{const target=await db.collection('carePosts').doc(focusPostId).get();
+    if(target.exists)posts.unshift({id:target.id,...target.data()});
+    else $('feedStatus').textContent='提示：消息关联的帖子已被删除。';
+   }catch(e){$('feedStatus').textContent='关联帖子无法加载：'+e.message;}
+   if(!posts.some(x=>x.id===focusPostId)){focusPostId=null;alert('这条消息对应的帖子可能已经删除，仍可返回消息中心查看申请记录。');}
+  }
+  render();
  }catch(e){$('feedStatus').textContent='帖子加载失败：'+e.message}
  finally{loading=false;$('more').disabled=false}
 }
@@ -138,7 +148,7 @@ $('needForm').addEventListener('submit',async e=>{
  needBusy=true;$('sendNeed').disabled=true;$('needStatus').textContent='正在发送…';
  try{
   const id=db.collection('careNeeds').doc().id,stamp=firebase.firestore.FieldValue.serverTimestamp();
-  const batch=db.batch();batch.set(db.collection('careNeeds').doc(id),{postId:chosenPost.id,requester,uid:window.CCGMember.user.uid,ownerUid:chosenPost.uid,details,status:"pending",createdAt:stamp});
+  const batch=db.batch();batch.set(db.collection('careNeeds').doc(id),{postId:chosenPost.id,requester,uid:window.CCGMember.user.uid,ownerUid:chosenPost.uid,ownerName:chosenPost.author||"",postText:(chosenPost.text||"").slice(0,1500),details,status:"pending",createdAt:stamp});
   if(chosenPost.uid)batch.set(db.collection('memberNotifications').doc(id),{uid:chosenPost.uid,postId:chosenPost.id,needId:id,text:details,createdAt:stamp});
   await batch.commit();
   $('needStatus').textContent='需求已发送；您和发布者均可在「我的消息」查看详情。';
