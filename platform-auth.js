@@ -1,37 +1,55 @@
-(()=>{'use strict';const $=id=>document.getElementById(id);let busy=false;
-try{if(!firebase.apps.length)firebase.initializeApp(window.FZH_FIREBASE_CONFIG);
-const auth=firebase.auth(),db=firebase.firestore();auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});
-function lock(on){busy=on;for(const id of ['register','login'])$(id).disabled=on;}
-function error(e){$('memberStatus').textContent=e.message||String(e)}
-auth.onAuthStateChanged(async user=>{
- $('logout').hidden=!user;$('login').hidden=!!user;$('register').hidden=!!user;$('completeProfile').hidden=true;
- if(!user){$('memberServices').hidden=true;$('memberStatus').textContent='请注册或登录';return;}
- try{const doc=await db.collection('platformMembers').doc(user.uid).get();
- if(!doc.exists){$('memberServices').hidden=true;$('completeProfile').hidden=false;$('memberStatus').textContent='账号尚未完成实名登记，请填写真实姓名并点击「补充实名资料」。';return;}
- $('memberServices').hidden=false;$('memberStatus').textContent='已登录：'+doc.data().name+'（'+user.email+'）';
- }catch(e){$('memberServices').hidden=true;error(e)}
+(()=>{'use strict';
+const $=id=>document.getElementById(id);
+const cfg=window.FZH_FIREBASE_CONFIG;
+let resolveReady,rejectReady;
+const ready=new Promise((resolve,reject)=>{resolveReady=resolve;rejectReady=reject});
+window.CCGMember={user:null,profile:null,ready};
+const status=$('memberStatus');
+function message(v){status.textContent=v}
+function panel(name){for(const id of ['loginPanel','registerPanel','recoveryPanel','loggedInPanel'])$(id).hidden=id!==name}
+function errorText(e){const codes={'auth/email-already-in-use':'该邮箱已注册，请直接登录','auth/invalid-credential':'账号或密码错误','auth/weak-password':'密码强度不足','auth/invalid-email':'邮箱格式不正确','auth/too-many-requests':'请求过于频繁，请稍后再试'};return codes[e.code]||e.message||String(e)}
+function lockInputs(locked){$('memberEmail').disabled=locked;$('memberPassword').disabled=locked}
+async function profileFor(u){const ref=db.collection('platformMembers').doc(u.uid),snap=await ref.get();return snap.exists?snap.data():null}
+let auth,db;
+try{
+ if(!window.firebase||!cfg)throw Error('Firebase 配置尚未加载');
+ if(!firebase.apps.length)firebase.initializeApp(cfg);
+ auth=firebase.auth();db=firebase.firestore();
+ auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});
+}catch(e){message('登录服务无法启动：'+e.message);rejectReady(e);return}
+function loggedOut(){window.CCGMember.user=null;window.CCGMember.profile=null;lockInputs(false);$('memberPassword').value='';$('memberServices').hidden=true;panel('loginPanel');message('请使用账号和密码登录')}
+auth.onAuthStateChanged(async u=>{
+ if(!u){loggedOut();return}
+ try{
+  let profile=await profileFor(u);
+  window.CCGMember.user=u;window.CCGMember.profile=profile;
+  $('memberEmail').value=u.email||'';$('memberPassword').value='';lockInputs(true);
+  $('loggedInIdentity').textContent='当前账号：'+(u.email||'')+(profile?' · '+profile.name:'');
+  panel('loggedInPanel');$('memberServices').hidden=!profile;
+  $('completeProfile').hidden=!!profile;
+  $('profilePanel').hidden=true;
+  message(profile?'登录成功':'此账号尚未完善实名资料，请先补充姓名');
+  if(profile)resolveReady({user:u,profile});
+ }catch(e){message('加载实名资料失败：'+errorText(e))}
 });
-$('memberForm').onsubmit=async e=>{e.preventDefault();if(busy)return;lock(true);
- try{await auth.signInWithEmailAndPassword($('memberEmail').value.trim(),$('memberPassword').value);$('memberPassword').value=''}catch(e){error(e)}finally{lock(false)}
-};
-$('register').onclick=async()=>{if(busy)return;const name=$('realName').value.trim();
- if(!name||name.length>40){$('memberStatus').textContent='请填写真实姓名（最多40字）';return;}
- if(!$('memberEmail').validity.valid||$('memberPassword').value.length<6){$('memberStatus').textContent='请输入有效邮箱及至少6位密码';return;}
- if(!confirm('确定以「'+name+'」实名注册吗？爱心站发布的帖子会显示此姓名。'))return;
- lock(true);try{const result=await auth.createUserWithEmailAndPassword($('memberEmail').value.trim(),$('memberPassword').value);
+$('memberForm').addEventListener('submit',async e=>{e.preventDefault();const email=$('memberEmail').value.trim(),pass=$('memberPassword').value;message('正在登录…');try{await auth.signInWithEmailAndPassword(email,pass)}catch(err){message('登录失败：'+errorText(err))}});
+$('register').onclick=()=>{panel('registerPanel');message('请填写注册资料')};
+$('backLogin').onclick=()=>{panel('loginPanel');message('请登录')};
+$('registerForm').addEventListener('submit',async e=>{e.preventDefault();const name=$('realName').value.trim(),email=$('registerEmail').value.trim(),pass=$('registerPassword').value;if(!name||name.length>40)return message('姓名应为1至40字');message('正在注册…');try{
+ const result=await auth.createUserWithEmailAndPassword(email,pass);
  await db.collection('platformMembers').doc(result.user.uid).set({name,email:result.user.email,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
- $('memberPassword').value='';$('memberStatus').textContent='注册成功，正在加载会员资料…';
- // Auth event may run before profile write; refresh the profile state by reloading.
- location.reload();
- }catch(e){error(e)}finally{lock(false)}
-};
-$('completeProfile').onclick=async()=>{
- const u=auth.currentUser,name=$('realName').value.trim();if(!u)return;
- if(!name||name.length>40){$('memberStatus').textContent='请填写1至40字的真实姓名';return;}
- if(!confirm('确定使用「'+name+'」作为公开发帖的实名吗？'))return;
- try{await db.collection('platformMembers').doc(u.uid).set({name,email:u.email,createdAt:firebase.firestore.FieldValue.serverTimestamp()});location.reload()}
- catch(e){error(e)}
-};
-$('logout').onclick=async()=>{if(confirm('确定退出登录吗？'))await auth.signOut()};
-}catch(e){$('memberStatus').textContent='登录组件加载失败：'+e.message}
+ const profile=await profileFor(result.user);window.CCGMember.user=result.user;window.CCGMember.profile=profile;
+ $('loggedInIdentity').textContent='当前账号：'+result.user.email+' · '+name;$('memberEmail').value=result.user.email;$('memberPassword').value='';lockInputs(true);panel('loggedInPanel');$('memberServices').hidden=false;$('completeProfile').hidden=true;message('注册成功');resolveReady({user:result.user,profile});
+ }catch(err){message('注册失败：'+errorText(err))}});
+$('completeProfile').onclick=()=>{$('profilePanel').hidden=false};
+$('saveProfile').onclick=async()=>{const u=auth.currentUser,name=$('profileName').value.trim();if(!u||!name||name.length>40)return message('请输入1至40字的真实姓名');try{await db.collection('platformMembers').doc(u.uid).set({name,email:u.email,createdAt:firebase.firestore.FieldValue.serverTimestamp()});const profile=await profileFor(u);window.CCGMember.profile=profile;$('memberServices').hidden=false;$('completeProfile').hidden=true;$('profilePanel').hidden=true;$('loggedInIdentity').textContent='当前账号：'+u.email+' · '+name;message('实名资料已保存');resolveReady({user:u,profile})}catch(err){message('保存失败：'+errorText(err))}};
+$('logout').onclick=async()=>{if(!confirm('确定退出登录吗？'))return;try{await auth.signOut()}catch(e){message('退出失败：'+errorText(e))}};
+$('forgotAccount').onclick=()=>{panel('recoveryPanel');$('recoveryEmail').value=$('memberEmail').value.trim();message('请填写邮箱和姓名')};
+$('backRecovery').onclick=()=>{panel('loginPanel');message('请登录')};
+$('recoveryForm').addEventListener('submit',async e=>{e.preventDefault();const email=$('recoveryEmail').value.trim(),name=$('recoveryName').value.trim();if(!name||name.length>40)return;$('recoveryStatus').textContent='正在发送…';
+ let resetSent=false,requestSent=false;
+ try{await auth.sendPasswordResetEmail(email);resetSent=true}catch(err){console.warn('重置邮件未能发送',err.code)}
+ try{await db.collection('accountRecoveryRequests').add({email,name,createdAt:firebase.firestore.FieldValue.serverTimestamp()});requestSent=true}catch(err){console.warn('管理员找回请求未能提交',err.code)}
+ $('recoveryStatus').textContent=(resetSent?'如邮箱已注册，请检查收件箱中的密码重置邮件。':'未能确认重置邮件是否发送。')+(requestSent?' 已向管理员提交账号找回请求。':' 管理员通知未能送达，请稍后重试。')+' 管理员不会收到或查看您的密码。';
+});
 })();
