@@ -18,7 +18,20 @@ a.tile:hover,a.tile:focus-visible{border-color:#3b805a;box-shadow:0 6px 18px #00
  .auth-card{background:white;padding:20px;border-radius:14px;margin-bottom:20px;box-shadow:0 2px 12px #0001}
 .auth-card label{display:block;margin:12px 0}.auth-card input{display:block;width:100%;max-width:460px;padding:12px;border:1px solid #bbcfc2;border-radius:8px;font-size:16px;margin-top:6px}
 .auth-actions{display:flex;gap:10px;flex-wrap:wrap}.auth-actions button{background:#246746;color:white;border:0;border-radius:8px;padding:12px 20px;cursor:pointer;min-height:44px}.auth-actions button:disabled{opacity:.6}
-.link-action{background:none;border:0;color:#246746;text-decoration:underline;cursor:pointer;padding:12px 0;font-size:15px}#memberAuth [hidden]{display:none!important}#memberAuth input:disabled{background:#f1f3f2;color:#596c61} </style></head><body>
+.link-action{background:none;border:0;color:#246746;text-decoration:underline;cursor:pointer;padding:12px 0;font-size:15px}#memberAuth [hidden]{display:none!important}#memberAuth input:disabled{background:#f1f3f2;color:#596c61} 
+.ccg-message-list{overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;border:1px solid #e0e8e1;border-radius:12px}
+.ccg-message-row{background:#fff;border-bottom:1px solid #e0e8e1;overflow-wrap:anywhere}
+.ccg-message-row:last-child{border-bottom:0}
+.ccg-message-summary{list-style:none;display:flex;align-items:center;cursor:pointer;padding:15px 16px;min-height:86px;gap:10px}
+.ccg-message-summary::-webkit-details-marker{display:none}
+.ccg-message-summary::after{content:'⌄';margin-left:auto;font-size:20px;color:#416b50}
+.ccg-message-row[open]>.ccg-message-summary::after{content:'⌃'}
+.ccg-message-heading{display:flex;flex-direction:column;gap:5px;min-width:0}
+.ccg-message-heading span{line-height:1.45}
+.ccg-message-heading small{color:#687d6e;line-height:1.5}
+.ccg-message-detail{padding:4px 16px 14px;background:#f6faf7;border-top:1px solid #e0e8e1}
+.ccg-message-detail p{margin:10px 0;line-height:1.6;white-space:pre-wrap}
+</style></head><body>
 <header><div><div class="mcg-language-row"><h1>CCG Mainz幸福家人数字平台</h1><button id="mcgLanguageSwitch" type="button" data-no-translate>切換為繁體中文</button></div>
 <span id="mcgLanguageStatus" class="mcg-language-status" data-no-translate role="status"></span>
 <p>分享知识 · 传递爱心 · 彼此帮助</p></div></header>
@@ -37,8 +50,8 @@ a.tile:hover,a.tile:focus-visible{border-color:#3b805a;box-shadow:0 6px 18px #00
 <a class="tile" href="./library.html"><span class="tile-icon" aria-hidden="true">📚</span><span class="tile-title">CCG Mainz图书馆</span>
 <span class="tile-sub">查看教会图书、浏览照片、查询库存，并提交借书意向。</span><span class="tile-arrow">进入图书馆 →</span></a>
 <a class="tile" href="./posts.html"><span class="tile-icon" aria-hidden="true">❤️</span><span class="tile-title">CCG Mainz爱心站</span>
-<span class="tile-sub">分享闲置物品，查看他人的分享，提交需求，由发布者自行处理匹配。</span><span class="tile-arrow">进入爱心站 →</span></a>
-</div><section class="auth-card"><h2>我的消息</h2><p class="note">图书借阅进度和别人对您发布物品的需求提醒和匹配处理，仅本人可见。</p><p id="inboxStatus" role="status">正在加载消息…</p><div id="memberInbox" style="max-height:460px;overflow-y:auto"></div></section><p class="note">已登录会员可访问图书馆与爱心站。借书申请由管理员处理；爱心站发布者姓名公开。</p></div></main>
+<span class="tile-sub">分享闲置物品，查看他人的分享，提交需求，发布者会收到站内通知。</span><span class="tile-arrow">进入爱心站 →</span></a>
+</div><section class="auth-card"><h2>我的消息</h2><p class="note">图书借阅进度和爱心站需求通知，仅本人可见。点击任意消息可展开详情。</p><p id="inboxStatus" role="status">正在加载消息…</p><div id="memberInbox" class="ccg-message-list"></div></section><p class="note">已登录会员可访问图书馆与爱心站。借书申请由管理员处理；爱心站发布者姓名公开。</p></div></main>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>

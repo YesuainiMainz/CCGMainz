@@ -24,7 +24,7 @@ a{color:inherit}#more{display:block;margin:15px auto}
 .mcg-language-status{display:block;color:#ffe7bf;font-size:13px;margin-top:5px}
 @media(max-width:560px){.mcg-language-row{align-items:stretch}.mcg-language-row h1{flex:1 1 100%}#mcgLanguageSwitch{width:100%}}
 </style></head><body>
-<header><div><div class="mcg-language-row"><h1>CCG Mainz爱心站</h1><button id="mcgLanguageSwitch" type="button" data-no-translate>切換為繁體中文</button></div><span id="mcgLanguageStatus" class="mcg-language-status" role="status" data-no-translate></span><span>分享家中闲置或多余的物品 · 由发布者自主处理匹配</span></div></header>
+<header><div><div class="mcg-language-row"><h1>CCG Mainz爱心站</h1><button id="mcgLanguageSwitch" type="button" data-no-translate>切換為繁體中文</button></div><span id="mcgLanguageStatus" class="mcg-language-status" role="status" data-no-translate></span><span>分享家中闲置或多余的物品 · 需求申请会通知发布者</span></div></header>
 <main><p><a href="./platform.html" style="color:#22583d">← 返回 CCG Mainz幸福家人数字平台</a></p><section class="card"><h2>发布闲置物品</h2>
 <form id="postForm">
 <p id="postingIdentity" class="muted">正在验证会员身份…</p>
@@ -36,7 +36,7 @@ a{color:inherit}#more{display:block;margin:15px auto}
 </form></section>
 <section><h2>最新闲置物品</h2><p class="muted" id="feedStatus">正在加载…</p><div id="feed"></div><button id="more" type="button" hidden>加载更多</button></section>
 </main>
-<div id="needDialog" hidden role="dialog" aria-modal="true" aria-labelledby="needTitle"><form id="needForm" class="card"><h2 id="needTitle">我有需要</h2><p id="needItem"></p><label for="requester">您的真实姓名（由账号自动填写） *</label><input id="requester" type="text" maxlength="40" readonly required><label for="needDetails">大致需要的物品及数量 *</label><textarea id="needDetails" maxlength="500" required placeholder="例如：儿童外套2件、书包1个"></textarea><p class="muted">需求内容仅发布者和管理员可见，由发布者自主处理匹配。请勿在公开物品说明中留下联系方式。</p><button id="sendNeed" type="submit">发送给发布者</button><button id="cancelNeed" type="button" class="secondary">取消</button><p id="needStatus" role="status"></p></form></div><div id="viewer" hidden role="dialog" aria-modal="true" aria-label="查看图片"><button id="closeViewer" type="button">关闭 ×</button><img id="largeImage" alt="物品图片"></div>
+<div id="needDialog" hidden role="dialog" aria-modal="true" aria-labelledby="needTitle"><form id="needForm" class="card"><h2 id="needTitle">我有需要</h2><p id="needItem"></p><label for="requester">您的真实姓名（由账号自动填写） *</label><input id="requester" type="text" maxlength="40" readonly required><label for="needDetails">大致需要的物品及数量 *</label><textarea id="needDetails" maxlength="500" required placeholder="例如：儿童外套2件、书包1个"></textarea><p class="muted">需求内容仅发布者和管理员可见。双方请通过其他方式自行联系。请勿在公开物品说明中留下联系方式。</p><button id="sendNeed" type="submit">发送给发布者</button><button id="cancelNeed" type="button" class="secondary">取消</button><p id="needStatus" role="status"></p></form></div><div id="viewer" hidden role="dialog" aria-modal="true" aria-label="查看图片"><button id="closeViewer" type="button">关闭 ×</button><img id="largeImage" alt="物品图片"></div>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="./firebase-config.js"></script><script src="./member-session.js"></script>
@@ -67,7 +67,7 @@ function render(){
    img.addEventListener('click',()=>openPhoto(p.photo));card.append(img);
   }
   if(Array.isArray(p.photos)&&p.photos.length){const gallery=make('div',undefined,'post-gallery');for(const src of p.photos){if(typeof src!=='string'||!src.startsWith('data:image/jpeg;base64,'))continue;const img=document.createElement('img');img.src=src;img.alt='物品图片';img.loading='lazy';img.onclick=()=>openPhoto(src);gallery.append(img)}card.append(gallery)}
-  const need=make('button','❤️ 我有需要','need');need.type='button';need.addEventListener('click',()=>{chosenPost=p;$('needItem').textContent='您正在申请这条闲置物品：'+(p.text||'图片所示物品');$('requester').value=window.CCGMember?.profile?.name||'';$('needDetails').value='';$('needStatus').textContent='';$('needDialog').hidden=false;$('requester').focus()});card.append(need);
+  if(p.uid!==window.CCGMember?.user?.uid){const need=make('button','❤️ 我有需要','need');need.type='button';need.addEventListener('click',()=>{chosenPost=p;$('needItem').textContent='您正在申请这条闲置物品：'+(p.text||'图片所示物品');$('requester').value=window.CCGMember?.profile?.name||'';$('needDetails').value='';$('needStatus').textContent='';$('needDialog').hidden=false;$('requester').focus()});card.append(need);}
   if(p.uid===window.CCGMember?.user?.uid){
    const edit=make('button','编辑我的帖子');edit.type='button';edit.style.marginRight='8px';
    edit.onclick=()=>{editingPostId=p.id;$('body').value=p.text||'';selectedPhotos=Array.isArray(p.photos)&&p.photos.length?[...p.photos]:(p.photo?[p.photo]:[]);selectedPhoto=selectedPhotos[0]||'';renderPreviews();
@@ -141,7 +141,7 @@ $('needForm').addEventListener('submit',async e=>{
   const batch=db.batch();batch.set(db.collection('careNeeds').doc(id),{postId:chosenPost.id,requester,uid:window.CCGMember.user.uid,ownerUid:chosenPost.uid,details,status:"pending",createdAt:stamp});
   if(chosenPost.uid)batch.set(db.collection('memberNotifications').doc(id),{uid:chosenPost.uid,postId:chosenPost.id,needId:id,text:details,createdAt:stamp});
   await batch.commit();
-  $('needStatus').textContent='已发送给发布者；双方可以在平台「我的消息」中查看进度。';
+  $('needStatus').textContent='需求已发送；您和发布者均可在「我的消息」查看详情。';
   $('sendNeed').textContent='已发送';
   setTimeout(()=>{$('needDialog').hidden=true;chosenPost=null;$('sendNeed').textContent='发送给发布者'},1100);
  }catch(err){$('needStatus').textContent='发送失败：'+err.message}

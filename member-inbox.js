@@ -1,51 +1,35 @@
-(()=>{'use strict';const $=id=>document.getElementById(id);
-if(!window.firebase)return;const auth=firebase.auth(),db=firebase.firestore();let off=[],loans=[],needs=[],requests=[],myNeeds=[];
-function clear(){off.forEach(f=>f());off=[];loans=[];needs=[];requests=[];myNeeds=[];$('memberInbox').replaceChildren()}
+(()=>{'use strict';
+const $=id=>document.getElementById(id);if(!window.firebase)return;
+const auth=firebase.auth(),db=firebase.firestore();let off=[],loans=[],notices=[],requests=[],myNeeds=[];
+function clear(){off.forEach(f=>f());off=[];loans=[];notices=[];requests=[];myNeeds=[];const root=$('memberInbox');if(root)root.replaceChildren()}
+const when=x=>x?.toDate?.()?.toLocaleString('zh-CN')||'时间待同步';
+const status=x=>({pending:'需求已发送',accepted:'历史记录：已接受',rejected:'历史记录：已拒绝'})[x]||'需求已发送';
 function render(){
  const rows=[
-  ...loans.map(x=>({kind:'图书借阅',title:x.bookName,status:({pending:'待审批',approved:'已借出未归还',returned:'已归还',rejected:'已拒绝'})[x.status]||x.status,time:x.createdAt})),
-  ...needs.map(x=>({kind:'爱心站需求提醒',title:'有人需要您分享的物品',status:x.text,time:x.createdAt})),
-  ...myNeeds.map(x=>({kind:'我的爱心站申请',title:'已向发布者发送需求',status:({pending:'等待发布者处理',accepted:'发布者已接受匹配',rejected:'发布者已拒绝申请'})[x.status]||'处理中',time:x.createdAt})),
-  ...requests.map(x=>({kind:'爱心站匹配申请',title:x.requester+' 申请您的物品',status:(x.status==='accepted'?'已接受':x.status==='rejected'?'已拒绝':'待您处理')+' · '+x.details,time:x.createdAt,request:x}))
+ ...loans.map(x=>({kind:'图书借阅进度',title:x.bookName||'图书借阅',summary:({pending:'等待管理员审核',approved:'已借出未归还',returned:'已归还',rejected:'申请未获批准'})[x.status]||x.status||'处理中',details:[['书名',x.bookName],['处理状态',x.status==='approved'?'已借出未归还':x.status==='returned'?'已归还':x.status==='rejected'?'未获批准':'等待管理员审核'],['借阅申请时间',when(x.createdAt)]],time:x.createdAt})),
+ ...myNeeds.map(x=>({kind:'我的爱心站需求',title:'已向发布者发送需求',summary:status(x.status),details:[['申请人',x.requester],['需求内容',x.details],['申请状态',status(x.status)],['发送时间',when(x.createdAt)]],time:x.createdAt})),
+ ...requests.map(x=>({kind:'有人需要您的物品',title:(x.requester||'会员')+' 提交了需求',summary:'点击查看需求详情',details:[['申请人',x.requester],['需求内容',x.details],['状态','已通知发布者（无需线上批准或拒绝）'],['发送时间',when(x.createdAt)]],time:x.createdAt})),
+ ...notices.filter(x=>!requests.some(r=>r.id===x.needId)).map(x=>({kind:'爱心站提醒',title:'您的物品收到需求',summary:'点击查看通知详情',details:[['需求内容',x.text],['通知时间',when(x.createdAt)]],time:x.createdAt}))
  ].sort((a,b)=>(b.time?.seconds||0)-(a.time?.seconds||0));
- const root=$('memberInbox');root.replaceChildren();
+ const root=$('memberInbox');if(!root)return;root.replaceChildren();
  for(const x of rows){
-  const div=document.createElement('div');div.style.cssText='padding:12px 0;border-bottom:1px solid #e1e7e2';
-  const title=document.createElement('strong');title.textContent=x.kind+' · '+x.title;
-  const detail=document.createElement('div');detail.textContent=x.status||'';
-  const time=document.createElement('small');time.textContent=x.time?.toDate?.()?.toLocaleString('zh-CN')||'';
-  div.append(title,detail,time);
-  if(x.request&&(!x.request.status||x.request.status==='pending')){
-   for(const [status,label] of [['accepted','接受匹配'],['rejected','拒绝申请']]){
-    const btn=document.createElement('button');btn.type='button';btn.textContent=label;btn.style.cssText='margin:7px 8px 0 0;background:#246746;color:white;border:0;border-radius:7px;padding:9px 12px;cursor:pointer';
-    btn.onclick=()=>decide(x.request,status);div.append(btn);
-   }
-  }
-  root.append(div);
+  const card=document.createElement('details');card.className='ccg-message-row';
+  const heading=document.createElement('summary');heading.className='ccg-message-summary';
+  const left=document.createElement('span');left.className='ccg-message-heading';
+  const strong=document.createElement('strong');strong.textContent=x.kind;
+  const title=document.createElement('span');title.textContent=x.title;
+  const sub=document.createElement('small');sub.textContent=x.summary+' · '+when(x.time);
+  left.append(strong,title,sub);heading.append(left);
+  const panel=document.createElement('div');panel.className='ccg-message-detail';
+  for(const [label,value] of x.details){const line=document.createElement('p');const b=document.createElement('strong');b.textContent=label+'：';line.append(b,document.createTextNode(value||'—'));panel.append(line)}
+  card.append(heading,panel);root.append(card);
  }
- $('inboxStatus').textContent=rows.length?'共 '+rows.length+' 条消息':'暂无消息';
-}
-async function decide(req,status){
- if(!confirm(status==='accepted'?'确认接受这条匹配申请吗？':'确认拒绝这条匹配申请吗？'))return;
- try{
-  const uid=auth.currentUser?.uid;if(!uid)throw Error('请重新登录');
-  await db.runTransaction(async tx=>{
-   const ref=db.collection('careNeeds').doc(req.id),snap=await tx.get(ref);
-   if(!snap.exists)throw Error('申请已不存在');
-   const n=snap.data();
-   if(n.ownerUid!==uid||n.status!=='pending')throw Error('申请已被处理或无权限');
-   const postRef=db.collection('carePosts').doc(n.postId),post=await tx.get(postRef);
-   if(!post.exists||post.data().uid!==uid)throw Error('帖子不存在或无权限');
-   tx.update(ref,{status,decidedAt:firebase.firestore.FieldValue.serverTimestamp()});
-   if(status==='accepted'){
-    tx.set(db.collection('careMatches').doc(req.id),{postId:n.postId,needId:req.id,postText:String(post.data().text||'').slice(0,1500),author:post.data().author,requester:n.requester,details:n.details,ownerUid:uid,matchedAt:firebase.firestore.FieldValue.serverTimestamp()});
-   }
-  });
- }catch(e){alert('处理失败：'+e.message)}
+ $('inboxStatus').textContent=rows.length?'共 '+rows.length+' 条消息；点击可展开详情，每屏最多3条':'暂无消息';
+ requestAnimationFrame(()=>{const first=[...root.children].slice(0,3);root.style.maxHeight=first.length?Math.ceil(first.reduce((sum,node)=>sum+node.getBoundingClientRect().height,0)+2)+'px':'none'});
 }
 auth.onAuthStateChanged(u=>{clear();if(!u){$('inboxStatus').textContent='请先登录';return;}
- off.push(db.collection('libraryRequests').where('uid','==',u.uid).onSnapshot(s=>{loans=s.docs.map(d=>d.data());render()},e=>{$('inboxStatus').textContent='借阅消息加载失败：'+e.message}));
+ off.push(db.collection('libraryRequests').where('uid','==',u.uid).onSnapshot(s=>{loans=s.docs.map(d=>({id:d.id,...d.data()}));render()},e=>{$('inboxStatus').textContent='借阅消息加载失败：'+e.message}));
  off.push(db.collection('careNeeds').where('uid','==',u.uid).onSnapshot(s=>{myNeeds=s.docs.map(d=>({id:d.id,...d.data()}));render()},e=>{$('inboxStatus').textContent='我的需求消息加载失败：'+e.message}));
- off.push(db.collection('careNeeds').where('ownerUid','==',u.uid).onSnapshot(s=>{requests=s.docs.map(d=>({id:d.id,...d.data()}));render()},e=>{$('inboxStatus').textContent='匹配请求加载失败：'+e.message}));
- off.push(db.collection('memberNotifications').where('uid','==',u.uid).onSnapshot(s=>{needs=s.docs.map(d=>d.data());render()},e=>{$('inboxStatus').textContent='爱心站消息加载失败：'+e.message}));
+ off.push(db.collection('careNeeds').where('ownerUid','==',u.uid).onSnapshot(s=>{requests=s.docs.map(d=>({id:d.id,...d.data()}));render()},e=>{$('inboxStatus').textContent='需求通知加载失败：'+e.message}));
+ off.push(db.collection('memberNotifications').where('uid','==',u.uid).onSnapshot(s=>{notices=s.docs.map(d=>({id:d.id,...d.data()}));render()},e=>{$('inboxStatus').textContent='提醒加载失败：'+e.message}));
 });})();
