@@ -24,7 +24,7 @@ a{color:inherit}#more{display:block;margin:15px auto}
 .mcg-language-status{display:block;color:#ffe7bf;font-size:13px;margin-top:5px}
 @media(max-width:560px){.mcg-language-row{align-items:stretch}.mcg-language-row h1{flex:1 1 100%}#mcgLanguageSwitch{width:100%}}
 </style></head><body>
-<header><div><div class="mcg-language-row"><h1>CCG Mainz爱心站</h1><button id="mcgLanguageSwitch" type="button" data-no-translate>切換為繁體中文</button></div><span id="mcgLanguageStatus" class="mcg-language-status" role="status" data-no-translate></span><span>分享家中闲置或多余的物品 · 由管理员安排匹配</span></div></header>
+<header><div><div class="mcg-language-row"><h1>CCG Mainz爱心站</h1><button id="mcgLanguageSwitch" type="button" data-no-translate>切換為繁體中文</button></div><span id="mcgLanguageStatus" class="mcg-language-status" role="status" data-no-translate></span><span>分享家中闲置或多余的物品 · 由发布者自主处理匹配</span></div></header>
 <main><p><a href="./platform.html" style="color:#22583d">← 返回 CCG Mainz幸福家人数字平台</a></p><section class="card"><h2>发布闲置物品</h2>
 <form id="postForm">
 <p id="postingIdentity" class="muted">正在验证会员身份…</p>
@@ -36,7 +36,7 @@ a{color:inherit}#more{display:block;margin:15px auto}
 </form></section>
 <section><h2>最新闲置物品</h2><p class="muted" id="feedStatus">正在加载…</p><div id="feed"></div><button id="more" type="button" hidden>加载更多</button></section>
 </main>
-<div id="needDialog" hidden role="dialog" aria-modal="true" aria-labelledby="needTitle"><form id="needForm" class="card"><h2 id="needTitle">我有需要</h2><p id="needItem"></p><label for="requester">您的真实姓名（由账号自动填写） *</label><input id="requester" type="text" maxlength="40" readonly required><label for="needDetails">大致需要的物品及数量 *</label><textarea id="needDetails" maxlength="500" required placeholder="例如：儿童外套2件、书包1个"></textarea><p class="muted">需求内容仅管理员可见，由管理员安排匹配。请勿在公开物品说明中留下联系方式。</p><button id="sendNeed" type="submit">发送给管理员</button><button id="cancelNeed" type="button" class="secondary">取消</button><p id="needStatus" role="status"></p></form></div><div id="viewer" hidden role="dialog" aria-modal="true" aria-label="查看图片"><button id="closeViewer" type="button">关闭 ×</button><img id="largeImage" alt="物品图片"></div>
+<div id="needDialog" hidden role="dialog" aria-modal="true" aria-labelledby="needTitle"><form id="needForm" class="card"><h2 id="needTitle">我有需要</h2><p id="needItem"></p><label for="requester">您的真实姓名（由账号自动填写） *</label><input id="requester" type="text" maxlength="40" readonly required><label for="needDetails">大致需要的物品及数量 *</label><textarea id="needDetails" maxlength="500" required placeholder="例如：儿童外套2件、书包1个"></textarea><p class="muted">需求内容仅管理员可见，由发布者自主处理匹配。请勿在公开物品说明中留下联系方式。</p><button id="sendNeed" type="submit">发送给发布者</button><button id="cancelNeed" type="button" class="secondary">取消</button><p id="needStatus" role="status"></p></form></div><div id="viewer" hidden role="dialog" aria-modal="true" aria-label="查看图片"><button id="closeViewer" type="button">关闭 ×</button><img id="largeImage" alt="物品图片"></div>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="./firebase-config.js"></script><script src="./member-session.js"></script>
@@ -132,16 +132,16 @@ $('needForm').addEventListener('submit',async e=>{
  e.preventDefault();if(!db||!chosenPost||needBusy||!window.CCGMember?.user)return;
  const requester=$('requester').value.trim(),details=$('needDetails').value.trim();
  if(!requester||requester.length>40||!details||details.length>500){$('needStatus').textContent='请填写称呼及需要的物品、数量';return}
- if(!confirm('确定将您的称呼、所需物品及数量发送给管理员吗？仅管理员可见。'))return;
+ if(!confirm('确定将您的称呼、所需物品及数量发送给发布者吗？仅管理员可见。'))return;
  needBusy=true;$('sendNeed').disabled=true;$('needStatus').textContent='正在发送…';
  try{
   const id=db.collection('careNeeds').doc().id,stamp=firebase.firestore.FieldValue.serverTimestamp();
-  const batch=db.batch();batch.set(db.collection('careNeeds').doc(id),{postId:chosenPost.id,requester,uid:window.CCGMember.user.uid,details,createdAt:stamp});
+  const batch=db.batch();batch.set(db.collection('careNeeds').doc(id),{postId:chosenPost.id,requester,uid:window.CCGMember.user.uid,ownerUid:chosenPost.uid,details,status:"pending",createdAt:stamp});
   if(chosenPost.uid)batch.set(db.collection('memberNotifications').doc(id),{uid:chosenPost.uid,postId:chosenPost.id,needId:id,text:details,createdAt:stamp});
   await batch.commit();
-  $('needStatus').textContent='已发送给管理员，等待人工安排匹配。';
+  $('needStatus').textContent='已发送给发布者，等待人工安排匹配。';
   $('sendNeed').textContent='已发送';
-  setTimeout(()=>{$('needDialog').hidden=true;chosenPost=null;$('sendNeed').textContent='发送给管理员'},1100);
+  setTimeout(()=>{$('needDialog').hidden=true;chosenPost=null;$('sendNeed').textContent='发送给发布者'},1100);
  }catch(err){$('needStatus').textContent='发送失败：'+err.message}
  finally{needBusy=false;$('sendNeed').disabled=false}
 });
