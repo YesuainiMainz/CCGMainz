@@ -15,7 +15,7 @@ button:disabled{opacity:.55;cursor:wait}.muted{color:#617567;font-size:14px}.war
 #viewer img{max-width:96vw;max-height:85vh;object-fit:contain}#viewer button{position:absolute;right:15px;top:15px;background:white;color:#111}
 a{color:inherit}#more{display:block;margin:15px auto}
 @media(max-width:560px){.card,.post{padding:13px}header{padding:16px 12px}}
-#needDialog[hidden]{display:none}#needDialog{position:fixed;inset:0;background:#000a;z-index:6;display:flex;justify-content:center;align-items:center;padding:12px}#needForm{width:min(100%,500px);max-height:92vh;overflow:auto}#needForm h2{margin-top:0}button.secondary{background:#68776d}button.need{margin-top:12px}
+#needDialog[hidden]{display:none}#needDialog{position:fixed;inset:0;background:#000a;z-index:6;display:flex;justify-content:center;align-items:center;padding:12px}#needForm{width:min(100%,500px);max-height:92vh;overflow:auto}#needForm h2{margin-top:0}button.secondary{background:#68776d}button.need{margin-top:12px}.photo-previews{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.photo-previews img{width:100px;height:100px;object-fit:cover;border-radius:8px}.post-gallery{display:flex;flex-wrap:wrap;gap:8px}.post-gallery img{max-width:min(100%,320px);max-height:300px}
 
 .mcg-language-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
 .mcg-language-row h1{margin:0}
@@ -29,20 +29,20 @@ a{color:inherit}#more{display:block;margin:15px auto}
 <form id="postForm">
 <p id="postingIdentity" class="muted">正在验证会员身份…</p>
 <label for="body">物品说明（可选）</label><textarea id="body" maxlength="1500" placeholder="请描述闲置或多余的物品（最多1500字）"></textarea>
-<label for="image">上传图片（可选，最多一张）</label><input id="image" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/*">
-<img id="preview" hidden alt="图片预览">
+<label for="image">上传图片（可选，最多4张，可追加）</label><input id="image" type="file" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/*">
+<div id="photoPreviews" class="photo-previews"></div><img id="preview" hidden alt="图片预览">
 <p class="muted">文字和图片至少填写一项。发布帖子将公开显示您注册的真实姓名。请勿在公开文字或图片中写入电话、地址等隐私。</p>
 <button id="publish" type="submit">发布物品</button><p id="publishStatus" class="muted" role="status"></p>
 </form></section>
 <section><h2>最新闲置物品</h2><p class="muted" id="feedStatus">正在加载…</p><div id="feed"></div><button id="more" type="button" hidden>加载更多</button></section>
 </main>
-<div id="needDialog" hidden role="dialog" aria-modal="true" aria-labelledby="needTitle"><form id="needForm" class="card"><h2 id="needTitle">我有需要</h2><p id="needItem"></p><label for="requester">您的真实姓名（由账号自动填写） *</label><input id="requester" type="text" maxlength="40" readonly required><label for="needDetails">大致需要的物品及数量 *</label><textarea id="needDetails" maxlength="500" required placeholder="例如：儿童外套2件、书包1个"></textarea><p class="muted">需求内容仅管理员可见，由发布者自主处理匹配。请勿在公开物品说明中留下联系方式。</p><button id="sendNeed" type="submit">发送给发布者</button><button id="cancelNeed" type="button" class="secondary">取消</button><p id="needStatus" role="status"></p></form></div><div id="viewer" hidden role="dialog" aria-modal="true" aria-label="查看图片"><button id="closeViewer" type="button">关闭 ×</button><img id="largeImage" alt="物品图片"></div>
+<div id="needDialog" hidden role="dialog" aria-modal="true" aria-labelledby="needTitle"><form id="needForm" class="card"><h2 id="needTitle">我有需要</h2><p id="needItem"></p><label for="requester">您的真实姓名（由账号自动填写） *</label><input id="requester" type="text" maxlength="40" readonly required><label for="needDetails">大致需要的物品及数量 *</label><textarea id="needDetails" maxlength="500" required placeholder="例如：儿童外套2件、书包1个"></textarea><p class="muted">需求内容仅发布者和管理员可见，由发布者自主处理匹配。请勿在公开物品说明中留下联系方式。</p><button id="sendNeed" type="submit">发送给发布者</button><button id="cancelNeed" type="button" class="secondary">取消</button><p id="needStatus" role="status"></p></form></div><div id="viewer" hidden role="dialog" aria-modal="true" aria-label="查看图片"><button id="closeViewer" type="button">关闭 ×</button><img id="largeImage" alt="物品图片"></div>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="./firebase-config.js"></script><script src="./member-session.js"></script>
 <script>
 const $=id=>document.getElementById(id);
-let editingPostId=null;let db=null,posts=[],nextPage=null,loading=false,hasMore=true,selectedPhoto='',chosenPost=null,needBusy=false;
+let selectedPhotos=[];let editingPostId=null;let db=null,posts=[],nextPage=null,loading=false,hasMore=true,selectedPhoto='',chosenPost=null,needBusy=false;
 function make(tag,text,cls){const el=document.createElement(tag);if(text!==undefined)el.textContent=text;if(cls)el.className=cls;return el}
 function openPhoto(src){$('largeImage').src=src;$('viewer').hidden=false}
 function closePhoto(){$('viewer').hidden=true;$('largeImage').removeAttribute('src')}
@@ -62,16 +62,17 @@ function render(){
   head.append(make('strong',p.author||'历史匿名发布'));
   const t=make('time',p.createdAt?.toDate?.()?.toLocaleString('zh-CN')||'刚刚');head.append(t);card.append(head);
   if(p.text)card.append(make('p',p.text));
-  if(p.photo?.startsWith('data:image/jpeg;base64,')){
+  if(p.photo?.startsWith('data:image/jpeg;base64,') && !(p.photos?.length)){
    const img=document.createElement('img');img.src=p.photo;img.alt='物品图片';img.loading='lazy';
    img.addEventListener('click',()=>openPhoto(p.photo));card.append(img);
   }
+  if(Array.isArray(p.photos)&&p.photos.length){const gallery=make('div',undefined,'post-gallery');for(const src of p.photos){if(typeof src!=='string'||!src.startsWith('data:image/jpeg;base64,'))continue;const img=document.createElement('img');img.src=src;img.alt='物品图片';img.loading='lazy';img.onclick=()=>openPhoto(src);gallery.append(img)}card.append(gallery)}
   const need=make('button','❤️ 我有需要','need');need.type='button';need.addEventListener('click',()=>{chosenPost=p;$('needItem').textContent='您正在申请这条闲置物品：'+(p.text||'图片所示物品');$('requester').value=window.CCGMember?.profile?.name||'';$('needDetails').value='';$('needStatus').textContent='';$('needDialog').hidden=false;$('requester').focus()});card.append(need);
   if(p.uid===window.CCGMember?.user?.uid){
    const edit=make('button','编辑我的帖子');edit.type='button';edit.style.marginRight='8px';
-   edit.onclick=()=>{editingPostId=p.id;$('body').value=p.text||'';selectedPhoto=p.photo||'';
+   edit.onclick=()=>{editingPostId=p.id;$('body').value=p.text||'';selectedPhotos=Array.isArray(p.photos)&&p.photos.length?[...p.photos]:(p.photo?[p.photo]:[]);selectedPhoto=selectedPhotos[0]||'';renderPreviews();
     $('preview').hidden=!selectedPhoto;if(selectedPhoto)$('preview').src=selectedPhoto;
-    $('publish').textContent='保存修改';$('publishStatus').textContent='正在编辑自己的帖子；不选新图片则保留原图片。';
+    $('publish').textContent='保存修改';$('publishStatus').textContent='正在编辑自己的帖子；选择图片可继续追加，最多4张。';
     $('postForm').scrollIntoView({behavior:'smooth'});};
    const del=make('button','删除我的帖子');del.type='button';
    del.onclick=async()=>{if(!confirm('确定删除自己的帖子吗？已提交的需求通知仍会保留在管理员记录中。'))return;
@@ -119,12 +120,13 @@ async function compressImage(file){
   throw Error('图片压缩后仍过大，请换一张图片');
  }finally{URL.revokeObjectURL(url)}
 }
+function renderPreviews(){const root=$('photoPreviews');root.replaceChildren();for(const [i,src] of selectedPhotos.entries()){const box=document.createElement('div'),img=document.createElement('img'),remove=make('button','移除');img.src=src;img.alt='图片'+(i+1);remove.type='button';remove.style.cssText='display:block;padding:5px 8px;min-height:30px';remove.onclick=()=>{selectedPhotos.splice(i,1);selectedPhoto=selectedPhotos[0]||'';renderPreviews()};box.append(img,remove);root.append(box)}$('preview').hidden=true}
 $('image').addEventListener('change',async e=>{
- const f=e.target.files?.[0];selectedPhoto='';$('preview').hidden=true;
- if(!f)return;
- $('publishStatus').textContent='正在处理图片…';
- try{selectedPhoto=await compressImage(f);$('preview').src=selectedPhoto;$('preview').hidden=false;$('publishStatus').textContent='图片已准备好'}
- catch(err){e.target.value='';$('publishStatus').textContent=err.message}
+ const files=[...(e.target.files||[])];if(!files.length)return;
+ if(files.length+selectedPhotos.length>4){$('publishStatus').textContent='最多只能添加4张图片';e.target.value='';return}
+ $('publishStatus').textContent='正在处理图片…';$('image').disabled=true;
+ try{for(const file of files)selectedPhotos.push(await compressImage(file));selectedPhoto=selectedPhotos[0]||'';renderPreviews();$('publishStatus').textContent='图片已准备好'}
+ catch(err){$('publishStatus').textContent=err.message}finally{e.target.value='';$('image').disabled=false}
 });
 $('cancelNeed').onclick=()=>{if(!needBusy){$('needDialog').hidden=true;chosenPost=null}};
 $('needDialog').addEventListener('click',e=>{if(e.target===$('needDialog'))$('cancelNeed').click()});
@@ -132,14 +134,14 @@ $('needForm').addEventListener('submit',async e=>{
  e.preventDefault();if(!db||!chosenPost||needBusy||!window.CCGMember?.user)return;
  const requester=$('requester').value.trim(),details=$('needDetails').value.trim();
  if(!requester||requester.length>40||!details||details.length>500){$('needStatus').textContent='请填写称呼及需要的物品、数量';return}
- if(!confirm('确定将您的称呼、所需物品及数量发送给发布者吗？仅管理员可见。'))return;
+ if(!confirm('确定将您的称呼、所需物品及数量发送给发布者吗？仅发布者和管理员可见。'))return;
  needBusy=true;$('sendNeed').disabled=true;$('needStatus').textContent='正在发送…';
  try{
   const id=db.collection('careNeeds').doc().id,stamp=firebase.firestore.FieldValue.serverTimestamp();
   const batch=db.batch();batch.set(db.collection('careNeeds').doc(id),{postId:chosenPost.id,requester,uid:window.CCGMember.user.uid,ownerUid:chosenPost.uid,details,status:"pending",createdAt:stamp});
   if(chosenPost.uid)batch.set(db.collection('memberNotifications').doc(id),{uid:chosenPost.uid,postId:chosenPost.id,needId:id,text:details,createdAt:stamp});
   await batch.commit();
-  $('needStatus').textContent='已发送给发布者，等待人工安排匹配。';
+  $('needStatus').textContent='已发送给发布者；双方可以在平台「我的消息」中查看进度。';
   $('sendNeed').textContent='已发送';
   setTimeout(()=>{$('needDialog').hidden=true;chosenPost=null;$('sendNeed').textContent='发送给发布者'},1100);
  }catch(err){$('needStatus').textContent='发送失败：'+err.message}
@@ -149,13 +151,13 @@ $('postForm').addEventListener('submit',async e=>{
  e.preventDefault();if(!db)return;
  const author=window.CCGMember?.profile?.name||'',text=$('body').value.trim();
  if(!author||author.length>40){$('publishStatus').textContent='请填写不超过40字的称呼';return}
- if(!text&&!selectedPhoto){$('publishStatus').textContent='请填写文字或上传图片';return}
+ if(!text&&!selectedPhotos.length){$('publishStatus').textContent='请填写文字或上传图片';return}
  if(!confirm(editingPostId?'确定保存对这条帖子的修改吗？':'确定发布这条闲置物品信息吗？物品说明、照片和您的真实姓名会公开。'))return;
  const btn=$('publish');btn.disabled=true;$('publishStatus').textContent='正在发布…';
  try{
-  if(editingPostId){await db.collection('carePosts').doc(editingPostId).update({text,photo:selectedPhoto});editingPostId=null;$('publish').textContent='发布物品';}
-  else{const id=db.collection('carePosts').doc().id;await db.collection('carePosts').doc(id).set({text,photo:selectedPhoto,author,uid:window.CCGMember.user.uid,createdAt:firebase.firestore.FieldValue.serverTimestamp()});}
-  $('body').value='';$('image').value='';$('preview').hidden=true;selectedPhoto='';
+  if(editingPostId){await db.collection('carePosts').doc(editingPostId).update({text,photo:selectedPhotos[0]||'',photos:selectedPhotos});editingPostId=null;$('publish').textContent='发布物品';}
+  else{const id=db.collection('carePosts').doc().id;await db.collection('carePosts').doc(id).set({text,photo:selectedPhotos[0]||'',photos:selectedPhotos,author,uid:window.CCGMember.user.uid,createdAt:firebase.firestore.FieldValue.serverTimestamp()});}
+  $('body').value='';$('image').value='';$('preview').hidden=true;selectedPhoto='';selectedPhotos=[];renderPreviews();
   $('publishStatus').textContent='发布成功！您的真实姓名将公开显示。';nextPage=null;await loadMore(true);
  }catch(err){$('publishStatus').textContent='发布失败：'+err.message}
  finally{btn.disabled=false}

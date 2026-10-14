@@ -44,12 +44,12 @@ $('registerForm').addEventListener('submit',async e=>{e.preventDefault();const n
 $('completeProfile').onclick=()=>{$('profilePanel').hidden=false};
 $('saveProfile').onclick=async()=>{const u=auth.currentUser,name=$('profileName').value.trim();if(!u||!name||name.length>40)return message('请输入1至40字的真实姓名');try{await db.collection('platformMembers').doc(u.uid).set({name,email:u.email,createdAt:firebase.firestore.FieldValue.serverTimestamp()});const profile=await profileFor(u);window.CCGMember.profile=profile;$('memberServices').hidden=false;$('completeProfile').hidden=true;$('profilePanel').hidden=true;$('loggedInIdentity').textContent='当前账号：'+u.email+' · '+name;message('实名资料已保存');resolveReady({user:u,profile})}catch(err){message('保存失败：'+errorText(err))}};
 $('logout').onclick=async()=>{if(!confirm('确定退出登录吗？'))return;try{await auth.signOut()}catch(e){message('退出失败：'+errorText(e))}};
-$('forgotAccount').onclick=()=>{panel('recoveryPanel');$('recoveryEmail').value=$('memberEmail').value.trim();message('请填写邮箱和姓名')};
+$('forgotAccount').onclick=()=>{panel('recoveryPanel');$('recoveryName').value='';message('请填写注册姓名')};
 $('backRecovery').onclick=()=>{panel('loginPanel');message('请登录')};
-$('recoveryForm').addEventListener('submit',async e=>{e.preventDefault();const email=$('recoveryEmail').value.trim(),name=$('recoveryName').value.trim();if(!name||name.length>40)return;$('recoveryStatus').textContent='正在发送…';
- let resetSent=false,requestSent=false;
- try{await auth.sendPasswordResetEmail(email);resetSent=true}catch(err){console.warn('重置邮件未能发送',err.code)}
- try{await db.collection('accountRecoveryRequests').add({email,name,createdAt:firebase.firestore.FieldValue.serverTimestamp()});requestSent=true}catch(err){console.warn('管理员找回请求未能提交',err.code)}
- $('recoveryStatus').textContent=(resetSent?'如邮箱已注册，请检查收件箱中的密码重置邮件。':'未能确认重置邮件是否发送。')+(requestSent?' 已向管理员提交账号找回请求。':' 管理员通知未能送达，请稍后重试。')+' 管理员不会收到或查看您的密码。';
+$('recoveryForm').addEventListener('submit',async e=>{
+ e.preventDefault();const name=$('recoveryName').value.trim();if(!name||name.length>40){$('recoveryStatus').textContent='请输入1至40字的姓名';return}
+ const btn=$('recoveryForm').querySelector('button[type="submit"]');btn.disabled=true;$('recoveryStatus').textContent='正在发送…';
+ try{await db.collection('accountRecoveryRequests').add({name,createdAt:firebase.firestore.FieldValue.serverTimestamp()});$('recoveryStatus').textContent='请求已提交管理员，请等待人工核对。为保护账户安全，管理员不能查看原密码。'}
+ catch(err){$('recoveryStatus').textContent='提交失败：'+errorText(err)}finally{btn.disabled=false}
 });
 })();
