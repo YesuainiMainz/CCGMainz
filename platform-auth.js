@@ -17,7 +17,7 @@ try{
  auth=firebase.auth();db=firebase.firestore();
  auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});
 }catch(e){message('登录服务无法启动：'+e.message);rejectReady(e);return}
-function loggedOut(){closePasswordDialog();window.CCGMember.user=null;window.CCGMember.profile=null;lockInputs(false);$('memberPassword').value='';$('memberServices').hidden=true;panel('loginPanel');message('请使用账号和密码登录')}
+function loggedOut(){$('passwordChangeForm').hidden=true;$('passwordChangeForm').reset();window.CCGMember.user=null;window.CCGMember.profile=null;lockInputs(false);$('memberPassword').value='';$('memberServices').hidden=true;panel('loginPanel');message('请使用账号和密码登录')}
 auth.onAuthStateChanged(async u=>{
  if(!u){loggedOut();return}
  try{
@@ -25,7 +25,7 @@ auth.onAuthStateChanged(async u=>{
   window.CCGMember.user=u;window.CCGMember.profile=profile;
   $('memberEmail').value=u.email||'';$('memberPassword').value='';lockInputs(true);
   $('loggedInIdentity').textContent='当前账号：'+(u.email||'')+(profile?' · '+profile.name:'');
-  panel('loggedInPanel');closePasswordDialog();$('memberServices').hidden=!profile;
+  panel('loggedInPanel');$('passwordChangeForm').hidden=true;$('passwordChangeForm').reset();$('memberServices').hidden=!profile;
   $('completeProfile').hidden=!!profile;
   $('profilePanel').hidden=true;
   message(profile?'登录成功':'此账号尚未完善实名资料，请先补充姓名');
@@ -44,8 +44,26 @@ $('registerForm').addEventListener('submit',async e=>{e.preventDefault();const n
 $('completeProfile').onclick=()=>{$('profilePanel').hidden=false};
 $('saveProfile').onclick=async()=>{const u=auth.currentUser,name=$('profileName').value.trim();if(!u||!name||name.length>40)return message('请输入1至40字的真实姓名');try{await db.collection('platformMembers').doc(u.uid).set({name,email:u.email,createdAt:firebase.firestore.FieldValue.serverTimestamp()});const profile=await profileFor(u);window.CCGMember.profile=profile;$('memberServices').hidden=false;$('completeProfile').hidden=true;$('profilePanel').hidden=true;$('loggedInIdentity').textContent='当前账号：'+u.email+' · '+name;message('实名资料已保存');resolveReady({user:u,profile})}catch(err){message('保存失败：'+errorText(err))}};
 $('logout').onclick=async()=>{if(!confirm('确定退出登录吗？'))return;try{await auth.signOut()}catch(e){message('退出失败：'+errorText(e))}};
-$('forgotAccount').onclick=()=>{panel('recoveryPanel');$('recoveryName').value='';message('请填写注册姓名')};
+$('forgotAccount').onclick=()=>{panel('recoveryPanel');$('passwordResetEmail').value=$('memberEmail').value.trim();$('passwordResetStatus').textContent='';$('recoveryStatus').textContent='';message('请输入注册邮箱以重置密码')};
 $('backRecovery').onclick=()=>{panel('loginPanel');message('请登录')};
+$('passwordResetForm').addEventListener('submit',async e=>{
+ e.preventDefault();
+ const email=$('passwordResetEmail').value.trim();
+ if(!email)return;
+ const btn=$('sendPasswordReset');btn.disabled=true;
+ $('passwordResetStatus').textContent='正在发送重置邮件…';
+ try{
+  await auth.sendPasswordResetEmail(email);
+  $('passwordResetStatus').textContent='如果该邮箱已注册且可以接收邮件，您将收到密码重置链接。请检查收件箱及垃圾邮件文件夹。';
+ }catch(err){
+  if(['auth/user-not-found','auth/invalid-email'].includes(err.code)){
+   $('passwordResetStatus').textContent='如果该邮箱已注册且可以接收邮件，您将收到密码重置链接。请检查收件箱及垃圾邮件文件夹。';
+  }else{
+   $('passwordResetStatus').textContent='邮件发送失败：'+errorText(err);
+  }
+ }finally{btn.disabled=false}
+});
+
 $('recoveryForm').addEventListener('submit',async e=>{
  e.preventDefault();const name=$('recoveryName').value.trim();if(!name||name.length>40){$('recoveryStatus').textContent='请输入1至40字的姓名';return}
  const btn=$('recoveryForm').querySelector('button[type="submit"]');btn.disabled=true;$('recoveryStatus').textContent='正在发送…';
@@ -53,43 +71,12 @@ $('recoveryForm').addEventListener('submit',async e=>{
  catch(err){$('recoveryStatus').textContent='提交失败：'+errorText(err)}finally{btn.disabled=false}
 });
 
-const passwordDialog=$('passwordChangeDialog');
-function closePasswordDialog(){
- $('passwordChangeForm').reset();$('passwordChangeStatus').textContent='';
- if(passwordDialog.open)passwordDialog.close();
-}
-function setPasswordMode(mode){
- const direct=mode==='direct';
- $('passwordChangeForm').hidden=!direct;
- $('emailPasswordPanel').hidden=direct;
- $('chooseDirectPassword').setAttribute('aria-pressed',String(direct));
- $('chooseEmailPassword').setAttribute('aria-pressed',String(!direct));
- $('passwordChangeStatus').textContent='';
- if(direct)$('oldMemberPassword').focus();
-}
 $('showPasswordChange').onclick=()=>{
- const u=auth.currentUser;if(!u)return message('请先登录账号');
- $('passwordChangeForm').reset();
- $('passwordResetEmailDisplay').textContent='注册邮箱：'+(u.email||'未设置邮箱');
- if(!passwordDialog.open)passwordDialog.showModal();
- setPasswordMode('direct');
+ const form=$('passwordChangeForm');form.hidden=!form.hidden;
+ form.reset();$('passwordChangeStatus').textContent='';
+ if(!form.hidden)$('oldMemberPassword').focus();
 };
-$('chooseDirectPassword').onclick=()=>setPasswordMode('direct');
-$('chooseEmailPassword').onclick=()=>setPasswordMode('email');
-$('closePasswordDialog').onclick=closePasswordDialog;
-$('cancelPasswordChange').onclick=closePasswordDialog;
-$('cancelPasswordEmail').onclick=closePasswordDialog;
-passwordDialog.addEventListener('close',()=>{$('passwordChangeForm').reset();$('passwordChangeStatus').textContent=''});
-$('sendPasswordResetEmail').onclick=async()=>{
- const u=auth.currentUser,btn=$('sendPasswordResetEmail'),out=$('passwordChangeStatus');
- if(!u||!u.email){out.textContent='当前账号未设置注册邮箱，请联系管理员核实账号。';return}
- btn.disabled=true;out.textContent='正在发送密码重置邮件…';
- try{
-  await auth.sendPasswordResetEmail(u.email);
-  out.textContent='重置邮件已发送至注册邮箱，请检查收件箱及垃圾邮件文件夹。请勿将重置链接转发给他人。';
- }catch(err){out.textContent='邮件发送失败：'+errorText(err)}
- finally{btn.disabled=false}
-};
+$('cancelPasswordChange').onclick=()=>{$('passwordChangeForm').reset();$('passwordChangeForm').hidden=true;$('passwordChangeStatus').textContent=''};
 $('passwordChangeForm').addEventListener('submit',async e=>{
  e.preventDefault();
  const u=auth.currentUser,oldPass=$('oldMemberPassword').value,newPass=$('newMemberPassword').value,confirmPass=$('confirmMemberPassword').value;
@@ -103,7 +90,7 @@ $('passwordChangeForm').addEventListener('submit',async e=>{
   const credential=firebase.auth.EmailAuthProvider.credential(u.email,oldPass);
   await u.reauthenticateWithCredential(credential);
   await u.updatePassword(newPass);
-  closePasswordDialog();
+  $('passwordChangeForm').reset();$('passwordChangeForm').hidden=true;
   message('密码修改成功。下次登录请使用新密码。');
  }catch(err){status.textContent='修改失败：'+errorText(err)}
  finally{submit.disabled=false}

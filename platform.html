@@ -32,18 +32,6 @@ a.tile:hover,a.tile:focus-visible{border-color:#3b805a;box-shadow:0 6px 18px #00
 .ccg-message-detail{padding:4px 16px 14px;background:#f6faf7;border-top:1px solid #e0e8e1}
 .ccg-message-detail p{margin:10px 0;line-height:1.6;white-space:pre-wrap}
 .ccg-message-post-link{display:inline-flex;align-items:center;margin-top:8px;padding:9px 12px;border-radius:8px;background:#e8f4ec;color:#215b3f;font-weight:600;text-decoration:none}.ccg-message-post-link:hover{text-decoration:underline}
-
-/* 密码修改对话框 */
-#passwordChangeDialog{border:0;border-radius:16px;padding:0;width:min(94vw,560px);max-height:90vh;overflow-y:auto;box-shadow:0 15px 60px #0005;color:#193c2d;background:white}
-#passwordChangeDialog::backdrop{background:rgba(12,30,20,.58)}
-#passwordChangeDialog .password-dialog-inner{padding:24px}
-#passwordChangeDialog h3{margin-top:0}
-#passwordChangeDialog .password-choice{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}
-#passwordChangeDialog .password-choice button{border:1px solid #246746;border-radius:8px;padding:11px 14px;cursor:pointer;background:#eaf3ec;color:#1b5636;font-weight:600}
-#passwordChangeDialog .password-choice button[aria-pressed="true"]{background:#246746;color:white}
-#passwordChangeDialog .password-close{float:right;border:0;background:transparent;font-size:24px;cursor:pointer;color:#345647}
-#passwordChangeDialog .password-dialog-note{font-size:14px;color:#64796a;line-height:1.55}
-#passwordChangeDialog input{width:100%;max-width:100%}
 </style></head><body>
 <header><div><div class="mcg-language-row"><h1>CCG Mainz幸福家人数字平台</h1><button id="mcgLanguageSwitch" type="button" data-no-translate>切換為繁體中文</button></div>
 <span id="mcgLanguageStatus" class="mcg-language-status" data-no-translate role="status"></span>
@@ -56,31 +44,23 @@ a.tile:hover,a.tile:focus-visible{border-color:#3b805a;box-shadow:0 6px 18px #00
 <div id="registerPanel" hidden><h2>注册新账号</h2><p class="note">注册时需要填写真实姓名、电子邮箱和密码。爱心站将公开显示姓名。</p>
 <form id="registerForm"><label>真实姓名<input id="realName" maxlength="40" autocomplete="name" required placeholder="请输入真实姓名"></label><label>电子邮箱<input id="registerEmail" type="email" autocomplete="email" required placeholder="请输入电子邮箱"></label><label>密码（至少6位）<input id="registerPassword" type="password" autocomplete="new-password" minlength="6" required></label>
 <div class="auth-actions"><button type="submit">确认注册</button><button id="backLogin" type="button" style="background:#64796a">← 返回登录</button></div></form></div>
-<div id="recoveryPanel" hidden><h2>忘记账号或密码</h2><p class="note">只需填写注册时使用的真实姓名，即可向管理员发送账号找回请求。管理员会核对身份并协助处理；不会获得您的原始密码。请勿在此填写密码。</p>
-<form id="recoveryForm"><label>注册姓名<input id="recoveryName" maxlength="40" required autocomplete="name" placeholder="请输入注册姓名"></label><div class="auth-actions"><button type="submit">向管理员发送请求</button><button id="backRecovery" type="button" style="background:#64796a">← 返回登录</button></div></form><p id="recoveryStatus" role="status"></p></div>
-<div id="loggedInPanel" hidden><h2>已登录</h2><p id="loggedInIdentity"></p><p class="note">登录成功后不再显示账号密码输入框。需要切换账号时，请点击退出登录。</p><div class="auth-actions"><button id="logout" type="button">退出登录</button><button id="showPasswordChange" type="button" class="alt">修改密码</button><button id="completeProfile" type="button" hidden>补充实名资料</button></div><div id="profilePanel" hidden><label>真实姓名<input id="profileName" maxlength="40" autocomplete="name"></label><button id="saveProfile" type="button">保存实名资料</button></div></div>
-<dialog id="passwordChangeDialog" aria-labelledby="passwordDialogTitle">
-<div class="password-dialog-inner">
-<button id="closePasswordDialog" class="password-close" type="button" aria-label="关闭">×</button>
-<h3 id="passwordDialogTitle">修改密码</h3>
-<p class="password-dialog-note">选择一种方式：输入当前密码直接修改，或者向注册邮箱发送密码重置链接。</p>
-<div class="password-choice">
-<button type="button" id="chooseDirectPassword" aria-pressed="true">输入当前密码</button>
-<button type="button" id="chooseEmailPassword" aria-pressed="false">发送重置邮件</button>
-</div>
-<form id="passwordChangeForm" autocomplete="off">
+<div id="recoveryPanel" hidden><h2>忘记密码</h2>
+<p class="note">输入注册邮箱，点击发送后即可通过邮件中的安全链接设置新密码。无需输入旧密码。</p>
+<form id="passwordResetForm"><label>注册邮箱（账号）<input id="passwordResetEmail" type="email" autocomplete="email" required placeholder="请输入注册邮箱"></label>
+<div class="auth-actions"><button type="submit" id="sendPasswordReset">发送密码重置邮件</button><button id="backRecovery" type="button" style="background:#64796a">← 返回登录</button></div></form>
+<p id="passwordResetStatus" role="status" class="note"></p>
+<details style="margin-top:18px"><summary style="cursor:pointer">忘记注册邮箱？向管理员提交账号找回申请</summary>
+<p class="note">如果连注册邮箱也忘记了，可填写注册姓名申请人工协助。管理员不会获得原密码。</p>
+<form id="recoveryForm"><label>注册姓名<input id="recoveryName" maxlength="40" required autocomplete="name" placeholder="请输入注册姓名"></label><button type="submit">向管理员发送账号找回请求</button></form>
+<p id="recoveryStatus" role="status"></p></details></div>
+<div id="loggedInPanel" hidden><h2>已登录</h2><p id="loggedInIdentity"></p><p class="note">登录成功后不再显示账号密码输入框。需要切换账号时，请点击退出登录。</p><div class="auth-actions"><button id="logout" type="button">退出登录</button><button id="showPasswordChange" type="button" class="alt">修改密码</button><button id="completeProfile" type="button" hidden>补充实名资料</button></div><form id="passwordChangeForm" hidden autocomplete="off" style="margin-top:16px;padding:16px;border:1px solid #d8e4db;border-radius:12px;max-width:560px">
+<h3>修改密码</h3>
 <label>当前密码<input id="oldMemberPassword" type="password" autocomplete="current-password" required></label>
 <label>新密码（至少6位）<input id="newMemberPassword" type="password" autocomplete="new-password" minlength="6" required></label>
 <label>再次输入新密码<input id="confirmMemberPassword" type="password" autocomplete="new-password" minlength="6" required></label>
 <div class="auth-actions"><button type="submit">确认修改</button><button id="cancelPasswordChange" type="button" class="alt">取消</button></div>
-</form>
-<div id="emailPasswordPanel" hidden>
-<p class="password-dialog-note">系统将向当前登录账号的注册邮箱发送重置链接。请通过邮件内的链接设置新密码，管理员不会收到或查看您的密码。</p>
-<p id="passwordResetEmailDisplay" class="password-dialog-note"></p>
-<div class="auth-actions"><button id="sendPasswordResetEmail" type="button">发送密码重置邮件</button><button id="cancelPasswordEmail" type="button" class="alt">取消</button></div>
-</div>
-<p id="passwordChangeStatus" role="status" aria-live="polite" class="password-dialog-note"></p>
-</div></dialog>
+<p id="passwordChangeStatus" role="status" class="note"></p>
+</form><div id="profilePanel" hidden><label>真实姓名<input id="profileName" maxlength="40" autocomplete="name"></label><button id="saveProfile" type="button">保存实名资料</button></div></div>
 <p id="memberStatus" role="status">正在检查登录状态…</p></section><div id="memberServices" hidden><div class="grid">
 <a class="tile" href="./library.html"><span class="tile-icon" aria-hidden="true">📚</span><span class="tile-title">CCG Mainz图书馆</span>
 <span class="tile-sub">查看教会图书、浏览照片、查询库存，并提交借书意向。</span><span class="tile-arrow">进入图书馆 →</span></a>
