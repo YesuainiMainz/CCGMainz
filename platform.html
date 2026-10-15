@@ -46,7 +46,14 @@ a.tile:hover,a.tile:focus-visible{border-color:#3b805a;box-shadow:0 6px 18px #00
 <div class="auth-actions"><button type="submit">确认注册</button><button id="backLogin" type="button" style="background:#64796a">← 返回登录</button></div></form></div>
 <div id="recoveryPanel" hidden><h2>忘记账号或密码</h2><p class="note">只需填写注册时使用的真实姓名，即可向管理员发送账号找回请求。管理员会核对身份并协助处理；不会获得您的原始密码。请勿在此填写密码。</p>
 <form id="recoveryForm"><label>注册姓名<input id="recoveryName" maxlength="40" required autocomplete="name" placeholder="请输入注册姓名"></label><div class="auth-actions"><button type="submit">向管理员发送请求</button><button id="backRecovery" type="button" style="background:#64796a">← 返回登录</button></div></form><p id="recoveryStatus" role="status"></p></div>
-<div id="loggedInPanel" hidden><h2>已登录</h2><p id="loggedInIdentity"></p><p class="note">登录成功后不再显示账号密码输入框。需要切换账号时，请点击退出登录。</p><div class="auth-actions"><button id="logout" type="button">退出登录</button><button id="completeProfile" type="button" hidden>补充实名资料</button></div><div id="profilePanel" hidden><label>真实姓名<input id="profileName" maxlength="40" autocomplete="name"></label><button id="saveProfile" type="button">保存实名资料</button></div></div>
+<div id="loggedInPanel" hidden><h2>已登录</h2><p id="loggedInIdentity"></p><p class="note">登录成功后不再显示账号密码输入框。需要切换账号时，请点击退出登录。</p><div class="auth-actions"><button id="logout" type="button">退出登录</button><button id="showPasswordChange" type="button" class="alt">修改密码</button><button id="completeProfile" type="button" hidden>补充实名资料</button></div><form id="passwordChangeForm" hidden autocomplete="off" style="margin-top:16px;padding:16px;border:1px solid #d8e4db;border-radius:12px;max-width:560px">
+<h3>修改密码</h3>
+<label>当前密码<input id="oldMemberPassword" type="password" autocomplete="current-password" required></label>
+<label>新密码（至少6位）<input id="newMemberPassword" type="password" autocomplete="new-password" minlength="6" required></label>
+<label>再次输入新密码<input id="confirmMemberPassword" type="password" autocomplete="new-password" minlength="6" required></label>
+<div class="auth-actions"><button type="submit">确认修改</button><button id="cancelPasswordChange" type="button" class="alt">取消</button></div>
+<p id="passwordChangeStatus" role="status" class="note"></p>
+</form><div id="profilePanel" hidden><label>真实姓名<input id="profileName" maxlength="40" autocomplete="name"></label><button id="saveProfile" type="button">保存实名资料</button></div></div>
 <p id="memberStatus" role="status">正在检查登录状态…</p></section><div id="memberServices" hidden><div class="grid">
 <a class="tile" href="./library.html"><span class="tile-icon" aria-hidden="true">📚</span><span class="tile-title">CCG Mainz图书馆</span>
 <span class="tile-sub">查看教会图书、浏览照片、查询库存，并提交借书意向。</span><span class="tile-arrow">进入图书馆 →</span></a>

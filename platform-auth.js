@@ -17,7 +17,7 @@ try{
  auth=firebase.auth();db=firebase.firestore();
  auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});
 }catch(e){message('登录服务无法启动：'+e.message);rejectReady(e);return}
-function loggedOut(){window.CCGMember.user=null;window.CCGMember.profile=null;lockInputs(false);$('memberPassword').value='';$('memberServices').hidden=true;panel('loginPanel');message('请使用账号和密码登录')}
+function loggedOut(){$('passwordChangeForm').hidden=true;$('passwordChangeForm').reset();window.CCGMember.user=null;window.CCGMember.profile=null;lockInputs(false);$('memberPassword').value='';$('memberServices').hidden=true;panel('loginPanel');message('请使用账号和密码登录')}
 auth.onAuthStateChanged(async u=>{
  if(!u){loggedOut();return}
  try{
@@ -25,7 +25,7 @@ auth.onAuthStateChanged(async u=>{
   window.CCGMember.user=u;window.CCGMember.profile=profile;
   $('memberEmail').value=u.email||'';$('memberPassword').value='';lockInputs(true);
   $('loggedInIdentity').textContent='当前账号：'+(u.email||'')+(profile?' · '+profile.name:'');
-  panel('loggedInPanel');$('memberServices').hidden=!profile;
+  panel('loggedInPanel');$('passwordChangeForm').hidden=true;$('passwordChangeForm').reset();$('memberServices').hidden=!profile;
   $('completeProfile').hidden=!!profile;
   $('profilePanel').hidden=true;
   message(profile?'登录成功':'此账号尚未完善实名资料，请先补充姓名');
@@ -51,5 +51,30 @@ $('recoveryForm').addEventListener('submit',async e=>{
  const btn=$('recoveryForm').querySelector('button[type="submit"]');btn.disabled=true;$('recoveryStatus').textContent='正在发送…';
  try{await db.collection('accountRecoveryRequests').add({name,createdAt:firebase.firestore.FieldValue.serverTimestamp()});$('recoveryStatus').textContent='请求已提交管理员，请等待人工核对。为保护账户安全，管理员不能查看原密码。'}
  catch(err){$('recoveryStatus').textContent='提交失败：'+errorText(err)}finally{btn.disabled=false}
+});
+
+$('showPasswordChange').onclick=()=>{
+ const form=$('passwordChangeForm');form.hidden=!form.hidden;
+ form.reset();$('passwordChangeStatus').textContent='';
+ if(!form.hidden)$('oldMemberPassword').focus();
+};
+$('cancelPasswordChange').onclick=()=>{$('passwordChangeForm').reset();$('passwordChangeForm').hidden=true;$('passwordChangeStatus').textContent=''};
+$('passwordChangeForm').addEventListener('submit',async e=>{
+ e.preventDefault();
+ const u=auth.currentUser,oldPass=$('oldMemberPassword').value,newPass=$('newMemberPassword').value,confirmPass=$('confirmMemberPassword').value;
+ const status=$('passwordChangeStatus'),submit=$('passwordChangeForm').querySelector('button[type="submit"]');
+ if(!u||!u.email)return status.textContent='请先登录账号';
+ if(newPass.length<6)return status.textContent='新密码至少需要6位';
+ if(newPass!==confirmPass)return status.textContent='两次输入的新密码不一致';
+ if(oldPass===newPass)return status.textContent='新密码不能与当前密码相同';
+ submit.disabled=true;status.textContent='正在验证当前密码…';
+ try{
+  const credential=firebase.auth.EmailAuthProvider.credential(u.email,oldPass);
+  await u.reauthenticateWithCredential(credential);
+  await u.updatePassword(newPass);
+  $('passwordChangeForm').reset();$('passwordChangeForm').hidden=true;
+  message('密码修改成功。下次登录请使用新密码。');
+ }catch(err){status.textContent='修改失败：'+errorText(err)}
+ finally{submit.disabled=false}
 });
 })();
