@@ -46,7 +46,7 @@ th{position:sticky;top:0;background:white;z-index:2}img{width:74px;height:74px;o
 @media(max-width:560px){.mcg-language-row{align-items:stretch}.mcg-language-row h1{flex:1 1 100%}#mcgLanguageSwitch{width:100%}}
 </style></head>
 <body><header><div class="mcg-language-row"><h1>CCG Mainz图书馆</h1><button id="mcgLanguageSwitch" type="button" data-no-translate>切換為繁體中文</button></div><span id="mcgLanguageStatus" class="mcg-language-status" role="status" data-no-translate></span><div>会员图书目录 · 登录后可借阅</div></header>
-<main><p><a href="./platform.html">← 返回 CCG Mainz幸福家人数字平台</a></p><section class="card"><label for="search">搜索图书</label><input id="search" placeholder="输入图书名称或备注" autocomplete="off">
+<main><p id="adminReadonlyNotice" class="muted" hidden>管理员浏览模式：仅可查看图书目录，不可提交借阅申请。</p><p><a href="./platform.html">← 返回 CCG Mainz幸福家人数字平台</a></p><section class="card"><label for="search">搜索图书</label><input id="search" placeholder="输入图书名称或备注" autocomplete="off">
 <p id="status" class="muted" aria-live="polite">正在加载图书…</p></section>
 <section class="card"><div id="bookScroll"><table><thead><tr><th>图片</th><th>名称</th><th>备注</th><th>库存 / 借书</th></tr></thead><tbody id="books"></tbody></table></div></section>
 </main>
@@ -62,9 +62,10 @@ th{position:sticky;top:0;background:white;z-index:2}img{width:74px;height:74px;o
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="./firebase-config.js"></script><script src="./member-session.js"></script>
 <script>
 const $=id=>document.getElementById(id);
+let isAdminViewer=true,adminChecked=false;
 let books=[],publicDb=null,borrowBook=null,borrowSubmitting=false,loanStates={};
 function openBorrow(book){
- if(borrowSubmitting)return;
+ if(isAdminViewer||!adminChecked||borrowSubmitting)return;
  borrowBook=book;
  $('borrowBookName').textContent='图书：'+book.name;
  $('borrowerName').value=window.CCGMember?.profile?.name||'';$('borrowMessage').textContent='';
@@ -78,7 +79,7 @@ $('cancelBorrow').addEventListener('click',closeBorrow);
 $('borrowDialog').addEventListener('click',e=>{if(e.target===$('borrowDialog'))closeBorrow()});
 $('borrowPanel').addEventListener('submit',async e=>{
  e.preventDefault();
- if(borrowSubmitting||!borrowBook||!publicDb||!window.CCGMember?.user)return;
+ if(isAdminViewer||!adminChecked||borrowSubmitting||!borrowBook||!publicDb||!window.CCGMember?.user)return;
  const name=$('borrowerName').value.trim();
  if(!name||name.length>60){$('borrowMessage').textContent='请输入不超过60字的姓名';return;}
  borrowSubmitting=true;$('sendBorrow').disabled=true;
@@ -116,7 +117,7 @@ function render(){
   makeCell(tr,book.notes||'—','note');const stock=makeCell(tr,String(book.qty)+' '+(book.unit||'个'));
   const ask=document.createElement('button');ask.type='button';ask.className='borrow';ask.textContent='📖 我想借';
   const state=loanStates[book.id]||{},remaining=Math.max(0,book.qty-(state.borrowedCount||0)),frozen=!!state.frozen;
-  ask.disabled=frozen||remaining<=0;ask.textContent=remaining<=0?'📕 已借出':frozen?'🔒 暂停借阅':'📖 我想借';ask.addEventListener('click',()=>{if(!frozen&&remaining>0)openBorrow(book)});stock.append(document.createTextNode(' '),ask);
+  ask.disabled=isAdminViewer||frozen||remaining<=0;ask.textContent=isAdminViewer?'仅浏览':remaining<=0?'📕 已借出':frozen?'🔒 暂停借阅':'📖 我想借';ask.addEventListener('click',()=>{if(!isAdminViewer&&!frozen&&remaining>0)openBorrow(book)});stock.append(document.createTextNode(' '),ask);
   tbody.append(tr);
  }
  $('status').textContent='共 '+visible.length+' 种图书 · 目录自动更新';
@@ -132,7 +133,16 @@ try{
  if(!c||!c.apiKey||c.apiKey.startsWith('REPLACE'))throw Error('尚未配置 Firebase');
  firebase.initializeApp(c);
  publicDb=firebase.firestore();
- window.CCGMember.ready.then(()=>{
+ window.CCGMember.ready.then(async m=>{
+ try{
+  const doc=await publicDb.collection('admins').doc(m.user.uid).get();
+  isAdminViewer=doc.exists;adminChecked=true;
+ }catch(e){
+  isAdminViewer=true;
+  $('status').textContent='身份权限检查失败，当前只读：'+e.message;
+ }
+ if(isAdminViewer){$('borrowDialog').hidden=true;$('adminReadonlyNotice').hidden=false;}
+
  publicDb.collection('libraryLoanStates').onSnapshot(s=>{loanStates={};s.docs.forEach(d=>loanStates[d.id]=d.data());render()},e=>console.warn('借阅冻结状态加载失败',e));
  publicDb.collection('publicLibrary').onSnapshot(s=>{
   books=s.docs.map(d=>({id:d.id,...d.data()})).filter(b=>b.category==='图书'&&typeof b.name==='string')
