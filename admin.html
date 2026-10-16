@@ -102,6 +102,14 @@ button{touch-action:manipulation}
 #libraryRequestScroll table{width:100%;}
 #libraryRequestScroll thead th{position:sticky;top:0;background:white;z-index:1;}
 #memberList button{white-space:nowrap;}
+
+.inventory-diff-scroll{overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;max-width:100%;scrollbar-gutter:stable}
+.inventory-diff-entry{padding:12px;border-radius:10px;margin:7px 0;overflow-wrap:anywhere;border:1px solid}
+.inventory-diff-entry.remote{background:#fff0ef;border-color:#e7aaa6;color:#8a2922}
+.inventory-diff-entry.local{background:#eaf8ee;border-color:#9fd5ac;color:#215c32}
+.inventory-diff-entry.changed{background:#fff8e6;border-color:#e7cf86;color:#665012}
+.inventory-diff-entry button{margin:5px 6px 0 0}
+.inventory-diff-entry .inventory-diff-meta{font-size:13px;opacity:.85;margin-top:4px}
 </style><header><h1>CCG Mainz线上管理中心</h1></header><main>
 
 <div id="managementHome"><div class="card" id="firebasePublisher"><h2>管理员登录</h2><div class="grid"><label>管理员账号<input autocapitalize="none" autocomplete="username" id="adminEmail" name="username" placeholder="请输入管理员账号" spellcheck="false" type="email"/></label><label>管理员密码<input autocomplete="current-password" id="adminPassword" name="password" type="password"/></label></div><button id="adminLoginButton" onclick="adminSignIn()" type="button">管理员登录</button><button class="alt" onclick="adminSignOut()" type="button">退出</button><p class="warn" id="adminAuthStatus">尚未登录。</p><p class="muted" id="latestStockTime">最新库存更新时间：等待云端加载…</p></div><nav class="management-nav" id="managementNav" aria-label="管理中心功能导航">
@@ -116,7 +124,12 @@ button{touch-action:manipulation}
  <button class="alt back-button" type="button" onclick="showManagementView('home')">← 返回管理中心</button>
  <h2 id="managementPageTitle"></h2>
 </div>
-<section class="inventory-management management-view" hidden="" id="inventoryManagement"><div class="card"><h2>库存概况</h2><span id="summary"></span><p class="warn" id="ghPublishStatus">登录后自动同步云端库存</p><p class="warn">登录后自动同步云端库存。保存物品或恢复备份后将自动上传；建议定期导出完整备份。</p><button onclick="backup()">导出完整备份</button><label>恢复完整备份 <input accept=".json" onchange="restore(this.files[0]);this.value=''" type="file"/></label></div><div class="card"><h2>在线申请审批 / 归还</h2><p class="muted">家庭端提交后自动出现。批准时在 Firestore 事务中检查库存并扣减，防止多人同时申请造成超额出库。归还支持分批登记。</p><button onclick="loadOnlineRequests()">刷新在线申请</button><p class="warn" id="onlineRequestStatus">请先登录管理员账号。</p><div class="scroll ten-row-table" id="onlineRequestsScroll"><table><thead><tr><th>申请人 / 物品</th><th>申请</th><th>状态</th><th>操作</th></tr></thead><tbody id="onlineRequestRows"></tbody></table></div></div><div class="card"><h2>分类与位置管理</h2><div class="grid"><div><b>分类</b><div id="categoriesList"></div><input id="newCategory" placeholder="新分类名称"/><button onclick="addOption('categories','newCategory')">添加分类</button></div><div><b>存放位置</b><div id="locationsList"></div><input id="newLocation" placeholder="新位置名称"/><button onclick="addOption('locations','newLocation')">添加位置</button></div></div></div><input accept="image/*" id="itemPhotoPicker" onchange="savePhotoForItem(this.files[0]);this.value=''" style="display:none" type="file"/><div class="card" id="itemEditorSection"><h2>添加 / 编辑物品</h2><form id="form"><input name="id" type="hidden"/><div class="grid"><label>名称 *<input name="name" required=""/></label><label>分类<select id="categorySelect" name="category"></select></label><label>存放位置<select id="locationSelect" name="location"></select></label><label>库存数量<input min="0" name="qty" required="" step="1" type="number" value="1"/></label><label>单位<input name="unit" value="个"/></label><label>照片<input accept="image/*" id="photo" type="file"/></label><label>备注<input name="notes"/></label></div><button type="submit">保存物品</button><button class="alt" onclick="clearForm()" type="button">清空表单</button><button class="danger" id="editorDeleteButton" onclick="deleteEditingItem()" style="display:none" type="button">删除此物品</button></form></div><div class="card"><h2>物品库存</h2><div class="grid">
+<section class="inventory-management management-view" hidden="" id="inventoryManagement"><div class="card"><h2>库存概况</h2><span id="summary"></span><p class="warn" id="ghPublishStatus">登录后自动同步云端库存</p><p class="warn">登录后自动同步云端库存。保存物品或恢复备份后将自动上传；建议定期导出完整备份。</p><button onclick="backup()">导出完整备份</button><label>恢复完整备份（不限制选择文件大小，云端仍有容量限制） <input accept=".json" onchange="restore(this.files[0]);this.value=''" type="file"/></label></div><div class="card" id="inventoryReconcilePanel">
+<h2>云端与本机库存差异</h2>
+<p class="muted">红色：云端有、本机没有。绿色：本机有、云端没有。逐条选择保留或删除，每次操作确认一次。相同 ID 但内容不同的物品另行提示，避免误覆盖。</p>
+<p id="inventoryDiffStatus" class="muted">登录后对比云端与本机库存。</p>
+<div id="inventoryDiffScroll" class="inventory-diff-scroll" aria-label="库存差异记录"><div id="inventoryDiffList"></div></div>
+</div><div class="card"><h2>在线申请审批 / 归还</h2><p class="muted">家庭端提交后自动出现。批准时在 Firestore 事务中检查库存并扣减，防止多人同时申请造成超额出库。归还支持分批登记。</p><button onclick="loadOnlineRequests()">刷新在线申请</button><p class="warn" id="onlineRequestStatus">请先登录管理员账号。</p><div class="scroll ten-row-table" id="onlineRequestsScroll"><table><thead><tr><th>申请人 / 物品</th><th>申请</th><th>状态</th><th>操作</th></tr></thead><tbody id="onlineRequestRows"></tbody></table></div></div><div class="card"><h2>分类与位置管理</h2><div class="grid"><div><b>分类</b><div id="categoriesList"></div><input id="newCategory" placeholder="新分类名称"/><button onclick="addOption('categories','newCategory')">添加分类</button></div><div><b>存放位置</b><div id="locationsList"></div><input id="newLocation" placeholder="新位置名称"/><button onclick="addOption('locations','newLocation')">添加位置</button></div></div></div><input accept="image/*" id="itemPhotoPicker" onchange="savePhotoForItem(this.files[0]);this.value=''" style="display:none" type="file"/><div class="card" id="itemEditorSection"><h2>添加 / 编辑物品</h2><form id="form"><input name="id" type="hidden"/><div class="grid"><label>名称 *<input name="name" required=""/></label><label>分类<select id="categorySelect" name="category"></select></label><label>存放位置<select id="locationSelect" name="location"></select></label><label>库存数量<input min="0" name="qty" required="" step="1" type="number" value="1"/></label><label>单位<input name="unit" value="个"/></label><label>照片<input accept="image/*" id="photo" type="file"/></label><label>备注<input name="notes"/></label></div><button type="submit">保存物品</button><button class="alt" onclick="clearForm()" type="button">清空表单</button><button class="danger" id="editorDeleteButton" onclick="deleteEditingItem()" style="display:none" type="button">删除此物品</button></form></div><div class="card"><h2>物品库存</h2><div class="grid">
 <label>搜索方式<select id="searchMode" onchange="updateSearchControls();render()"><option value="name">名称</option><option value="category">分类</option><option value="location">存放位置</option><option value="qty">数量</option></select></label>
 <label id="searchTextWrap">搜索内容<input id="search" oninput="render()" placeholder="输入物品名称"/></label>
 <label id="searchChoiceWrap" style="display:none">筛选选项<select id="searchChoice" onchange="render()"></select></label>
@@ -137,7 +150,7 @@ const $=id=>document.getElementById(id);
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 const uuid=()=>crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);
 function download(name,obj){let b=new Blob([JSON.stringify(obj,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
-function readJSON(file){return new Promise((resolve,reject)=>{if(!file||file.size>40000000)return reject(Error('文件过大或未选择'));let r=new FileReader();r.onload=()=>{try{resolve(JSON.parse(r.result))}catch{reject(Error('不是有效的 JSON 文件'))}};r.onerror=()=>reject(Error('无法读取文件'));r.readAsText(file)})}
+function readJSON(file){return new Promise((resolve,reject)=>{if(!file)return reject(Error('未选择文件'));let r=new FileReader();r.onload=()=>{try{resolve(JSON.parse(r.result))}catch{reject(Error('不是有效的 JSON 文件'))}};r.onerror=()=>reject(Error('无法读取文件'));r.readAsText(file)})}
 function msg(t){alert(t)}
 function saveLocal(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch{alert('保存失败，可能是照片太大或浏览器存储已满，请先导出备份。');return false}}
 function loadLocal(k,fallback){try{return JSON.parse(localStorage.getItem(k))||fallback}catch{return fallback}}
@@ -498,6 +511,8 @@ async function deletePhotoForItem(id){
 // v4.3: cloud baseline + persistent local draft, isolated per browser.
 const FZH_DRAFT_KEY='fzh_admin_cloud_draft_v43';
 let cloudUnsub=null,cloudBaseline=null,cloudRemoteVersion=null,cloudRemoteTime=null,cloudReady=false;
+let inventoryRemoteSnapshot=null,inventoryDiffBusy=false;
+let inventoryDiffLocalSeed=null;
 let draft=loadLocal(FZH_DRAFT_KEY,null);
 function inventoryPart(x){return {items:(x.items||[]).map(i=>({id:i.id,name:i.name,category:i.category,location:i.location,qty:i.qty,unit:i.unit,notes:i.notes||''})),categories:x.categories||[],locations:x.locations||[]};}
 function sameInventory(x,y){return JSON.stringify(inventoryPart(x))===JSON.stringify(inventoryPart(y));}
@@ -537,6 +552,103 @@ function limitTableToTen(id){
  const height=rows.reduce((sum,row)=>sum+row.getBoundingClientRect().height,0);
  el.style.maxHeight=Math.ceil(table.tHead.getBoundingClientRect().height+height+2)+'px';
 }
+
+function inventoryItemSame(a,b){
+ return ['name','category','location','qty','unit','notes'].every(k=>String(a?.[k]??'')===String(b?.[k]??''));
+}
+function inventoryDifferences(){
+ if(!inventoryRemoteSnapshot)return [];
+ const remote=new Map((inventoryRemoteSnapshot.items||[]).map(i=>[i.id,i]));
+ const local=new Map((inventoryDiffLocalSeed?.items||db.items||[]).map(i=>[i.id,i]));
+ const differences=[];
+ for(const [id,item] of remote){
+  if(!local.has(id))differences.push({id,item,kind:'remote'});
+  else if(!inventoryItemSame(item,local.get(id)))differences.push({id,item,local:local.get(id),kind:'changed'});
+ }
+ for(const [id,item] of local)if(!remote.has(id))differences.push({id,item,kind:'local'});
+ return differences;
+}
+function inventoryHasUnresolvedDiff(){return inventoryDifferences().length>0;}
+function limitInventoryDiffRows(){
+ const wrap=$('inventoryDiffScroll'),list=$('inventoryDiffList');if(!wrap||!list)return;
+ const rows=[...list.children].slice(0,3);
+ wrap.style.maxHeight=rows.length?Math.ceil(rows.reduce((n,e)=>{const c=getComputedStyle(e);return n+e.getBoundingClientRect().height+parseFloat(c.marginTop||0)+parseFloat(c.marginBottom||0)},0)+4)+'px':'none';
+}
+function renderInventoryDiff(){
+ const list=$('inventoryDiffList'),status=$('inventoryDiffStatus');if(!list||!status)return;
+ list.replaceChildren();
+ if(!inventoryRemoteSnapshot){status.textContent='等待云端库存加载完成…';return;}
+ const diffs=inventoryDifferences();
+ status.textContent=diffs.length?'共 '+diffs.length+' 条差异。逐条确认后处理；有差异时暂停自动上传，避免覆盖云端。':'云端与本机物品内容一致。';
+ for(const diff of diffs){
+  const card=document.createElement('div');card.className='inventory-diff-entry '+diff.kind;
+  const title=document.createElement('strong');
+  title.textContent=(diff.kind==='remote'?'🔴 云端独有：':diff.kind==='local'?'🟢 本机独有：':'🟡 内容不同：')+diff.item.name;
+  card.append(title);
+  const meta=document.createElement('div');meta.className='inventory-diff-meta';
+  meta.textContent='库位 '+(diff.item.location||'—')+' · 数量 '+diff.item.qty+' '+(diff.item.unit||'')+' · ID '+diff.id;
+  card.append(meta);
+  if(diff.kind==='changed'){
+   const local=document.createElement('div');local.className='inventory-diff-meta';
+   local.textContent='本机：'+diff.local.name+' × '+diff.local.qty+'；云端：'+diff.item.name+' × '+diff.item.qty;
+   card.append(local);
+  }
+  const actions=diff.kind==='remote'?[['保存到本机','copy-remote-local'],['删除云端','delete-remote']]:
+   diff.kind==='local'?[['上传云端','upload-local'],['删除本机','delete-local']]:
+   [['以云端为准','copy-remote-local'],['上传本机版本','upload-local']];
+  for(const [label,action] of actions){
+   const btn=document.createElement('button');btn.type='button';btn.className=action.startsWith('delete')?'danger':'alt';
+   btn.textContent=label;btn.disabled=inventoryDiffBusy;
+   btn.addEventListener('click',()=>resolveInventoryDiff(diff.id,action));
+   card.append(btn);
+  }
+  list.append(card);
+ }
+ requestAnimationFrame(limitInventoryDiffRows);
+}
+async function resolveInventoryDiff(id,action){
+ if(inventoryDiffBusy||autoSyncBusy||!fzhAdminReady||!cloudReady)return;
+ const diff=inventoryDifferences().find(x=>x.id===id);if(!diff)return renderInventoryDiff();
+ const label={ 'copy-remote-local':'将云端物品保存到本机','delete-remote':'从云端删除该物品',
+ 'upload-local':'将本机物品上传云端','delete-local':'从本机删除该物品'}[action];
+ if(!confirm('确定'+label+'：「'+diff.item.name+'」吗？此操作会影响库存记录，请先确认。'))return;
+ inventoryDiffBusy=true;renderInventoryDiff();
+ try{
+  if(action==='copy-remote-local'||action==='delete-local'){
+   if(action==='copy-remote-local'){
+    const remote=inventoryRemoteSnapshot.items.find(i=>i.id===id);
+    if(!remote)throw Error('云端物品已经变化，请刷新后重试');
+    const ix=db.items.findIndex(i=>i.id===id);
+    if(ix<0)db.items.push({...remote});else db.items[ix]={...remote};
+   }else db.items=db.items.filter(i=>i.id!==id);
+   inventoryDiffLocalSeed=inventoryPart(db);
+   saveLocal(KEY,db);
+  }else{
+   const localItem=(inventoryDiffLocalSeed?.items||db.items).find(i=>i.id===id);
+   if(action==='upload-local'&&!localItem)throw Error('本机物品不存在');
+   const ref=fzhAdminStore.doc('private/inventory');
+   await fzhAdminStore.runTransaction(async tx=>{
+    const doc=await tx.get(ref),old=doc.exists?doc.data().snapshot:null;
+    if(!old||!validSnapshot(old))throw Error('云端库存不可用');
+    if(old.version!==inventoryRemoteSnapshot.version)throw Error('云端库存已更新，请等待同步后重试');
+    const idx=old.items.findIndex(i=>i.id===id);
+    const current=inventoryRemoteSnapshot.items.find(i=>i.id===id);
+    if(JSON.stringify(old.items[idx]||null)!==JSON.stringify(current||null))throw Error('物品已被其他操作更新');
+    const items=old.items.map(i=>({...i}));
+    if(action==='delete-remote'){if(idx>=0)items.splice(idx,1);}
+    else {const item={...localItem,photo:''};if(idx>=0)items[idx]=item;else items.push(item);}
+    const snapshot={...old,items,version:old.version+1};
+    if(new TextEncoder().encode(JSON.stringify({snapshot})).length>800000)throw Error('云端单文档容量不足，无法保存；请拆分库存或压缩备注');
+    tx.set(ref,{snapshot,updatedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedBy:fzhAdminAuth.currentUser.uid});
+   });
+   // 云端实时监听将更新快照；避免立刻用旧版本覆盖。
+  }
+  render();renderDraftChanges();renderInventoryDiff();
+  $('ghPublishStatus').textContent='差异操作已处理；等待云端与本机同步确认。';
+ }catch(err){alert('处理失败：'+err.message)}
+ finally{inventoryDiffBusy=false;renderInventoryDiff();}
+}
+
 function renderDraftChanges(){
  const area=$('pendingChangesList');if(!area)return;
  const changes=draftDiff();area.replaceChildren();
@@ -550,6 +662,8 @@ function applyCloud(doc){
  const snap=doc.data().snapshot;
  if(!validSnapshot(snap))throw Error('云端库存格式无效');
  cloudRemoteVersion=snap.version;cloudRemoteTime=doc.data().updatedAt||null;
+ inventoryRemoteSnapshot=snap;
+ if(!inventoryDiffLocalSeed)inventoryDiffLocalSeed=inventoryPart(db);
  updateLatestStockTime();
  libraryCloudItems=snap.items.map(i=>({...i}));scheduleLibraryMirror();
  if(draft&&draft.baseVersion!==undefined&&draft.local&&draft.base&&(!cloudBaseline)){
@@ -560,13 +674,19 @@ function applyCloud(doc){
   // Local edits win in the UI until published; transaction checks remote version.
  }else{
   cloudBaseline=snap;
-  db.items=snap.items.map(i=>({...i}));db.categories=snap.categories||[];db.locations=snap.locations||[];db.version=snap.version;
+  // 首次登录保留本机独有条目供逐条核对，绝不直接把本机独有物品自动上传。
+  const localOnly=(inventoryDiffLocalSeed?.items||[]).filter(i=>!snap.items.some(r=>r.id===i.id));
+  db.items=[...snap.items.map(i=>({...i})),...localOnly.map(i=>({...i}))];
+  db.categories=[...new Set([...(snap.categories||[]),...localOnly.map(i=>i.category).filter(Boolean)])];
+  db.locations=[...new Set([...(snap.locations||[]),...localOnly.map(i=>i.location).filter(Boolean)])];
+  db.version=snap.version;
  }
- cloudReady=true;saveLocal(KEY,db);render();renderDraftChanges();if(draftDiff().length)scheduleAutoSync();
+ cloudReady=true;saveLocal(KEY,db);render();renderDraftChanges();renderInventoryDiff();
+ if(draftDiff().length&&!inventoryHasUnresolvedDiff())scheduleAutoSync();
  $('ghPublishStatus').textContent='云端 V'+snap.version+' · '+(draftDiff().length?'本机修改等待自动同步':'已自动同步最新库存');
 }
 function stopCloudListener(){libraryCloudItems=null;
- cloudRemoteTime=null;updateLatestStockTime();if(libraryMirrorTimer)clearTimeout(libraryMirrorTimer);if(cloudUnsub){cloudUnsub();cloudUnsub=null;}cloudReady=false;cloudRemoteVersion=null;cloudBaseline=null;}
+ cloudRemoteTime=null;inventoryRemoteSnapshot=null;updateLatestStockTime();if(libraryMirrorTimer)clearTimeout(libraryMirrorTimer);if(cloudUnsub){cloudUnsub();cloudUnsub=null;}cloudReady=false;cloudRemoteVersion=null;cloudBaseline=null;}
 function startCloudListener(){
  stopCloudListener();$('ghPublishStatus').textContent='正在自动同步云端库存…';
  cloudUnsub=fzhAdminStore.doc('private/inventory').onSnapshot(doc=>{
@@ -742,11 +862,11 @@ function publicSnapshot(){return {type:'fzh-stock-snapshot',schema:1,version:db.
 let autoSyncTimer=null,autoSyncBusy=false;
 function scheduleAutoSync(){
  if(autoSyncTimer)clearTimeout(autoSyncTimer);
- if(!fzhAdminReady||!cloudReady||!cloudBaseline)return;
+ if(!fzhAdminReady||!cloudReady||!cloudBaseline||inventoryHasUnresolvedDiff())return;
  autoSyncTimer=setTimeout(async()=>{
   autoSyncTimer=null;
   if(autoSyncBusy){scheduleAutoSync();return;}
-  if(!draftDiff().length)return;
+  if(!draftDiff().length||inventoryHasUnresolvedDiff())return;
   if(cloudRemoteVersion!==cloudBaseline.version){
    $('ghPublishStatus').textContent='同步冲突：云端已更新，本机草稿已保留。请备份后刷新核对，不能自动覆盖其他库存操作。';return;
   }
@@ -1034,6 +1154,7 @@ function showManagementView(view,fromHash=false){
   else history.pushState(null,'',hash);
  }}
  window.scrollTo({top:0,behavior:'instant'});
+ if(view==='inventory')requestAnimationFrame(limitInventoryDiffRows);
  if(view==='inventory')requestAnimationFrame(()=>{try{render()}catch(e){console.warn('库存布局刷新失败',e)}});
  if(view==='library'||view==='privacy')requestAnimationFrame(()=>{try{limitAdminFourLists()}catch(e){console.warn(e)}});
 }
