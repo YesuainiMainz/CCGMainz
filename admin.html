@@ -124,7 +124,7 @@ button{touch-action:manipulation}
  <button class="alt back-button" type="button" onclick="showManagementView('home')">← 返回管理中心</button>
  <h2 id="managementPageTitle"></h2>
 </div>
-<section class="inventory-management management-view" hidden="" id="inventoryManagement"><div class="card"><h2>库存概况</h2><span id="summary"></span><p class="warn" id="ghPublishStatus">登录后自动同步云端库存</p><p class="warn">登录后自动同步云端库存。保存物品或恢复备份后将自动上传；建议定期导出完整备份。</p><button onclick="backup()">导出完整备份</button><label>恢复完整备份（不限制选择文件大小，云端仍有容量限制） <input accept=".json" onchange="restore(this.files[0]);this.value=''" type="file"/></label></div><div class="card" id="inventoryReconcilePanel">
+<section class="inventory-management management-view" hidden="" id="inventoryManagement"><div class="card"><h2>库存概况</h2><span id="summary"></span><p class="warn" id="ghPublishStatus">登录后自动同步云端库存</p><p class="warn">登录后自动同步云端库存。保存物品或恢复备份后将自动上传；建议定期导出完整备份。</p><button onclick="backup()">导出完整备份</button><label>恢复完整备份（不限制选择文件大小，云端仍有容量限制） <input accept=".json" onchange="restore(this.files[0]);this.value=''" type="file"/></label></div><div class="card"><h2>离线拍照入库</h2><p id="offlinePhotoStatus" class="muted">正在读取本机待上传照片…</p><p class="muted">离线时可拍照并新增库存，照片暂存在此设备。联网后自动尝试同步；请勿清除浏览器站点数据。</p></div><div class="card" id="inventoryReconcilePanel">
 <h2>云端与本机库存差异</h2>
 <p class="muted">红色：云端有、本机没有。绿色：本机有、云端没有。逐条选择保留或删除，每次操作确认一次。相同 ID 但内容不同的物品另行提示，避免误覆盖。</p>
 <p id="inventoryDiffStatus" class="muted">登录后对比云端与本机库存。</p>
@@ -272,16 +272,16 @@ function render(){
  $('history').innerHTML=db.history.map((h,index)=>`<p><small>${esc(h.time)}</small> · ${esc(h.action)} <button class="danger" onclick="deleteHistory(${index})">删除记录</button></p>`).join('')||'<p class="muted">暂无记录</p>';
  requestAnimationFrame(()=>{const h=$('history');const rows=Array.from(h.children).slice(0,5);if(rows.length)h.style.maxHeight=Math.ceil(rows.reduce((n,r)=>n+r.getBoundingClientRect().height+parseFloat(getComputedStyle(r).marginTop||0)+parseFloat(getComputedStyle(r).marginBottom||0),0)+6)+'px';});
 }
-$('form').onsubmit=async e=>{e.preventDefault();try{if(!cloudReady)throw Error('请先登录并等待云端库存自动加载完成');
+$('form').onsubmit=async e=>{e.preventDefault();try{if(!cloudReady&&!navigator.onLine){/* 离线拍照入库：先保存本机草稿，联网后再同步 */}else if(!cloudReady)throw Error('请先登录并等待云端库存自动加载完成');
  let d=Object.fromEntries(new FormData(e.target)),qty=Number(d.qty);
  if(!Number.isSafeInteger(qty)||qty<0)return msg('库存必须是非负整数');
- let existing=db.items.find(i=>i.id===d.id),file=$('photo').files[0],photo=existing?.photo||'';if(file&&!fzhAdminReady)throw Error('上传照片前请先登录管理员');
+ let existing=db.items.find(i=>i.id===d.id),file=$('photo').files[0],photo=existing?.photo||'';
  let item={id:existing?.id||uuid(),name:d.name.trim().slice(0,120),category:d.category.slice(0,50),location:d.location.slice(0,120),qty,unit:d.unit.slice(0,20),notes:d.notes.slice(0,500),photo};
  if(!item.name)return msg('请输入物品名称');
  if(!existing||item.name!==existing.name)item.name=uniqueName(item.name,db.items,existing?.id);
  if(!existing&&!confirmThree('增加物品',item.name))return;
  if(existing)Object.assign(existing,item);else db.items.push(item);
- touch((existing?'修改':'添加')+'物品：'+item.name);persist();if(file){try{await setCloudPhoto(item.id,await photoToData(file))}catch(err){msg('物品已保存，但照片上传失败：'+err.message)}}e.target.reset();e.target.elements.qty.value=1;e.target.elements.unit.value='个';editPhoto='';$('editorDeleteButton').style.display='none';
+ touch((existing?'修改':'添加')+'物品：'+item.name);if(!navigator.onLine){inventoryDiffLocalSeed=inventoryPart(db);if(!existing)rememberOfflineCreated(item.id)}persist();if(file){try{await queueOfflinePhoto(item.id,await photoToData(file));if(navigator.onLine)flushOfflinePhotos()}catch(err){msg('物品已保存，但照片暂存失败：'+err.message)}}e.target.reset();e.target.elements.qty.value=1;e.target.elements.unit.value='个';editPhoto='';$('editorDeleteButton').style.display='none';
 }catch(err){msg(err.message)}};
 function edit(id){let i=db.items.find(x=>x.id===id);if(!i)return;$('editorDeleteButton').style.display='';$('photo').value='';for(let k of ['id','name','category','location','qty','unit','notes'])$('form').elements[k].value=i[k]||'';editPhoto=i.photo||'';document.getElementById('itemEditorSection').scrollIntoView({behavior:'smooth',block:'start'})}
 let pendingPhotoItemId=null;
@@ -296,7 +296,7 @@ function pickPhotoForItem(id){
 async function savePhotoForItem(file){
  const id=pendingPhotoItemId;pendingPhotoItemId=null;if(!file)return;
  const item=db.items.find(i=>i.id===id);if(!item)return msg('找不到该物品');
- try{await setCloudPhoto(id,await photoToData(file));
+ try{await queueOfflinePhoto(id,await photoToData(file));if(navigator.onLine)flushOfflinePhotos();
  }catch(e){msg('照片上传失败：'+e.message)}
 }
 
@@ -481,10 +481,111 @@ async function syncPublicLibrary(){
  }
 }
 
+
+
+const offlineCreatedItemIds=new Set(JSON.parse(localStorage.getItem('ccg-offline-new-items')||'[]'));
+function rememberOfflineCreated(id){
+ offlineCreatedItemIds.add(id);
+ try{localStorage.setItem('ccg-offline-new-items',JSON.stringify([...offlineCreatedItemIds]))}catch(e){console.warn(e)}
+}
+let offlineItemsBusy=false;
+async function syncOfflineCreatedItems(){
+ if(offlineItemsBusy||!navigator.onLine||!fzhAdminReady||!cloudReady||!inventoryRemoteSnapshot)return;
+ offlineItemsBusy=true;
+ try{
+  for(const id of [...offlineCreatedItemIds]){
+   const item=db.items.find(x=>x.id===id);
+   if(!item){offlineCreatedItemIds.delete(id);continue}
+   if(inventoryRemoteSnapshot.items.some(x=>x.id===id)){
+    offlineCreatedItemIds.delete(id);continue;
+   }
+   try{
+    const ref=fzhAdminStore.doc('private/inventory');
+    await fzhAdminStore.runTransaction(async tx=>{
+     const doc=await tx.get(ref),old=doc.exists?doc.data().snapshot:null;
+     if(!old||!validSnapshot(old))throw Error('云端库存尚未准备好');
+     if(old.items.some(x=>x.id===id))return;
+     const snapshot={...old,version:old.version+1,items:[...old.items,{...item,photo:''}]};
+     if(new TextEncoder().encode(JSON.stringify({snapshot})).length>800000)throw Error('云端库存快照超出容量限制');
+     tx.set(ref,{snapshot,updatedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedBy:fzhAdminAuth.currentUser.uid});
+    });
+    offlineCreatedItemIds.delete(id);
+   }catch(e){console.warn('离线库存待重试',id,e)}
+  }
+  try{localStorage.setItem('ccg-offline-new-items',JSON.stringify([...offlineCreatedItemIds]))}catch{}
+ }finally{offlineItemsBusy=false}
+}
+
+// IndexedDB 离线照片队列。离线照片不会因为页面刷新而丢失（私密浏览或清除站点数据除外）。
+const offlinePhotoPreview=new Map();
+let offlinePhotoBusy=false;
+function offlinePhotoDb(){
+ return new Promise((resolve,reject)=>{
+  if(!('indexedDB'in window))return reject(Error('当前浏览器不支持离线照片存储'));
+  const r=indexedDB.open('ccg-mainz-offline-photos',1);
+  r.onupgradeneeded=()=>r.result.createObjectStore('photos',{keyPath:'id'});
+  r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);
+ });
+}
+async function offlinePhotoAll(){
+ const database=await offlinePhotoDb();
+ return new Promise((resolve,reject)=>{
+  const tx=database.transaction('photos','readonly'),req=tx.objectStore('photos').getAll();
+  req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);
+  tx.oncomplete=()=>database.close();tx.onerror=()=>database.close();
+ });
+}
+async function offlinePhotoPut(id,data){
+ const database=await offlinePhotoDb();
+ return new Promise((resolve,reject)=>{
+  const tx=database.transaction('photos','readwrite');
+  tx.objectStore('photos').put({id,data,savedAt:Date.now()});
+  tx.oncomplete=()=>{database.close();resolve()};tx.onerror=()=>{database.close();reject(tx.error)};
+ });
+}
+async function offlinePhotoRemove(id){
+ const database=await offlinePhotoDb();
+ return new Promise((resolve,reject)=>{
+  const tx=database.transaction('photos','readwrite');
+  tx.objectStore('photos').delete(id);
+  tx.oncomplete=()=>{database.close();resolve()};tx.onerror=()=>{database.close();reject(tx.error)};
+ });
+}
+function offlinePhotoStatus(){
+ const el=$('offlinePhotoStatus');if(el)el.textContent=offlinePhotoPreview.size?
+  '待上传照片：'+offlinePhotoPreview.size+' 张。已保存到此设备，联网并同步库存后自动上传。':
+  '没有待上传的照片。';
+}
+async function loadOfflinePhotos(){
+ try{for(const p of await offlinePhotoAll())offlinePhotoPreview.set(p.id,p.data);render();offlinePhotoStatus()}
+ catch(e){$('offlinePhotoStatus').textContent='无法读取离线照片：'+e.message}
+}
+async function queueOfflinePhoto(id,data){
+ if(data.length>700000)throw Error('照片压缩后仍过大');
+ await offlinePhotoPut(id,data);offlinePhotoPreview.set(id,data);render();offlinePhotoStatus();
+ msg('照片已保存在本机，联网且库存同步后自动上传。');
+}
+async function flushOfflinePhotos(){
+ if(offlinePhotoBusy||!navigator.onLine||!fzhAdminReady||!cloudReady||!inventoryRemoteSnapshot)return;
+ offlinePhotoBusy=true;
+ try{
+  for(const [id,data] of [...offlinePhotoPreview]){
+   // 等库存物品先进入云端，再上传对应照片。
+   if(!inventoryRemoteSnapshot.items.some(i=>i.id===id))continue;
+   try{
+    await setCloudPhoto(id,data);
+    await offlinePhotoRemove(id);
+    offlinePhotoPreview.delete(id);offlinePhotoStatus();
+   }catch(e){console.warn('离线照片待重试',id,e)}
+  }
+ }finally{offlinePhotoBusy=false;offlinePhotoStatus();render()}
+}
+window.addEventListener('online',()=>{scheduleAutoSync();flushOfflinePhotos();setTimeout(syncOfflineCreatedItems,1200)});
+
 // v3.9: one protected Firestore document per item image. Cloud photo changes are immediate.
 const photoCache=new Map();
 let photoUnsub=null;
-function imageFor(item){return photoCache.get(item.id)||item.photo||'';}
+function imageFor(item){return offlinePhotoPreview.get(item.id)||photoCache.get(item.id)||item.photo||'';}
 async function setCloudPhoto(itemId,data){
  if(!fzhAdminReady)throw Error('请先登录管理员账号');
  if(!db.items.some(i=>i.id===itemId))throw Error('物品不存在');
@@ -499,7 +600,7 @@ async function setCloudPhoto(itemId,data){
 function listenAdminPhotos(){
  if(photoUnsub){photoUnsub();photoUnsub=null;}
  photoUnsub=fzhAdminStore.collection('itemPhotos').onSnapshot(s=>{
-  photoCache.clear();s.forEach(d=>{if(typeof d.data().data==='string')photoCache.set(d.id,d.data().data)});render();scheduleLibraryMirror();
+  photoCache.clear();s.forEach(d=>{if(typeof d.data().data==='string')photoCache.set(d.id,d.data().data)});render();scheduleLibraryMirror();flushOfflinePhotos();
  },e=>{$('ghPublishStatus').textContent='照片读取失败：'+e.message});
 }
 async function deletePhotoForItem(id){
@@ -681,7 +782,7 @@ function applyCloud(doc){
   db.locations=[...new Set([...(snap.locations||[]),...localOnly.map(i=>i.location).filter(Boolean)])];
   db.version=snap.version;
  }
- cloudReady=true;saveLocal(KEY,db);render();renderDraftChanges();renderInventoryDiff();
+ cloudReady=true;saveLocal(KEY,db);render();renderDraftChanges();renderInventoryDiff();flushOfflinePhotos();syncOfflineCreatedItems();
  if(draftDiff().length&&!inventoryHasUnresolvedDiff())scheduleAutoSync();
  $('ghPublishStatus').textContent='云端 V'+snap.version+' · '+(draftDiff().length?'本机修改等待自动同步':'已自动同步最新库存');
 }
@@ -838,7 +939,7 @@ function listenCareAdmin(){
 let fzhAdminAuth=null,fzhAdminStore=null,fzhAdminReady=false,cloudBaseVersion=null;
 function setAdminLoginButtonState(){const b=$('adminLoginButton');if(!b)return;b.disabled=!!(fzhAdminAuth?.currentUser||adminLoginPending);b.textContent=fzhAdminAuth?.currentUser?'已登录':adminLoginPending?'登录中…':'管理员登录';}
 let adminLoginPending=false;
-function initAdminFirebase(){const c=window.FZH_FIREBASE_CONFIG;if(!c||c.apiKey.startsWith('REPLACE')){document.getElementById('adminAuthStatus').textContent='请先配置 firebase-config.js';return;}const adminApp=firebase.apps.find(a=>a.name==='ccg-mainz-admin')||firebase.initializeApp(c,'ccg-mainz-admin');fzhAdminAuth=adminApp.auth();fzhAdminStore=adminApp.firestore();fzhAdminAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e=>console.warn('持久登录设置失败',e));fzhAdminAuth.onAuthStateChanged(async u=>{fzhAdminReady=false;setAdminLoginButtonState();if(!u){stopCareAdmin();stopLibraryRequestNotifications();if(photoUnsub){photoUnsub();photoUnsub=null;}photoCache.clear();libraryCloudItems=null;document.getElementById('adminAuthStatus').textContent='尚未登录';stopCloudListener();return;}try{const d=await fzhAdminStore.doc('admins/'+u.uid).get();if(!d.exists){document.getElementById('adminAuthStatus').textContent='账号已登录，但不是管理员。请按说明在 Firestore 添加 admins/'+u.uid;return;}fzhAdminReady=true;listenCareAdmin();listenLibraryRequestNotifications();listenAdminPhotos();startCloudListener();loadOnlineRequests();document.getElementById('adminAuthStatus').textContent='管理员已验证：'+u.email;loadMembers();loadPlatformAccounts();}catch(e){document.getElementById('adminAuthStatus').textContent='权限检查失败：'+e.message;}});}
+function initAdminFirebase(){const c=window.FZH_FIREBASE_CONFIG;if(!c||c.apiKey.startsWith('REPLACE')){document.getElementById('adminAuthStatus').textContent='请先配置 firebase-config.js';return;}const adminApp=firebase.apps.find(a=>a.name==='ccg-mainz-admin')||firebase.initializeApp(c,'ccg-mainz-admin');fzhAdminAuth=adminApp.auth();fzhAdminStore=adminApp.firestore();fzhAdminAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e=>console.warn('持久登录设置失败',e));fzhAdminAuth.onAuthStateChanged(async u=>{fzhAdminReady=false;setAdminLoginButtonState();if(!u){stopCareAdmin();stopLibraryRequestNotifications();if(photoUnsub){photoUnsub();photoUnsub=null;}photoCache.clear();libraryCloudItems=null;document.getElementById('adminAuthStatus').textContent='尚未登录';stopCloudListener();return;}try{const d=await fzhAdminStore.doc('admins/'+u.uid).get();if(!d.exists){document.getElementById('adminAuthStatus').textContent='账号已登录，但不是管理员。请按说明在 Firestore 添加 admins/'+u.uid;return;}fzhAdminReady=true;listenCareAdmin();listenLibraryRequestNotifications();listenAdminPhotos();startCloudListener();loadOfflinePhotos().then(flushOfflinePhotos);loadOnlineRequests();document.getElementById('adminAuthStatus').textContent='管理员已验证：'+u.email;loadMembers();loadPlatformAccounts();}catch(e){document.getElementById('adminAuthStatus').textContent='权限检查失败：'+e.message;}});}
 // 保存账号（仅邮箱，不保存密码），并让浏览器密码管理器识别 username 字段。
 const FZH_ADMIN_ACCOUNT_KEY='fzh_admin_account';
 try{$('adminEmail').value=localStorage.getItem(FZH_ADMIN_ACCOUNT_KEY)||'';}catch(e){}
@@ -862,7 +963,7 @@ function publicSnapshot(){return {type:'fzh-stock-snapshot',schema:1,version:db.
 let autoSyncTimer=null,autoSyncBusy=false;
 function scheduleAutoSync(){
  if(autoSyncTimer)clearTimeout(autoSyncTimer);
- if(!fzhAdminReady||!cloudReady||!cloudBaseline||inventoryHasUnresolvedDiff())return;
+ if(!navigator.onLine||!fzhAdminReady||!cloudReady||!cloudBaseline||inventoryHasUnresolvedDiff())return;
  autoSyncTimer=setTimeout(async()=>{
   autoSyncTimer=null;
   if(autoSyncBusy){scheduleAutoSync();return;}
@@ -1161,5 +1262,5 @@ function showManagementView(view,fromHash=false){
 function syncManagementRoute(){showManagementView(location.hash==='#inventory'?'inventory':location.hash==='#library'?'library':location.hash==='#privacy'?'privacy':location.hash==='#care'?'care':'home',true)}
 window.addEventListener('popstate',syncManagementRoute);
 window.addEventListener('hashchange',syncManagementRoute);
-syncManagementRoute();
+syncManagementRoute();loadOfflinePhotos();
 </script></html>
