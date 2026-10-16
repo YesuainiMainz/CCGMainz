@@ -62,6 +62,14 @@ th{position:sticky;top:0;background:white;z-index:2}img{width:74px;height:74px;o
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="./firebase-config.js"></script><script src="./member-session.js"></script>
 <script>
 const $=id=>document.getElementById(id);
+
+// 使用 Firestore 持久缓存：重复登录可先使用本地缓存，网络连接后仍会更新。
+function ccgEnableFirestoreCache(store){
+ if(!store||typeof store.enablePersistence!=='function')return;
+ store.enablePersistence({synchronizeTabs:true}).catch(e=>{
+  if(e.code!=='failed-precondition'&&e.code!=='unimplemented')console.warn('Firestore 缓存不可用',e);
+ });
+}
 let isAdminViewer=true,adminChecked=false;
 let books=[],publicDb=null,borrowBook=null,borrowSubmitting=false,loanStates={};
 function openBorrow(book){
@@ -132,7 +140,7 @@ try{
  const c=window.FZH_FIREBASE_CONFIG;
  if(!c||!c.apiKey||c.apiKey.startsWith('REPLACE'))throw Error('尚未配置 Firebase');
  firebase.initializeApp(c);
- publicDb=firebase.firestore();
+ publicDb=firebase.firestore();ccgEnableFirestoreCache(publicDb);
  window.CCGMember.ready.then(async m=>{
  try{
   const doc=await publicDb.collection('admins').doc(m.user.uid).get();

@@ -241,10 +241,18 @@ let fzhAuth, fzhStore, fzhUnsub=null, fzhRequestsUnsub=null, fzhPhotoUnsub=null;
 function fzhSetStatus(t){document.getElementById('authStatus').textContent=t;}
 let familyLoginPending=false;
 function setFamilyLoginButtonState(){const b=$('familyLoginButton');if(!b)return;b.disabled=!!(fzhAuth?.currentUser||familyLoginPending);b.textContent=fzhAuth?.currentUser?'已登录':familyLoginPending?'登录中…':'登录';}
+
+// 使用 Firestore 持久缓存：重复登录可先使用本地缓存，网络连接后仍会更新。
+function ccgEnableFirestoreCache(store){
+ if(!store||typeof store.enablePersistence!=='function')return;
+ store.enablePersistence({synchronizeTabs:true}).catch(e=>{
+  if(e.code!=='failed-precondition'&&e.code!=='unimplemented')console.warn('Firestore 缓存不可用',e);
+ });
+}
 function fzhInit(){
  const c=window.FZH_FIREBASE_CONFIG;
  if(!c||c.apiKey.startsWith('REPLACE')){fzhSetStatus('尚未配置 Firebase，请管理员先编辑 firebase-config.js');return;}
- firebase.initializeApp(c);fzhAuth=firebase.auth();fzhStore=firebase.firestore();fzhAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e=>console.warn(e));
+ firebase.initializeApp(c);fzhAuth=firebase.auth();fzhStore=firebase.firestore();ccgEnableFirestoreCache(fzhStore);fzhAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e=>console.warn(e));
  fzhAuth.onAuthStateChanged(async u=>{
   if(fzhUnsub){fzhUnsub();fzhUnsub=null;}if(fzhPhotoUnsub){fzhPhotoUnsub();fzhPhotoUnsub=null;}familyPhotos.clear();if(fzhRequestsUnsub){fzhRequestsUnsub();fzhRequestsUnsub=null;}onlineRequests=[];window.fzhUser=u;window.fzhApproved=false;setFamilyLoginButtonState();
   document.getElementById('privateContent').hidden=true;
@@ -252,7 +260,7 @@ function fzhInit(){
   if(!u){fzhSetStatus('请登录；新账号需管理员审批。');return;}
   try{const p=await fzhStore.doc('members/'+u.uid).get();
    if(!p.exists||p.data().status!=='approved'){fzhSetStatus(p.exists&&p.data().status==='blocked'?'账号已被管理员停用，请联系管理员。':'已登录，等待管理员审批。批准后请退出再登录。');return;}
-   window.fzhApproved=true;fzhPhotoUnsub=fzhStore.collection('itemPhotos').onSnapshot(s=>{familyPhotos.clear();s.forEach(d=>{if(typeof d.data().data==='string')familyPhotos.set(d.id,d.data().data)});render();},e=>{document.getElementById('syncStatus').textContent='照片同步失败：'+e.message});document.getElementById('privateContent').hidden=false;fzhSetStatus('身份已验证：'+(p.data().family||u.email));
+   window.fzhApproved=true;document.getElementById('privateContent').hidden=false;fzhSetStatus('身份已验证：'+(p.data().family||u.email));
    db.family=p.data().family||'';db.member=p.data().member||'';document.getElementById('familyName').value=db.family;document.getElementById('memberName').value=db.member;
    fzhRequestsUnsub=fzhStore.collection('onlineRequests').where('uid','==',u.uid).onSnapshot(s=>{
      onlineRequests=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));render();
@@ -262,6 +270,7 @@ function fzhInit(){
     const data=s.data().snapshot;if(!validSnapshot(data))throw Error('云端库存格式错误');
     db.version=data.version;db.items=data.items;db.categories=data.categories||[];db.locations=data.locations||[];
     delete document.getElementById('searchChoice').dataset.signature;render();
+    if(!fzhPhotoUnsub){fzhPhotoUnsub=fzhStore.collection('itemPhotos').onSnapshot(s=>{familyPhotos.clear();s.forEach(d=>{if(typeof d.data().data==='string')familyPhotos.set(d.id,d.data().data)});render();},e=>console.warn('照片同步失败',e));}
     document.getElementById('syncStatus').textContent='库存已自动同步 · V'+db.version;const stamp=s.data().updatedAt;document.getElementById('lastInventoryChange').textContent='上次更改时间：'+(stamp&&typeof stamp.toDate==='function'?stamp.toDate().toLocaleString('zh-CN'):'暂无记录');
    },e=>{document.getElementById('syncStatus').textContent='库存读取失败：'+e.message;document.getElementById('privateContent').hidden=true;});
   }catch(e){fzhSetStatus('验证失败：'+e.message);}

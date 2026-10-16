@@ -42,6 +42,14 @@ a{color:inherit}#more{display:block;margin:15px auto}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="./firebase-config.js"></script><script src="./member-session.js"></script>
 <script>
 const $=id=>document.getElementById(id);
+
+// 使用 Firestore 持久缓存：重复登录可先使用本地缓存，网络连接后仍会更新。
+function ccgEnableFirestoreCache(store){
+ if(!store||typeof store.enablePersistence!=='function')return;
+ store.enablePersistence({synchronizeTabs:true}).catch(e=>{
+  if(e.code!=='failed-precondition'&&e.code!=='unimplemented')console.warn('Firestore 缓存不可用',e);
+ });
+}
 let isAdminViewer=true,adminChecked=false;
 let selectedPhotos=[];let editingPostId=null;let db=null,posts=[],nextPage=null,loading=false,hasMore=true,selectedPhoto='',chosenPost=null,needBusy=false;
 function make(tag,text,cls){const el=document.createElement(tag);if(text!==undefined)el.textContent=text;if(cls)el.className=cls;return el}
@@ -168,7 +176,7 @@ try{
  const config=window.FZH_FIREBASE_CONFIG;
  if(!config?.apiKey)throw Error('Firebase 配置缺失');
  if(!firebase.apps.length)firebase.initializeApp(config);
- db=firebase.firestore();window.CCGMember.ready.then(async m=>{
+ db=firebase.firestore();ccgEnableFirestoreCache(db);window.CCGMember.ready.then(async m=>{
  try{
   const adminDoc=await db.collection('admins').doc(m.user.uid).get();
   isAdminViewer=adminDoc.exists;

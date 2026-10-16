@@ -15,6 +15,7 @@ try{
  if(!window.firebase||!cfg)throw Error('Firebase 配置尚未加载');
  if(!firebase.apps.length)firebase.initializeApp(cfg);
  auth=firebase.auth();db=firebase.firestore();
+ if(typeof db.enablePersistence==='function')db.enablePersistence({synchronizeTabs:true}).catch(e=>{if(e.code!=='failed-precondition'&&e.code!=='unimplemented')console.warn('Firestore 缓存不可用',e)});
  auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});
 }catch(e){message('登录服务无法启动：'+e.message);rejectReady(e);return}
 function loggedOut(){$('passwordChangeForm').hidden=true;$('passwordChangeForm').reset();window.CCGMember.user=null;window.CCGMember.profile=null;lockInputs(false);$('memberPassword').value='';$('memberServices').hidden=true;panel('loginPanel');message('请使用账号和密码登录')}
