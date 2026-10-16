@@ -672,7 +672,7 @@ function inventoryDifferences(){
 function inventoryHasUnresolvedDiff(){return inventoryDifferences().length>0;}
 function limitInventoryDiffRows(){
  const wrap=$('inventoryDiffScroll'),list=$('inventoryDiffList');if(!wrap||!list)return;
- const rows=[...list.children].slice(0,3);
+ const rows=[...list.children].slice(0,2);
  wrap.style.maxHeight=rows.length?Math.ceil(rows.reduce((n,e)=>{const c=getComputedStyle(e);return n+e.getBoundingClientRect().height+parseFloat(c.marginTop||0)+parseFloat(c.marginBottom||0)},0)+4)+'px':'none';
 }
 
