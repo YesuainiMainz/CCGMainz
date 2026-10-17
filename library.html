@@ -70,6 +70,8 @@ function ccgEnableFirestoreCache(store){
   if(e.code!=='failed-precondition'&&e.code!=='unimplemented')console.warn('Firestore 缓存不可用',e);
  });
 }
+// 只读预览仅属于当前标签页 URL，不保存为共享登录状态。
+const adminPreviewMode=new URLSearchParams(window.location.search).get('adminPreview')==='1';
 let isAdminViewer=true,adminChecked=false;
 let books=[],publicDb=null,borrowBook=null,borrowSubmitting=false,loanStates={};
 function openBorrow(book){
@@ -139,12 +141,13 @@ window.addEventListener('resize',fitEight);
 try{
  const c=window.FZH_FIREBASE_CONFIG;
  if(!c||!c.apiKey||c.apiKey.startsWith('REPLACE'))throw Error('尚未配置 Firebase');
- firebase.initializeApp(c);
- publicDb=firebase.firestore();ccgEnableFirestoreCache(publicDb);
+ // member-session.js 已初始化默认 Firebase App，不能再次 initializeApp。
+ const memberApp=firebase.apps.find(app=>app.name==='[DEFAULT]')||firebase.initializeApp(c);
+ publicDb=memberApp.firestore();ccgEnableFirestoreCache(publicDb);
  window.CCGMember.ready.then(async m=>{
  try{
   const doc=await publicDb.collection('admins').doc(m.user.uid).get();
-  isAdminViewer=doc.exists;adminChecked=true;
+  isAdminViewer=adminPreviewMode||doc.exists;adminChecked=true;
  }catch(e){
   isAdminViewer=true;
   $('status').textContent='身份权限检查失败，当前只读：'+e.message;
