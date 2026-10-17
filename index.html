@@ -252,7 +252,7 @@ function ccgEnableFirestoreCache(store){
 function fzhInit(){
  const c=window.FZH_FIREBASE_CONFIG;
  if(!c||c.apiKey.startsWith('REPLACE')){fzhSetStatus('尚未配置 Firebase，请管理员先编辑 firebase-config.js');return;}
- firebase.initializeApp(c);fzhAuth=firebase.auth();fzhStore=firebase.firestore();ccgEnableFirestoreCache(fzhStore);fzhAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e=>console.warn(e));
+ const employeeApp=firebase.apps.find(app=>app.name==='ccg-mainz-employee')||firebase.initializeApp(c,'ccg-mainz-employee');fzhAuth=employeeApp.auth();fzhStore=employeeApp.firestore();ccgEnableFirestoreCache(fzhStore);fzhAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e=>console.warn(e));
  fzhAuth.onAuthStateChanged(async u=>{
   if(fzhUnsub){fzhUnsub();fzhUnsub=null;}if(fzhPhotoUnsub){fzhPhotoUnsub();fzhPhotoUnsub=null;}familyPhotos.clear();if(fzhRequestsUnsub){fzhRequestsUnsub();fzhRequestsUnsub=null;}onlineRequests=[];window.fzhUser=u;window.fzhApproved=false;setFamilyLoginButtonState();
   document.getElementById('privateContent').hidden=true;
