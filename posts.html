@@ -25,7 +25,7 @@ a{color:inherit}#more{display:block;margin:15px auto}
 @media(max-width:560px){.mcg-language-row{align-items:stretch}.mcg-language-row h1{flex:1 1 100%}#mcgLanguageSwitch{width:100%}}
 </style></head><body>
 <header><div><div class="mcg-language-row"><h1>CCG Mainz爱心站</h1><button id="mcgLanguageSwitch" type="button" data-no-translate>切換為繁體中文</button></div><span id="mcgLanguageStatus" class="mcg-language-status" role="status" data-no-translate></span><span>分享家中闲置或多余的物品 · 需求申请会通知发布者</span></div></header>
-<main><p id="adminReadonlyNotice" class="muted" hidden>管理员浏览模式：仅可查看公开帖子，不可发布、申请或编辑。</p><p><a href="./platform.html" style="color:#22583d">← 返回 CCG Mainz幸福家人数字平台</a></p><section class="card"><h2>发布闲置物品</h2>
+<main><p><a href="./platform.html" style="color:#22583d">← 返回 CCG Mainz幸福家人数字平台</a></p><section class="card"><h2>发布闲置物品</h2>
 <form id="postForm">
 <p id="postingIdentity" class="muted">正在验证会员身份…</p>
 <label for="body">物品说明（可选）</label><textarea id="body" maxlength="1500" placeholder="请描述闲置或多余的物品（最多1500字）"></textarea>
@@ -50,9 +50,7 @@ function ccgEnableFirestoreCache(store){
   if(e.code!=='failed-precondition'&&e.code!=='unimplemented')console.warn('Firestore 缓存不可用',e);
  });
 }
-// 只读预览仅属于当前标签页 URL，不保存为共享登录状态。
-const adminPreviewMode=new URLSearchParams(window.location.search).get('adminPreview')==='1';
-let isAdminViewer=true,adminChecked=false;
+let memberReady=false;
 let selectedPhotos=[];let editingPostId=null;let db=null,posts=[],nextPage=null,loading=false,hasMore=true,selectedPhoto='',chosenPost=null,needBusy=false;
 function make(tag,text,cls){const el=document.createElement(tag);if(text!==undefined)el.textContent=text;if(cls)el.className=cls;return el}
 function openPhoto(src){$('largeImage').src=src;$('viewer').hidden=false}
@@ -78,8 +76,8 @@ function render(){
    img.addEventListener('click',()=>openPhoto(p.photo));card.append(img);
   }
   if(Array.isArray(p.photos)&&p.photos.length){const gallery=make('div',undefined,'post-gallery');for(const src of p.photos){if(typeof src!=='string'||!src.startsWith('data:image/jpeg;base64,'))continue;const img=document.createElement('img');img.src=src;img.alt='物品图片';img.loading='lazy';img.onclick=()=>openPhoto(src);gallery.append(img)}card.append(gallery)}
-  if(!isAdminViewer&&p.uid!==window.CCGMember?.user?.uid){const need=make('button','❤️ 我有需要','need');need.type='button';need.addEventListener('click',()=>{chosenPost=p;$('needItem').textContent='您正在申请这条闲置物品：'+(p.text||'图片所示物品');$('requester').value=window.CCGMember?.profile?.name||'';$('needDetails').value='';$('needStatus').textContent='';$('needDialog').hidden=false;$('requester').focus()});card.append(need);}
-  if(!isAdminViewer&&p.uid===window.CCGMember?.user?.uid){
+  if(memberReady&&p.uid!==window.CCGMember?.user?.uid){const need=make('button','❤️ 我有需要','need');need.type='button';need.addEventListener('click',()=>{chosenPost=p;$('needItem').textContent='您正在申请这条闲置物品：'+(p.text||'图片所示物品');$('requester').value=window.CCGMember?.profile?.name||'';$('needDetails').value='';$('needStatus').textContent='';$('needDialog').hidden=false;$('requester').focus()});card.append(need);}
+  if(memberReady&&p.uid===window.CCGMember?.user?.uid){
    const edit=make('button','编辑我的帖子');edit.type='button';edit.style.marginRight='8px';
    edit.onclick=()=>{editingPostId=p.id;$('body').value=p.text||'';selectedPhotos=Array.isArray(p.photos)&&p.photos.length?[...p.photos]:(p.photo?[p.photo]:[]);selectedPhoto=selectedPhotos[0]||'';renderPreviews();
     $('preview').hidden=!selectedPhoto;if(selectedPhoto)$('preview').src=selectedPhoto;
@@ -142,7 +140,7 @@ $('image').addEventListener('change',async e=>{
 $('cancelNeed').onclick=()=>{if(!needBusy){$('needDialog').hidden=true;chosenPost=null}};
 $('needDialog').addEventListener('click',e=>{if(e.target===$('needDialog'))$('cancelNeed').click()});
 $('needForm').addEventListener('submit',async e=>{
- e.preventDefault();if(isAdminViewer||!adminChecked||!db||!chosenPost||needBusy||!window.CCGMember?.user)return;
+ e.preventDefault();if(!memberReady||!db||!chosenPost||needBusy||!window.CCGMember?.user)return;
  const requester=$('requester').value.trim(),details=$('needDetails').value.trim();
  if(!requester||requester.length>40||!details||details.length>500){$('needStatus').textContent='请填写称呼及需要的物品、数量';return}
  if(!confirm('确定将您的称呼、所需物品及数量发送给发布者吗？仅发布者和管理员可见。'))return;
@@ -160,7 +158,7 @@ $('needForm').addEventListener('submit',async e=>{
 });
 $('postForm').addEventListener('submit',async e=>{
  e.preventDefault();if(!db)return;
- if(isAdminViewer||!adminChecked){$('publishStatus').textContent='管理员账号仅可浏览，不可发布或互动。';return;}
+ if(!memberReady){$('publishStatus').textContent='请先登录会员平台后操作。';return;}
  const author=window.CCGMember?.profile?.name||'',text=$('body').value.trim();
  if(!author||author.length>40){$('publishStatus').textContent='请填写不超过40字的称呼';return}
  if(!text&&!selectedPhotos.length){$('publishStatus').textContent='请填写文字或上传图片';return}
@@ -179,20 +177,10 @@ try{
  if(!config?.apiKey)throw Error('Firebase 配置缺失');
  const memberApp=firebase.apps.find(app=>app.name==='[DEFAULT]')||firebase.initializeApp(config);
  db=memberApp.firestore();ccgEnableFirestoreCache(db);window.CCGMember.ready.then(async m=>{
- try{
-  const adminDoc=await db.collection('admins').doc(m.user.uid).get();
-  isAdminViewer=adminPreviewMode||adminDoc.exists;
-  adminChecked=true;
- }catch(err){
-  isAdminViewer=true;
-  $('postingIdentity').textContent='身份权限检查失败，当前仅允许浏览：'+err.message;
- }
- if(isAdminViewer){
-  $('adminReadonlyNotice').hidden=false;
-  $('postForm').querySelectorAll('textarea,input,button').forEach(el=>el.disabled=true);
-  $('postForm').hidden=true;
-  $('postingIdentity').textContent=adminChecked?'管理员只读预览：仅查看帖子，不可发布或发送需求。':'身份权限检查失败，暂时禁止互动。';
- }else{$('postingIdentity').textContent='实名发布：'+m.profile.name;}
+ memberReady=true;
+ $('postForm').hidden=false;
+ $('postForm').querySelectorAll('textarea,input,button').forEach(el=>el.disabled=false);
+ $('postingIdentity').textContent='实名发布：'+m.profile.name;
  loadMore(true);
 });
 }catch(err){$('feedStatus').textContent='初始化失败：'+err.message}
