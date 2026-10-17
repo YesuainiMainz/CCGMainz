@@ -134,7 +134,7 @@ button{touch-action:manipulation}
 <label id="searchTextWrap">搜索内容<input id="search" oninput="render()" placeholder="输入物品名称"/></label>
 <label id="searchChoiceWrap" style="display:none">筛选选项<select id="searchChoice" onchange="render()"></select></label>
 <label id="qtyModeWrap" style="display:none">数量比较<select id="qtyMode" onchange="render()"><option value="eq">等于</option><option value="gte">大于或等于</option><option value="lte">小于或等于</option></select></label>
-</div><div class="scroll inventory-scroll" id="inventoryScroll"><table><thead><tr><th>照片</th><th>名称</th><th>位置</th><th>备注</th><th>数量</th><th>操作</th></tr></thead><tbody id="items"></tbody></table></div></div><div class="card"><h2>出入库记录</h2><button onclick="exportHistoryCSV()">导出记录 Excel CSV</button><button onclick="exportHistoryJSON()">导出记录 JSON</button><button class="danger" onclick="clearAllHistory()" type="button">清空全部记录（确认3次）</button><p class="muted">包含库位移动（移库）、取用、销毁等操作记录。清空仅删除此浏览器保存的记录，不会改变库存数量或云端库存。</p><div class="ten-row-scroll" id="history"></div></div></section>
+</div><div class="scroll inventory-scroll" id="inventoryScroll"><table><thead><tr><th>照片</th><th>名称</th><th>位置</th><th>备注</th><th>数量</th><th>操作</th></tr></thead><tbody id="items"></tbody></table></div></div><div class="card"><h2>出入库记录</h2><button onclick="exportHistoryCSV()">导出记录 Excel CSV</button><button onclick="exportHistoryJSON()">导出记录 JSON</button><button class="danger" onclick="clearAllHistory()" type="button">清空全部记录（确认3次）</button><p class="muted">包含库位移动（移库）、取用、销毁等操作记录。清空仅删除此浏览器保存的记录，不会改变库存数量或云端库存。</p><div style="margin:12px 0"><label for="historySearch">搜索历史出入库记录</label><input id="historySearch" type="search" placeholder="输入物品名称、操作类型、库位、日期或备注" oninput="renderHistory()" autocomplete="off" style="width:100%;box-sizing:border-box"><p class="muted" id="historySearchStatus" aria-live="polite"></p></div><div class="ten-row-scroll" id="history"></div></div></section>
 <section id="libraryManagement" class="management-view" hidden>
  <div class="card"><p><a href="./library.html" target="_blank" rel="noopener noreferrer">📖 打开公开图书馆 ↗</a></p><p class="muted">公开端按照当前会员登录账号决定权限；管理员账号也可登录会员平台进行借阅测试。</p></div>
  <div class="card"><h2>CCG Mainz图书馆 · 目录同步状态</h2>
@@ -217,6 +217,22 @@ function deleteHistory(index){
  persist();
 }
 function persist(){if(saveLocal(KEY,db)){saveDraft();render();scheduleAutoSync()}}
+function renderHistory(){
+ const container=$('history');
+ if(!container)return;
+ const input=$('historySearch');
+ const keyword=String(input?.value||'').trim().toLocaleLowerCase();
+ const records=Array.isArray(db.history)?db.history:[];
+ const matches=records.map((h,index)=>({h,index})).filter(({h})=>!keyword||String(h.time||'').toLocaleLowerCase().includes(keyword)||String(h.action||'').toLocaleLowerCase().includes(keyword));
+ container.innerHTML=matches.map(({h,index})=>`<p><small>${esc(h.time)}</small> · ${esc(h.action)} <button class="danger" onclick="deleteHistory(${index})">删除记录</button></p>`).join('')||(keyword?'<p class="muted">没有找到符合条件的历史记录</p>':'<p class="muted">暂无记录</p>');
+ const status=$('historySearchStatus');
+ if(status)status.textContent=keyword?`找到 ${matches.length} 条记录（共 ${records.length} 条）`:`共 ${records.length} 条历史记录`;
+ requestAnimationFrame(()=>{
+  if(!container.isConnected)return;
+  const rows=Array.from(container.children).slice(0,5);
+  container.style.maxHeight=rows.length?Math.ceil(rows.reduce((n,r)=>n+r.getBoundingClientRect().height+parseFloat(getComputedStyle(r).marginTop||0)+parseFloat(getComputedStyle(r).marginBottom||0),0)+6)+'px':'none';
+ });
+}
 function touch(action){db.version++;db.history.unshift({time:new Date().toLocaleString(),action});db.history=db.history.slice(0,500)}
 
 function clearForm(){if(!confirmThree('清空','物品录入表单'))return;$('form').reset();$('photo').value='';$('form').elements.id.value='';editPhoto='';$('form').elements.qty.value=1;$('form').elements.unit.value='个';$('editorDeleteButton').style.display='none'}
@@ -271,8 +287,7 @@ function render(){
  $('items').innerHTML=db.items.filter(i=>mode==='name'?i.name.toLowerCase().includes(q):mode==='category'?(!choice||i.category===choice):mode==='location'?(!choice||i.location===choice):q===''?true:(Number.isFinite(Number(q))&&( $('qtyMode').value==='eq'?i.qty===Number(q):$('qtyMode').value==='gte'?i.qty>=Number(q):i.qty<=Number(q)))).map(i=>`<tr><td>${imageFor(i)?`<button type="button" class="photo-open" data-photo-id="${esc(i.id)}" title="点击查看大图" aria-label="放大查看 ${esc(i.name)} 的图片"><img class="photo zoomable-photo" src="${imageFor(i)}" alt="${esc(i.name)}的照片"></button>`:'<span title="尚未添加照片">📦</span>'}</td><td><b>${esc(i.name)}</b><br><small>${esc(i.category)}</small></td><td>${esc(i.location)}</td><td class="item-notes">${i.notes?esc(i.notes):'<span class="muted">—</span>'}</td><td>${i.qty} ${esc(i.unit)}</td><td><button onclick="edit('${i.id}')">编辑</button><button type="button" onclick="openStockAction('${i.id}')">出库</button><button type="button" onclick="pickPhotoForItem('${i.id}')">${imageFor(i)?'更换照片':'添加照片'}</button></td></tr>`).join('');
  limitInventoryToTenRows();
 
- $('history').innerHTML=db.history.map((h,index)=>`<p><small>${esc(h.time)}</small> · ${esc(h.action)} <button class="danger" onclick="deleteHistory(${index})">删除记录</button></p>`).join('')||'<p class="muted">暂无记录</p>';
- requestAnimationFrame(()=>{const h=$('history');const rows=Array.from(h.children).slice(0,5);if(rows.length)h.style.maxHeight=Math.ceil(rows.reduce((n,r)=>n+r.getBoundingClientRect().height+parseFloat(getComputedStyle(r).marginTop||0)+parseFloat(getComputedStyle(r).marginBottom||0),0)+6)+'px';});
+ renderHistory();
 }
 $('form').onsubmit=async e=>{e.preventDefault();try{if(!cloudReady&&!navigator.onLine){/* 离线拍照入库：先保存本机草稿，联网后再同步 */}else if(!cloudReady)throw Error('请先登录并等待云端库存自动加载完成');
  let d=Object.fromEntries(new FormData(e.target)),qty=Number(d.qty);
