@@ -1200,10 +1200,32 @@ async function loadPlatformAccounts(){
  try{
   const [u,r]=await Promise.all([fzhAdminStore.collection('platformMembers').limit(300).get(),fzhAdminStore.collection('accountRecoveryRequests').orderBy('createdAt','desc').limit(100).get()]);
   status.textContent='平台会员 '+u.size+' 人；找回请求 '+r.size+' 条（最多加载100条）';
-  u.forEach(d=>{const v=d.data(),line=document.createElement('div');line.style.cssText='padding:9px;border-bottom:1px solid #ddd';line.textContent=(v.name||'未填写姓名')+' · '+(v.email||'未填写邮箱');users.append(line)});
+  u.forEach(d=>{
+   const v=d.data(),line=document.createElement('div');line.style.cssText='padding:9px;border-bottom:1px solid #ddd';
+   const info=document.createElement('span');info.textContent=(v.name||'未填写姓名')+' · '+(v.email||'未填写邮箱');
+   const edit=document.createElement('button');edit.type='button';edit.textContent='修改姓名';edit.style.marginLeft='10px';
+   edit.addEventListener('click',()=>editPlatformMemberName(d.id,v.name||'',v.email||''));
+   line.append(info,edit);users.append(line);
+  });
   r.forEach(d=>{const v=d.data(),line=document.createElement('div');line.style.cssText='padding:9px;border-bottom:1px solid #ddd';const time=v.createdAt?.toDate?.()?.toLocaleString('zh-CN')||'';line.textContent=(v.name||'')+' · '+time;recovery.append(line)});
   requestAnimationFrame(()=>{limitAdminFourRows('platformAccountList');limitAdminFourRows('accountRecoveryList')});
  }catch(e){status.textContent='读取失败：'+e.message}
+}
+async function editPlatformMemberName(uid,currentName,email){
+ if(!fzhAdminReady||!fzhAdminStore){alert('请先登录管理员账号');return;}
+ const input=prompt('修改平台会员姓名\n账号：'+email+'\n请输入新姓名（1～40个字符）：',currentName);
+ if(input===null)return;
+ const name=input.trim();
+ if(!name||Array.from(name).length>40){alert('姓名不能为空，且不能超过40个字符');return;}
+ if(name===currentName)return;
+ if(!confirm('确认将会员 '+(currentName||'未填写姓名')+' 的姓名修改为「'+name+'」？\n邮箱及登录密码不会改变。'))return;
+ const status=document.getElementById('platformAccountStatus');
+ try{
+  status.textContent='正在保存会员姓名…';
+  await fzhAdminStore.collection('platformMembers').doc(uid).update({name});
+  await loadPlatformAccounts();
+  status.textContent='会员姓名已保存至云端。会员重新打开页面后将读取新姓名。';
+ }catch(e){status.textContent='修改失败：'+e.message;alert('修改姓名失败：'+e.message)}
 }
 async function loadMembers(){const area=document.getElementById('memberList'),status=document.getElementById('memberStatus');if(!fzhAdminReady)return;area.textContent='正在读取…';try{const snap=await fzhAdminStore.collection('members').get();area.replaceChildren();status.textContent='共 '+snap.size+' 个成员账号';snap.forEach(d=>{const v=d.data(),line=document.createElement('div');line.style.cssText='border-bottom:1px solid #ddd;padding:10px';const info=document.createElement('span');info.textContent=(v.family||'')+' · '+(v.member||'')+' · '+(v.email||'')+' · '+(v.status||'');line.append(info);for(const [label,val] of [['批准','approved'],['停用','blocked']]){const b=document.createElement('button');b.textContent=label;b.onclick=()=>changeMemberStatus(d.id,val);line.append(b)}area.append(line)});requestAnimationFrame(()=>limitAdminFourRows('memberList'));}catch(e){status.textContent='读取失败：'+e.message}}
 async function changeMemberStatus(uid,status){if(!fzhAdminReady)return;if(!confirmThree(status==='approved'?'批准':'停用','家庭账号 '+uid))return;try{await fzhAdminStore.doc('members/'+uid).update({status});await loadMembers()}catch(e){document.getElementById('memberStatus').textContent='操作失败：'+e.message}}
