@@ -85,7 +85,11 @@ function render(){
     $('postForm').scrollIntoView({behavior:'smooth'});};
    const del=make('button','删除我的帖子');del.type='button';
    del.onclick=async()=>{if(!confirm('确定删除自己的帖子吗？已提交的需求通知仍会保留在管理员记录中。'))return;
-    try{await db.collection('carePosts').doc(p.id).delete();nextPage=null;await loadMore(true)}catch(e){alert('删除失败：'+e.message)}};
+    try{
+     const batch=db.batch();const ref=db.collection('carePosts').doc(p.id);
+     batch.set(db.collection('carePostArchives').doc(p.id+'_deleted'),{postId:p.id,text:p.text||'',author:p.author||'',uid:p.uid,createdAt:p.createdAt||null,photo:p.photo||'',photos:Array.isArray(p.photos)?p.photos:[],archivedAt:firebase.firestore.FieldValue.serverTimestamp()});
+     batch.delete(ref);await batch.commit();nextPage=null;await loadMore(true)
+    }catch(e){alert('删除失败（帖子未删除）：'+e.message)}};
    card.append(edit,del);
   }
   feed.append(card);
