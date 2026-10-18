@@ -1282,10 +1282,10 @@ async function loadPlatformAccounts(){
    const info=document.createElement('span');info.textContent=(v.name||'未填写姓名')+' · '+(v.email||'未填写邮箱');
    const edit=document.createElement('button');edit.type='button';edit.textContent='修改姓名';edit.style.marginLeft='10px';
    edit.addEventListener('click',()=>editPlatformMemberName(d.id,v.name||'',v.email||''));
-   const state=document.createElement('span');state.style.marginLeft='8px';state.textContent=' · '+(v.status==='pending'?'待审核':v.status==='rejected'?'已拒绝':'已批准');
+   const state=document.createElement('span');state.style.marginLeft='8px';state.textContent=' · '+(v.status==='pending'?'待审核':v.status==='rejected'?'已拒绝':v.status==='disabled'?'已停用':'已批准');
    const approve=document.createElement('button');approve.type='button';approve.textContent='批准';approve.onclick=()=>setPlatformMemberApproval(d.id,'approved');
    const reject=document.createElement('button');reject.type='button';reject.textContent='拒绝';reject.onclick=()=>setPlatformMemberApproval(d.id,'rejected');
-   const remove=document.createElement('button');remove.type='button';remove.className='danger';remove.textContent='删除账号（确认3次）';remove.onclick=()=>deletePlatformMemberAccount(d.id,v.email||'');
+   const remove=document.createElement('button');remove.type='button';remove.className='danger';remove.textContent=v.status==='disabled'?'解除停用':'停用账号（确认3次）';remove.onclick=()=>v.status==='disabled'?restorePlatformMemberAccount(d.id,v.email||''):disablePlatformMemberAccount(d.id,v.email||'');
    line.append(info,state,edit,approve,reject,remove);users.append(line);
   });
   r.forEach(d=>{const v=d.data(),line=document.createElement('div');line.style.cssText='padding:9px;border-bottom:1px solid #ddd';const time=v.createdAt?.toDate?.()?.toLocaleString('zh-CN')||'';line.textContent=(v.name||'')+' · '+time;recovery.append(line)});
@@ -1298,21 +1298,19 @@ async function setPlatformMemberApproval(uid,state){
  try{await fzhAdminStore.collection('platformMembers').doc(uid).update({status:state});await loadPlatformAccounts()}
  catch(e){alert('审核失败：'+e.message)}
 }
-async function deletePlatformMemberAccount(uid,email){
+async function disablePlatformMemberAccount(uid,email){
  if(!fzhAdminReady)return;
- if(!confirm('第1次确认：删除会员账号 '+email+'？'))return;
- if(!confirm('第2次确认：此操作会删除 Firebase Authentication 登录账号与实名资料，不能撤销。继续吗？'))return;
- if(!confirm('第3次最终确认：永久删除账号 '+email+'？之后该邮箱可重新注册。'))return;
- try{
-  const token=await fzhAdminAuth.currentUser.getIdToken();
-  const response=await fetch('https://europe-west1-yesuaini-8cad6.cloudfunctions.net/deletePlatformMemberAccount',{
-   method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({uid})
-  });
-  const data=await response.json();
-  if(!response.ok)throw Error(data.error||'服务器拒绝删除');
-  alert('账号已从 Firebase Authentication 和平台会员资料中删除。');
-  await loadPlatformAccounts();
- }catch(e){alert('删除失败：'+e.message+'。请先部署升级包内的 Firebase Cloud Function。')}
+ if(!confirm('第1次确认：停用会员 '+email+'？'))return;
+ if(!confirm('第2次确认：停用后该账号将无法使用图书馆、爱心站等会员功能；原邮箱仍被注册占用。继续吗？'))return;
+ if(!confirm('第3次最终确认：确定停用 '+email+'？管理员可以随时解封。'))return;
+ try{await fzhAdminStore.collection('platformMembers').doc(uid).update({status:'disabled'});alert('会员已停用；其邮箱仍保留在 Firebase Authentication，无法再次注册。');await loadPlatformAccounts()}
+ catch(e){alert('停用失败：'+e.message)}
+}
+async function restorePlatformMemberAccount(uid,email){
+ if(!fzhAdminReady)return;
+ if(!confirm('确认解封 '+email+' 并恢复会员功能？'))return;
+ try{await fzhAdminStore.collection('platformMembers').doc(uid).update({status:'approved'});alert('账号已解封。会员重新登录或刷新页面后可使用。');await loadPlatformAccounts()}
+ catch(e){alert('解封失败：'+e.message)}
 }
 async function editPlatformMemberName(uid,currentName,email){
  if(!fzhAdminReady||!fzhAdminStore){alert('请先登录管理员账号');return;}

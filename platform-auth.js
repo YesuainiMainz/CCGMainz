@@ -6,6 +6,7 @@ const ready=new Promise((resolve,reject)=>{resolveReady=resolve;rejectReady=reje
 window.CCGMember={user:null,profile:null,ready};
 const status=$('memberStatus');
 function message(v){status.textContent=v}
+function memberStatusText(profile){return profile?.status==='disabled'?'该账号已被管理员停用。如需恢复，请联系管理员。':profile?.status==='rejected'?'该账号未获批准，请联系管理员。':'账号正在等待管理员审核，审核通过后可使用图书馆和爱心站'}
 function isApproved(profile){return !!profile && (!profile.status || profile.status==='approved')}
 function panel(name){for(const id of ['loginPanel','registerPanel','recoveryPanel','loggedInPanel'])$(id).hidden=id!==name}
 function errorText(e){const codes={'auth/email-already-in-use':'该邮箱已注册，请直接登录','auth/invalid-credential':'账号或密码错误','auth/weak-password':'密码强度不足','auth/invalid-email':'邮箱格式不正确','auth/too-many-requests':'请求过于频繁，请稍后再试'};return codes[e.code]||e.message||String(e)}
@@ -20,7 +21,9 @@ try{
  auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});
 }catch(e){message('登录服务无法启动：'+e.message);rejectReady(e);return}
 function loggedOut(){$('passwordChangeForm').hidden=true;$('passwordChangeForm').reset();window.CCGMember.user=null;window.CCGMember.profile=null;lockInputs(false);$('memberPassword').value='';$('memberServices').hidden=true;panel('loginPanel');message('请使用账号和密码登录')}
+let profileWatchUnsub=null;
 auth.onAuthStateChanged(async u=>{
+ if(profileWatchUnsub){profileWatchUnsub();profileWatchUnsub=null}
  if(!u){loggedOut();return}
  try{
   let profile=await profileFor(u);
@@ -30,8 +33,13 @@ auth.onAuthStateChanged(async u=>{
   panel('loggedInPanel');$('passwordChangeForm').hidden=true;$('passwordChangeForm').reset();$('memberServices').hidden=!isApproved(profile);
   $('completeProfile').hidden=!!profile;
   $('profilePanel').hidden=true;
-  message(profile?(isApproved(profile)?'登录成功':'账号正在等待管理员审核，审核通过后可使用图书馆和爱心站'):'此账号尚未完善实名资料，请先补充姓名');
+  message(profile?(isApproved(profile)?'登录成功':memberStatusText(profile)):'此账号尚未完善实名资料，请先补充姓名');
   if(isApproved(profile))resolveReady({user:u,profile});
+  profileWatchUnsub=db.collection('platformMembers').doc(u.uid).onSnapshot(snap=>{
+   const latest=snap.exists?snap.data():null;window.CCGMember.profile=latest;
+   $('memberServices').hidden=!isApproved(latest);
+   if(latest&&!isApproved(latest))message(memberStatusText(latest));
+  },e=>console.warn('会员状态实时更新失败',e));
  }catch(e){message('加载实名资料失败：'+errorText(e))}
 });
 $('memberForm').addEventListener('submit',async e=>{e.preventDefault();const email=$('memberEmail').value.trim(),pass=$('memberPassword').value;message('正在登录…');try{await auth.signInWithEmailAndPassword(email,pass)}catch(err){message('登录失败：'+errorText(err))}});
