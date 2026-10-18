@@ -1280,13 +1280,24 @@ async function loadPlatformAccounts(){
   u.forEach(d=>{
    const v=d.data(),line=document.createElement('div');line.style.cssText='padding:9px;border-bottom:1px solid #ddd';
    const info=document.createElement('span');info.textContent=(v.name||'未填写姓名')+' · '+(v.email||'未填写邮箱');
-   const edit=document.createElement('button');edit.type='button';edit.textContent='修改姓名';edit.style.marginLeft='10px';
-   edit.addEventListener('click',()=>editPlatformMemberName(d.id,v.name||'',v.email||''));
    const state=document.createElement('span');state.style.marginLeft='8px';state.textContent=' · '+(v.status==='pending'?'待审核':v.status==='rejected'?'已拒绝':v.status==='disabled'?'已停用':'已批准');
-   const approve=document.createElement('button');approve.type='button';approve.textContent='批准';approve.onclick=()=>setPlatformMemberApproval(d.id,'approved');
-   const reject=document.createElement('button');reject.type='button';reject.textContent='拒绝';reject.onclick=()=>setPlatformMemberApproval(d.id,'rejected');
-   const remove=document.createElement('button');remove.type='button';remove.className='danger';remove.textContent=v.status==='disabled'?'解除停用':'停用账号（确认3次）';remove.onclick=()=>v.status==='disabled'?restorePlatformMemberAccount(d.id,v.email||''):disablePlatformMemberAccount(d.id,v.email||'');
-   line.append(info,state,edit,approve,reject,remove);users.append(line);
+   line.append(info,state);
+   const action=(label,handler,danger=false)=>{
+    const btn=document.createElement('button');btn.type='button';btn.textContent=label;btn.style.marginLeft='8px';
+    if(danger)btn.className='danger';btn.onclick=handler;line.append(btn);
+   };
+   if(v.status==='rejected'){
+    action('删除记录（确认3次）',()=>deleteRejectedPlatformApplication(d.id,v.email||''),true);
+   }else{
+    action('修改姓名',()=>editPlatformMemberName(d.id,v.name||'',v.email||''));
+    if(v.status==='pending'){
+     action('批准',()=>setPlatformMemberApproval(d.id,'approved'));
+     action('拒绝（确认2次）',()=>setPlatformMemberApproval(d.id,'rejected'));
+    }
+    if(v.status==='disabled')action('解除停用',()=>restorePlatformMemberAccount(d.id,v.email||''));
+    else action('停用账号（确认3次）',()=>disablePlatformMemberAccount(d.id,v.email||''),true);
+   }
+   users.append(line);
   });
   r.forEach(d=>{const v=d.data(),line=document.createElement('div');line.style.cssText='padding:9px;border-bottom:1px solid #ddd';const time=v.createdAt?.toDate?.()?.toLocaleString('zh-CN')||'';line.textContent=(v.name||'')+' · '+time;recovery.append(line)});
   requestAnimationFrame(()=>{limitAdminFourRows('platformAccountList');limitAdminFourRows('accountRecoveryList')});
@@ -1294,9 +1305,35 @@ async function loadPlatformAccounts(){
 }
 async function setPlatformMemberApproval(uid,state){
  if(!fzhAdminReady)return;
- if(!confirm('确定'+(state==='approved'?'批准':'拒绝')+'此会员账号吗？'))return;
- try{await fzhAdminStore.collection('platformMembers').doc(uid).update({status:state});await loadPlatformAccounts()}
- catch(e){alert('审核失败：'+e.message)}
+ if(state==='rejected'){
+  if(!confirm('第1次确认：拒绝此会员注册申请？'))return;
+  if(!confirm('第2次最终确认：拒绝后此账号无法使用会员功能，直到管理员删除拒绝记录并由用户重新提交申请。'))return;
+ }else if(!confirm('确定批准此会员注册申请吗？'))return;
+ try{
+  const ref=fzhAdminStore.collection('platformMembers').doc(uid);
+  await fzhAdminStore.runTransaction(async tx=>{
+   const doc=await tx.get(ref);
+   if(!doc.exists||doc.data().status!=='pending')throw Error('该申请不再处于待审核状态，请刷新列表');
+   tx.update(ref,{status:state});
+  });
+  await loadPlatformAccounts();
+ }catch(e){alert('审核失败：'+e.message)}
+}
+async function deleteRejectedPlatformApplication(uid,email){
+ if(!fzhAdminReady)return;
+ if(!confirm('第1次确认：删除 '+email+' 的拒绝申请记录？'))return;
+ if(!confirm('第2次确认：删除后管理员列表不再保留这条申请；用户可使用原邮箱及原密码登录，重新提交会员资料。'))return;
+ if(!confirm('第3次最终确认：永久删除此申请记录？不会删除 Firebase Authentication 登录账号。'))return;
+ try{
+  const ref=fzhAdminStore.collection('platformMembers').doc(uid);
+  await fzhAdminStore.runTransaction(async tx=>{
+   const doc=await tx.get(ref);
+   if(!doc.exists||doc.data().status!=='rejected')throw Error('申请状态已改变，请刷新列表');
+   tx.delete(ref);
+  });
+  alert('拒绝申请记录已删除。用户可以使用原账号登录并重新提交申请。');
+  await loadPlatformAccounts();
+ }catch(e){alert('删除申请记录失败：'+e.message)}
 }
 async function disablePlatformMemberAccount(uid,email){
  if(!fzhAdminReady)return;

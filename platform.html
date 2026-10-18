@@ -53,7 +53,7 @@ a.tile:hover,a.tile:focus-visible{border-color:#3b805a;box-shadow:0 6px 18px #00
 <p class="note">如果连注册邮箱也忘记了，可填写注册姓名申请人工协助。管理员不会获得原密码。</p>
 <form id="recoveryForm"><label>注册姓名<input id="recoveryName" maxlength="40" required autocomplete="name" placeholder="请输入注册姓名"></label><button type="submit">向管理员发送账号找回请求</button></form>
 <p id="recoveryStatus" role="status"></p></details></div>
-<div id="loggedInPanel" hidden><h2>已登录</h2><p id="loggedInIdentity"></p><p class="note">登录成功后不再显示账号密码输入框。需要切换账号时，请点击退出登录。</p><div class="auth-actions"><button id="logout" type="button">退出登录</button><button id="showPasswordChange" type="button" class="alt">修改密码</button><button id="completeProfile" type="button" hidden>补充实名资料</button></div><form id="passwordChangeForm" hidden autocomplete="off" style="margin-top:16px;padding:16px;border:1px solid #d8e4db;border-radius:12px;max-width:560px">
+<div id="loggedInPanel" hidden><h2>已登录</h2><p id="loggedInIdentity"></p><p class="note">登录后仍需等待管理员批准，批准后才可进入图书馆、爱心站及查看消息。需要切换账号时，请点击退出登录。</p><div class="auth-actions"><button id="logout" type="button">退出登录</button><button id="showPasswordChange" type="button" class="alt">修改密码</button><button id="completeProfile" type="button" hidden>补充实名资料</button></div><form id="passwordChangeForm" hidden autocomplete="off" style="margin-top:16px;padding:16px;border:1px solid #d8e4db;border-radius:12px;max-width:560px">
 <h3>修改密码</h3>
 <label>当前密码<input id="oldMemberPassword" type="password" autocomplete="current-password" required></label>
 <label>新密码（至少6位）<input id="newMemberPassword" type="password" autocomplete="new-password" minlength="6" required></label>

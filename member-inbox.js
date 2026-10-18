@@ -33,9 +33,21 @@ function render(){
  $('inboxStatus').textContent=rows.length?'共 '+rows.length+' 条消息；点击可展开详情，每屏最多2条':'暂无消息';
  requestAnimationFrame(()=>{const first=[...root.children].slice(0,2);root.style.maxHeight=first.length?Math.ceil(first.reduce((sum,node)=>sum+node.getBoundingClientRect().height,0)+2)+'px':'180px'});
 }
-auth.onAuthStateChanged(u=>{clear();if(!u){$('inboxStatus').textContent='请先登录';return;}
+let memberStatusUnsub=null;
+auth.onAuthStateChanged(u=>{
+ clear();
+ if(memberStatusUnsub){memberStatusUnsub();memberStatusUnsub=null}
+ if(!u){$('inboxStatus').textContent='请先登录';return}
+ $('inboxStatus').textContent='正在检查会员审核状态…';
+ memberStatusUnsub=db.collection('platformMembers').doc(u.uid).onSnapshot(snap=>{
+  const profile=snap.exists?snap.data():null;
+  if(!profile || (profile.status && profile.status!=='approved')){
+   clear();$('inboxStatus').textContent='账号尚未通过审核，无法查看消息';return
+  }
+  if(off.length)return;
  off.push(db.collection('libraryRequests').where('uid','==',u.uid).onSnapshot(s=>{loans=s.docs.map(d=>({id:d.id,...d.data()}));render()},e=>{$('inboxStatus').textContent='借阅消息加载失败：'+e.message}));
  off.push(db.collection('careNeeds').where('uid','==',u.uid).onSnapshot(s=>{myNeeds=s.docs.map(d=>({id:d.id,...d.data()}));render()},e=>{$('inboxStatus').textContent='我的需求消息加载失败：'+e.message}));
  off.push(db.collection('careNeeds').where('ownerUid','==',u.uid).onSnapshot(s=>{requests=s.docs.map(d=>({id:d.id,...d.data()}));render()},e=>{$('inboxStatus').textContent='需求通知加载失败：'+e.message}));
  off.push(db.collection('memberNotifications').where('uid','==',u.uid).onSnapshot(s=>{notices=s.docs.map(d=>({id:d.id,...d.data()}));render()},e=>{$('inboxStatus').textContent='提醒加载失败：'+e.message}));
+ },e=>{$('inboxStatus').textContent='审核状态读取失败：'+e.message});
 });})();

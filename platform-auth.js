@@ -33,12 +33,16 @@ auth.onAuthStateChanged(async u=>{
   panel('loggedInPanel');$('passwordChangeForm').hidden=true;$('passwordChangeForm').reset();$('memberServices').hidden=!isApproved(profile);
   $('completeProfile').hidden=!!profile;
   $('profilePanel').hidden=true;
-  message(profile?(isApproved(profile)?'登录成功':memberStatusText(profile)):'此账号尚未完善实名资料，请先补充姓名');
+  message(profile?(isApproved(profile)?'登录成功':memberStatusText(profile)):'当前没有会员申请记录。请点击完善实名资料，重新提交审核申请。');
   if(isApproved(profile))resolveReady({user:u,profile});
   profileWatchUnsub=db.collection('platformMembers').doc(u.uid).onSnapshot(snap=>{
    const latest=snap.exists?snap.data():null;window.CCGMember.profile=latest;
    $('memberServices').hidden=!isApproved(latest);
-   if(latest&&!isApproved(latest))message(memberStatusText(latest));
+   $('loggedInIdentity').textContent='当前账号：'+(u.email||'')+(latest?' · '+latest.name:'');
+   $('completeProfile').hidden=!!latest;
+   if(isApproved(latest)){message('管理员已批准，会员功能现已开放');resolveReady({user:u,profile:latest});}
+   else if(latest)message(memberStatusText(latest));
+   else message('当前没有会员申请记录。请补充实名资料，重新提交审核申请。');
   },e=>console.warn('会员状态实时更新失败',e));
  }catch(e){message('加载实名资料失败：'+errorText(e))}
 });
@@ -49,7 +53,7 @@ $('registerForm').addEventListener('submit',async e=>{e.preventDefault();const n
  const result=await auth.createUserWithEmailAndPassword(email,pass);
  await db.collection('platformMembers').doc(result.user.uid).set({name,email:result.user.email,createdAt:firebase.firestore.FieldValue.serverTimestamp(),status:'pending'});
  const profile=await profileFor(result.user);window.CCGMember.user=result.user;window.CCGMember.profile=profile;
- $('loggedInIdentity').textContent='当前账号：'+result.user.email+' · '+name;$('memberEmail').value=result.user.email;$('memberPassword').value='';lockInputs(true);panel('loggedInPanel');$('memberServices').hidden=true;$('completeProfile').hidden=true;message('注册成功，等待管理员审核通过');
+ $('loggedInIdentity').textContent='当前账号：'+result.user.email+' · '+name;$('memberEmail').value=result.user.email;$('memberPassword').value='';lockInputs(true);panel('loggedInPanel');$('memberServices').hidden=true;$('completeProfile').hidden=true;message('注册申请已提交，等待管理员批准；批准前不能访问图书馆、爱心站和我的消息。');
  }catch(err){message('注册失败：'+errorText(err))}});
 $('completeProfile').onclick=()=>{$('profilePanel').hidden=false};
 $('saveProfile').onclick=async()=>{const u=auth.currentUser,name=$('profileName').value.trim();if(!u||!name||name.length>40)return message('请输入1至40字的真实姓名');try{await db.collection('platformMembers').doc(u.uid).set({name,email:u.email,createdAt:firebase.firestore.FieldValue.serverTimestamp(),status:'pending'});const profile=await profileFor(u);window.CCGMember.profile=profile;$('memberServices').hidden=true;$('completeProfile').hidden=true;$('profilePanel').hidden=true;$('loggedInIdentity').textContent='当前账号：'+u.email+' · '+name;message('实名资料已保存，等待管理员审核')}catch(err){message('保存失败：'+errorText(err))}};
