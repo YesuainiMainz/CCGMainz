@@ -28,10 +28,10 @@ function render(){
    panel.append(link);
   }
   card.append(heading,panel);root.append(card);
-  card.addEventListener('toggle',()=>requestAnimationFrame(()=>{const first=[...root.children].slice(0,3);root.style.maxHeight=first.length?Math.ceil(first.reduce((n,node)=>n+node.getBoundingClientRect().height,0)+2)+'px':'none';}));
+  card.addEventListener('toggle',()=>requestAnimationFrame(()=>{const first=[...root.children].slice(0,2);root.style.maxHeight=first.length?Math.ceil(first.reduce((n,node)=>n+node.getBoundingClientRect().height,0)+2)+'px':'172px';}));
  }
- $('inboxStatus').textContent=rows.length?'共 '+rows.length+' 条消息；点击可展开详情，每屏最多3条':'暂无消息';
- requestAnimationFrame(()=>{const first=[...root.children].slice(0,3);root.style.maxHeight=first.length?Math.ceil(first.reduce((sum,node)=>sum+node.getBoundingClientRect().height,0)+2)+'px':'none'});
+ $('inboxStatus').textContent=rows.length?'共 '+rows.length+' 条消息；点击可展开详情，每屏最多2条':'暂无消息';
+ requestAnimationFrame(()=>{const first=[...root.children].slice(0,2);root.style.maxHeight=first.length?Math.ceil(first.reduce((sum,node)=>sum+node.getBoundingClientRect().height,0)+2)+'px':'none'});
 }
 auth.onAuthStateChanged(u=>{clear();if(!u){$('inboxStatus').textContent='请先登录';return;}
  off.push(db.collection('libraryRequests').where('uid','==',u.uid).onSnapshot(s=>{loans=s.docs.map(d=>({id:d.id,...d.data()}));render()},e=>{$('inboxStatus').textContent='借阅消息加载失败：'+e.message}));

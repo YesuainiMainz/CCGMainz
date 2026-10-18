@@ -13,7 +13,7 @@ button:disabled{opacity:.55;cursor:wait}.muted{color:#617567;font-size:14px}.war
 .post img{display:block;max-width:100%;max-height:550px;object-fit:contain;border-radius:10px;cursor:zoom-in}
 #viewer[hidden]{display:none}#viewer{position:fixed;inset:0;background:#000e;z-index:5;display:flex;align-items:center;justify-content:center;padding:12px}
 #viewer img{max-width:96vw;max-height:85vh;object-fit:contain}#viewer button{position:absolute;right:15px;top:15px;background:white;color:#111}
-a{color:inherit}#more{display:block;margin:15px auto}
+a{color:inherit}.post-actions{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}.post-actions button{flex:1 1 180px}#more{display:block;margin:15px auto}
 @media(max-width:560px){.card,.post{padding:13px}header{padding:16px 12px}}
 #needDialog[hidden]{display:none}#needDialog{position:fixed;inset:0;background:#000a;z-index:6;display:flex;justify-content:center;align-items:center;padding:12px}#needForm{width:min(100%,500px);max-height:92vh;overflow:auto}#needForm h2{margin-top:0}button.secondary{background:#68776d}button.need{margin-top:12px}.photo-previews{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.photo-previews img{width:100px;height:100px;object-fit:cover;border-radius:8px}.post-gallery{display:flex;flex-wrap:wrap;gap:8px}.post-gallery img{max-width:min(100%,320px);max-height:300px}
 
@@ -30,7 +30,13 @@ a{color:inherit}#more{display:block;margin:15px auto}
 @media(max-width:560px){.mcg-language-row{align-items:stretch}.mcg-language-row h1{flex:1 1 100%}#mcgLanguageSwitch{width:100%}}
 </style></head><body>
 <header><div><div class="mcg-language-row"><h1>CCGMainz爱心站</h1><button id="mcgLanguageSwitch" type="button" data-no-translate>切換為繁體中文</button></div><span id="mcgLanguageStatus" class="mcg-language-status" role="status" data-no-translate></span><span>分享家中闲置或多余的物品 · 需求申请会通知发布者</span></div></header>
-<main><p><a href="./platform.html" style="color:#22583d">← 返回 CCGMainz幸福家人数字平台</a></p><section class="card"><h2>发布闲置物品</h2>
+<main><p><a href="./platform.html" style="color:#22583d">← 返回 CCGMainz幸福家人数字平台</a></p>
+<nav class="post-actions" aria-label="爱心站操作">
+ <button id="goPublish" type="button">发布闲置物品</button>
+ <button id="goMyPosts" type="button" class="secondary">访问我发布的帖子</button>
+ <button id="goAllPosts" type="button" class="secondary" hidden>查看全部帖子</button>
+</nav>
+<section class="card" id="publishSection"><h2>发布闲置物品</h2>
 <form id="postForm">
 <p id="postingIdentity" class="muted">正在验证会员身份…</p>
 <label for="body">物品说明（可选）</label><textarea id="body" maxlength="1500" placeholder="请描述闲置或多余的物品（最多1500字）"></textarea>
@@ -65,7 +71,7 @@ function ccgEnableFirestoreCache(store){
  });
 }
 let memberReady=false;
-let selectedPhotos=[];let editingPostId=null;let db=null,posts=[],nextPage=null,loading=false,hasMore=true,selectedPhoto='',chosenPost=null,needBusy=false;
+let selectedPhotos=[];let editingPostId=null;let myPostsMode=false;let db=null,posts=[],nextPage=null,loading=false,hasMore=true,selectedPhoto='',chosenPost=null,needBusy=false;
 function make(tag,text,cls){const el=document.createElement(tag);if(text!==undefined)el.textContent=text;if(cls)el.className=cls;return el}
 function openPhoto(src){$('largeImage').src=src;$('viewer').hidden=false}
 function closePhoto(){$('viewer').hidden=true;$('largeImage').removeAttribute('src')}
@@ -102,16 +108,38 @@ function render(){
     try{
      const batch=db.batch();const ref=db.collection('carePosts').doc(p.id);
      batch.set(db.collection('carePostArchives').doc(p.id+'_deleted'),{postId:p.id,text:p.text||'',author:p.author||'',uid:p.uid,createdAt:p.createdAt||null,photo:p.photo||'',photos:Array.isArray(p.photos)?p.photos:[],archivedAt:firebase.firestore.FieldValue.serverTimestamp()});
-     batch.delete(ref);await batch.commit();nextPage=null;await loadMore(true)
+     batch.delete(ref);await batch.commit();nextPage=null;if(myPostsMode)await $('goMyPosts').onclick();else await loadMore(true)
     }catch(e){alert('删除失败（帖子未删除）：'+e.message)}};
    card.append(edit,del);
   }
   feed.append(card);
  }
  const shown=posts.filter(x=>x.author&&x.uid).length;
- $('feedStatus').textContent=shown?'已显示 '+shown+' 条实名帖子':'暂无实名帖子，欢迎发布第一条！';
- $('more').hidden=!hasMore;
+ $('feedStatus').textContent=myPostsMode?(shown?'我的帖子：共 '+shown+' 条':'你还没有发布帖子'):(shown?'已显示 '+shown+' 条实名帖子':'暂无实名帖子，欢迎发布第一条！');
+ $('more').hidden=myPostsMode||!hasMore;
 }
+$('goPublish').onclick=()=>{
+ myPostsMode=false;
+ $('goAllPosts').hidden=true;
+ $('publishSection').scrollIntoView({behavior:'smooth',block:'start'});
+};
+$('goMyPosts').onclick=async()=>{
+ if(!memberReady||!window.CCGMember?.user?.uid)return alert('请先登录幸福家人平台');
+ if(loading)return;
+ loading=true;$('goMyPosts').disabled=true;
+ try{
+  const snap=await db.collection('carePosts').where('uid','==',window.CCGMember.user.uid).get();
+  posts=snap.docs.map(doc=>({id:doc.id,...doc.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+  myPostsMode=true;hasMore=false;$('goAllPosts').hidden=false;render();
+  $('feed').scrollIntoView({behavior:'smooth',block:'start'});
+ }catch(e){alert('读取我发布的帖子失败：'+e.message)}
+ finally{loading=false;$('goMyPosts').disabled=false}
+};
+$('goAllPosts').onclick=async()=>{
+ if(loading)return;
+ myPostsMode=false;$('goAllPosts').hidden=true;nextPage=null;hasMore=true;
+ await loadMore(true);
+};
 async function loadMore(reset=false){
  if(!db||loading)return;loading=true;$('more').disabled=true;
  try{
@@ -231,7 +259,7 @@ $('postForm').addEventListener('submit',async e=>{
   if(editingPostId){await db.collection('carePosts').doc(editingPostId).update({text,photo:selectedPhotos[0]||'',photos:selectedPhotos});editingPostId=null;$('publish').textContent='发布物品';}
   else{const id=db.collection('carePosts').doc().id;await db.collection('carePosts').doc(id).set({text,photo:selectedPhotos[0]||'',photos:selectedPhotos,author,uid:window.CCGMember.user.uid,createdAt:firebase.firestore.FieldValue.serverTimestamp()});}
   $('body').value='';$('image').value='';$('preview').hidden=true;selectedPhoto='';selectedPhotos=[];renderPreviews();
-  $('publishStatus').textContent='发布成功！您的真实姓名将公开显示。';nextPage=null;await loadMore(true);
+  $('publishStatus').textContent='发布成功！您的真实姓名将公开显示。';nextPage=null;if(myPostsMode)await $('goMyPosts').onclick();else await loadMore(true);
  }catch(err){$('publishStatus').textContent='发布失败：'+err.message}
  finally{btn.disabled=false}
 });
