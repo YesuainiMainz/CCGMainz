@@ -18,6 +18,11 @@ a{color:inherit}.post-actions{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0
 #needDialog[hidden]{display:none}#needDialog{position:fixed;inset:0;background:#000a;z-index:6;display:flex;justify-content:center;align-items:center;padding:12px}#needForm{width:min(100%,500px);max-height:92vh;overflow:auto}#needForm h2{margin-top:0}button.secondary{background:#68776d}button.need{margin-top:12px}.photo-previews{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.photo-previews img{width:100px;height:100px;object-fit:cover;border-radius:8px}.post-gallery{display:flex;flex-wrap:wrap;gap:8px}.post-gallery img{max-width:min(100%,320px);max-height:300px}
 
 #photoEditor[hidden]{display:none}#photoEditor{position:fixed;inset:0;z-index:12;background:#000a;display:flex;justify-content:center;align-items:center;padding:12px}
+#myPostsDialog[hidden]{display:none}#myPostsDialog{position:fixed;inset:0;z-index:11;background:#0009;display:flex;justify-content:center;align-items:center;padding:12px}
+.my-posts-panel{width:min(100%,950px);max-height:92vh;overflow-y:auto}
+.my-posts-header{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.my-posts-header h2{margin:0}.my-posts-list{display:grid;gap:12px;max-height:70vh;overflow-y:auto;overscroll-behavior:contain}
+.my-posts-list .post{border:1px solid #e2e7e2;box-shadow:none}
 .photo-editor-panel{width:min(100%,960px);max-height:94vh;overflow:auto}
 .photo-canvas-wrap{overflow:auto;background:#edf1ed;border-radius:8px;text-align:center}
 #photoCanvas{max-width:100%;height:auto;touch-action:none;cursor:crosshair}
@@ -34,7 +39,6 @@ a{color:inherit}.post-actions{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0
 <nav class="post-actions" aria-label="爱心站操作">
  <button id="goPublish" type="button">发布闲置物品</button>
  <button id="goMyPosts" type="button" class="secondary">访问我发布的帖子</button>
- <button id="goAllPosts" type="button" class="secondary" hidden>查看全部帖子</button>
 </nav>
 <section class="card" id="publishSection"><h2>发布闲置物品</h2>
 <form id="postForm">
@@ -47,6 +51,14 @@ a{color:inherit}.post-actions{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0
 </form></section>
 <section><h2>最新闲置物品</h2><p class="muted" id="feedStatus">正在加载…</p><div id="feed"></div><button id="more" type="button" hidden>加载更多</button></section>
 </main>
+<div id="myPostsDialog" hidden role="dialog" aria-modal="true" aria-labelledby="myPostsTitle">
+ <div class="card my-posts-panel">
+  <div class="my-posts-header"><h2 id="myPostsTitle">我发布的帖子</h2><button type="button" id="closeMyPosts" class="secondary">关闭 ×</button></div>
+  <p class="muted">仅显示当前登录账号发布的帖子。可管理多条帖子、修改文字和图片，或删除帖子。</p>
+  <p id="myPostsStatus" class="muted" role="status">正在加载…</p>
+  <div id="myPostsList" class="my-posts-list"></div>
+ </div>
+</div>
 <div id="photoEditor" hidden role="dialog" aria-modal="true" aria-labelledby="photoEditorTitle">
  <div class="card photo-editor-panel">
   <h2 id="photoEditorTitle">编辑图片：标记已送出物品</h2>
@@ -71,7 +83,7 @@ function ccgEnableFirestoreCache(store){
  });
 }
 let memberReady=false;
-let selectedPhotos=[];let editingPostId=null;let myPostsMode=false;let db=null,posts=[],nextPage=null,loading=false,hasMore=true,selectedPhoto='',chosenPost=null,needBusy=false;
+let selectedPhotos=[];let editingPostId=null;let myPosts=[];let db=null,posts=[],nextPage=null,loading=false,hasMore=true,selectedPhoto='',chosenPost=null,needBusy=false;
 function make(tag,text,cls){const el=document.createElement(tag);if(text!==undefined)el.textContent=text;if(cls)el.className=cls;return el}
 function openPhoto(src){$('largeImage').src=src;$('viewer').hidden=false}
 function closePhoto(){$('viewer').hidden=true;$('largeImage').removeAttribute('src')}
@@ -84,9 +96,9 @@ function limitFeedTen(){
  feed.style.maxHeight=cards.length?Math.ceil(cards.reduce((n,card)=>n+card.getBoundingClientRect().height,0)+gap*Math.max(0,cards.length-1)+2)+'px':'none';
 }
 window.addEventListener('resize',limitFeedTen);
-function render(){
- const feed=$('feed');feed.replaceChildren();
- for(const p of posts.filter(x=>x.author&&x.uid)){
+function renderCards(feed,items){
+ feed.replaceChildren();
+ for(const p of items.filter(x=>x.author&&x.uid)){
   const card=make('article',undefined,'post'),head=make('div',undefined,'post-head');
   head.append(make('strong',p.author||'历史匿名发布'));
   const t=make('time',p.createdAt?.toDate?.()?.toLocaleString('zh-CN')||'刚刚');head.append(t);card.append(head);
@@ -102,43 +114,45 @@ function render(){
    edit.onclick=()=>{editingPostId=p.id;$('body').value=p.text||'';selectedPhotos=Array.isArray(p.photos)&&p.photos.length?[...p.photos]:(p.photo?[p.photo]:[]);selectedPhoto=selectedPhotos[0]||'';renderPreviews();
     $('preview').hidden=!selectedPhoto;if(selectedPhoto)$('preview').src=selectedPhoto;
     $('publish').textContent='保存修改';$('publishStatus').textContent='正在编辑自己的帖子；选择图片可继续追加，最多4张。';
-    $('postForm').scrollIntoView({behavior:'smooth'});};
+    closeMyPosts();$('postForm').scrollIntoView({behavior:'smooth'});};
    const del=make('button','删除我的帖子');del.type='button';
    del.onclick=async()=>{if(!confirm('确定删除自己的帖子吗？已提交的需求通知仍会保留在管理员记录中。'))return;
     try{
      const batch=db.batch();const ref=db.collection('carePosts').doc(p.id);
      batch.set(db.collection('carePostArchives').doc(p.id+'_deleted'),{postId:p.id,text:p.text||'',author:p.author||'',uid:p.uid,createdAt:p.createdAt||null,photo:p.photo||'',photos:Array.isArray(p.photos)?p.photos:[],archivedAt:firebase.firestore.FieldValue.serverTimestamp()});
-     batch.delete(ref);await batch.commit();nextPage=null;if(myPostsMode)await $('goMyPosts').onclick();else await loadMore(true)
+     batch.delete(ref);await batch.commit();nextPage=null;await loadMore(true);if(!$('myPostsDialog').hidden)await refreshMyPosts()
     }catch(e){alert('删除失败（帖子未删除）：'+e.message)}};
    card.append(edit,del);
   }
   feed.append(card);
  }
- const shown=posts.filter(x=>x.author&&x.uid).length;
- $('feedStatus').textContent=myPostsMode?(shown?'我的帖子：共 '+shown+' 条':'你还没有发布帖子'):(shown?'已显示 '+shown+' 条实名帖子':'暂无实名帖子，欢迎发布第一条！');
- $('more').hidden=myPostsMode||!hasMore;
 }
-$('goPublish').onclick=()=>{
- myPostsMode=false;
- $('goAllPosts').hidden=true;
- $('publishSection').scrollIntoView({behavior:'smooth',block:'start'});
-};
+function render(){
+ renderCards($('feed'),posts);
+ const shown=posts.filter(x=>x.author&&x.uid).length;
+ $('feedStatus').textContent=shown?'已显示 '+shown+' 条实名帖子':'暂无实名帖子，欢迎发布第一条！';
+ $('more').hidden=!hasMore;
+}
+function closeMyPosts(){$('myPostsDialog').hidden=true}
+$('closeMyPosts').onclick=closeMyPosts;
+$('myPostsDialog').addEventListener('click',e=>{if(e.target===$('myPostsDialog'))closeMyPosts()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('myPostsDialog').hidden)closeMyPosts()});
+async function refreshMyPosts(){
+ const uid=window.CCGMember?.user?.uid;
+ if(!memberReady||!uid)throw Error('请先登录幸福家人平台');
+ $('myPostsStatus').textContent='正在读取我发布的帖子…';
+ const snap=await db.collection('carePosts').where('uid','==',uid).get();
+ myPosts=snap.docs.map(doc=>({id:doc.id,...doc.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+ renderCards($('myPostsList'),myPosts);
+ $('myPostsStatus').textContent=myPosts.length?'共 '+myPosts.length+' 条帖子，可以逐条编辑或删除。':'你还没有发布帖子。';
+}
+$('goPublish').onclick=()=>{$('publishSection').scrollIntoView({behavior:'smooth',block:'start'})};
 $('goMyPosts').onclick=async()=>{
  if(!memberReady||!window.CCGMember?.user?.uid)return alert('请先登录幸福家人平台');
- if(loading)return;
- loading=true;$('goMyPosts').disabled=true;
- try{
-  const snap=await db.collection('carePosts').where('uid','==',window.CCGMember.user.uid).get();
-  posts=snap.docs.map(doc=>({id:doc.id,...doc.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
-  myPostsMode=true;hasMore=false;$('goAllPosts').hidden=false;render();
-  $('feed').scrollIntoView({behavior:'smooth',block:'start'});
- }catch(e){alert('读取我发布的帖子失败：'+e.message)}
- finally{loading=false;$('goMyPosts').disabled=false}
-};
-$('goAllPosts').onclick=async()=>{
- if(loading)return;
- myPostsMode=false;$('goAllPosts').hidden=true;nextPage=null;hasMore=true;
- await loadMore(true);
+ $('myPostsDialog').hidden=false;
+ $('goMyPosts').disabled=true;
+ try{await refreshMyPosts()}catch(e){$('myPostsStatus').textContent='读取失败：'+e.message}
+ finally{$('goMyPosts').disabled=false}
 };
 async function loadMore(reset=false){
  if(!db||loading)return;loading=true;$('more').disabled=true;
@@ -259,7 +273,7 @@ $('postForm').addEventListener('submit',async e=>{
   if(editingPostId){await db.collection('carePosts').doc(editingPostId).update({text,photo:selectedPhotos[0]||'',photos:selectedPhotos});editingPostId=null;$('publish').textContent='发布物品';}
   else{const id=db.collection('carePosts').doc().id;await db.collection('carePosts').doc(id).set({text,photo:selectedPhotos[0]||'',photos:selectedPhotos,author,uid:window.CCGMember.user.uid,createdAt:firebase.firestore.FieldValue.serverTimestamp()});}
   $('body').value='';$('image').value='';$('preview').hidden=true;selectedPhoto='';selectedPhotos=[];renderPreviews();
-  $('publishStatus').textContent='发布成功！您的真实姓名将公开显示。';nextPage=null;if(myPostsMode)await $('goMyPosts').onclick();else await loadMore(true);
+  $('publishStatus').textContent='保存成功！';nextPage=null;await loadMore(true);
  }catch(err){$('publishStatus').textContent='发布失败：'+err.message}
  finally{btn.disabled=false}
 });
