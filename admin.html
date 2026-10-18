@@ -144,7 +144,7 @@ button{touch-action:manipulation}
 </section>
 <section id="careManagement" class="management-view" hidden>
  <div class="card"><p><a href="./posts.html" target="_blank" rel="noopener noreferrer">❤️ 打开公开爱心站 ↗</a></p><p class="muted">公开端按照当前会员登录账号决定权限；管理员账号也可登录会员平台进行发帖与需求测试。</p></div>
-<div class="card"><h2>CCGMainz爱心站 · 需求通知记录</h2><p class="muted">发布者姓名将在爱心站公开显示；需求者的姓名及需求详情仅管理员可见。申请发送后直接通知发布者，双方自行联系。管理员只查看发送记录和旧版匹配历史。</p><details class="care-accordion"><summary>帖子浏览与管理<span class="care-chevron" aria-hidden="true">⌄</span></summary><div class="care-accordion-body"><p class="muted">可直接删除任何帖子。展开后每屏最多显示2条，其余上下滑动。管理员删除帖子前自动云端留档；历史留档包含帖子文字及照片。</p><p id="carePostStatus" class="muted">登录后自动加载帖子。</p><button type="button" class="alt" id="careLoadMore" onclick="loadMoreCarePosts()" style="margin:0 0 10px;display:none">加载更多旧帖子（每次30条）</button><div id="carePostScroll"><div id="carePostList"></div></div> </div></details><details class="care-accordion"><summary>帖子及图片历史留档<span class="care-chevron" aria-hidden="true">⌄</span></summary><div class="care-accordion-body"><p class="muted">管理员专用云端留档。帖子删除后仍可查看文字、照片及保存图片。最多显示2条，其余上下滚动。</p><p id="careArchiveStatus" class="muted">等待云端加载…</p><div id="careArchiveScroll" style="overflow-y:auto;max-width:100%;border:1px solid #dce6dd;border-radius:12px"><div id="careArchiveList"></div></div></div></details><details class="care-accordion"><summary>需求申请发送记录<span class="care-chevron" aria-hidden="true">⌄</span></summary><div class="care-accordion-body"><p class="muted">每屏最多2条，其余上下滑动查看。即使帖子删除也保留发送记录；管理员不参与匹配。</p><p id="careAdminStatus" class="muted">请先登录管理员账号。</p><div id="careRequestScroll" style="overflow-y:auto;overscroll-behavior:contain;min-width:0;max-width:100%"><div id="careAdminList"></div></div> </div></details><details class="care-accordion"><summary>旧版匹配历史<span class="care-chevron" aria-hidden="true">⌄</span></summary><div class="care-accordion-body"><p class="muted">每屏最多2条，其余上下滑动；这是旧版历史数据；新版需求不再需要线上匹配。</p><p id="careMatchedStatus" class="muted"></p><div id="careMatchedScroll"><div id="careMatchedList"></div></div> </div></details></div></section>
+<div class="card"><h2>CCGMainz爱心站 · 需求通知记录</h2><p class="muted">发布者姓名将在爱心站公开显示；需求者的姓名及需求详情仅管理员可见。申请发送后直接通知发布者，双方自行联系。管理员只查看发送记录和旧版匹配历史。</p><details class="care-accordion"><summary>帖子浏览与管理<span class="care-chevron" aria-hidden="true">⌄</span></summary><div class="care-accordion-body"><p class="muted">可直接删除任何帖子。展开后每屏最多显示2条，其余上下滑动。管理员删除帖子前自动云端留档；历史留档包含帖子文字及照片。</p><p id="carePostStatus" class="muted">登录后自动加载帖子。</p><button type="button" class="alt" id="careLoadMore" onclick="loadMoreCarePosts()" style="margin:0 0 10px;display:none">加载更多旧帖子（每次30条）</button><div id="carePostScroll"><div id="carePostList"></div></div> </div></details><details class="care-accordion"><summary>帖子及图片历史留档<span class="care-chevron" aria-hidden="true">⌄</span></summary><div class="care-accordion-body"><p class="muted">管理员专用云端留档。帖子删除后仍可查看文字、照片及保存图片。最多显示2条，其余上下滚动。</p><p id="careArchiveStatus" class="muted">等待云端加载…</p><button id="careArchiveLoadMore" type="button" class="alt" onclick="loadMoreCareArchives()" hidden>加载更多历史留档（每次50条）</button><div id="careArchiveScroll" style="overflow-y:auto;max-width:100%;border:1px solid #dce6dd;border-radius:12px"><div id="careArchiveList"></div></div></div></details><details class="care-accordion"><summary>需求申请发送记录<span class="care-chevron" aria-hidden="true">⌄</span></summary><div class="care-accordion-body"><p class="muted">每屏最多2条，其余上下滑动查看。即使帖子删除也保留发送记录；管理员不参与匹配。</p><p id="careAdminStatus" class="muted">请先登录管理员账号。</p><div id="careRequestScroll" style="overflow-y:auto;overscroll-behavior:contain;min-width:0;max-width:100%"><div id="careAdminList"></div></div> </div></details><details class="care-accordion"><summary>旧版匹配历史<span class="care-chevron" aria-hidden="true">⌄</span></summary><div class="care-accordion-body"><p class="muted">每屏最多2条，其余上下滑动；这是旧版历史数据；新版需求不再需要线上匹配。</p><p id="careMatchedStatus" class="muted"></p><div id="careMatchedScroll"><div id="careMatchedList"></div></div> </div></details></div></section>
 <section id="privacyManagement" class="management-view" hidden>
  <div class="card"><h2>平台会员账号（不显示密码）</h2><p class="muted">管理员可查看注册姓名和邮箱账号。密码由 Firebase Authentication 安全管理，管理员无法读取。</p><button type="button" onclick="loadPlatformAccounts()">刷新会员与找回请求</button><p id="platformAccountStatus" class="muted">登录后可查看。</p><div id="platformAccountList" class="admin-four-scroll" aria-label="平台会员账号列表"></div><h3>忘记账号密码 · 找回请求</h3><p class="muted">显示申请者提交的姓名和邮箱，便于人工核对。管理员不能查看或发送原密码。</p><div id="accountRecoveryList" class="admin-four-scroll" aria-label="忘记账号找回请求列表"></div></div><div class="card" id="memberApproval"><h2>家庭成员审批</h2><button onclick="loadMembers()" type="button">刷新申请列表</button><p class="muted" id="memberStatus">请先以管理员身份登录。</p><div id="memberList" class="admin-four-scroll" aria-label="家庭人员审批列表"></div></div>
 </section></main><div id="stockActionModal" class="stock-action-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="stockActionTitle"><div class="stock-action-box"><h2 id="stockActionTitle">库存出库 / 库位移动</h2><p id="stockActionItem"></p><label>操作类型<select id="stockActionType" onchange="updateStockActionFields()"><option value="move">库位移动（可移动部分数量）</option><option value="use">取用（扣减库存）</option><option value="destroy">销毁（扣减库存）</option></select></label><label id="stockActionLocationWrap">目标库位<select id="stockActionLocation"></select></label><label id="stockActionQtyWrap" hidden>数量<input id="stockActionQty" type="number" min="1" step="1" value="1"></label><label>操作备注<input id="stockActionNote" maxlength="200" placeholder="可选：操作原因、经手人"></label><p id="stockActionError" class="warn" aria-live="polite"></p><div><button type="button" id="stockActionSubmit" onclick="submitStockAction()">确认操作</button><button type="button" class="alt" onclick="closeStockAction()">取消</button></div></div></div><div id="photoLightbox" class="photo-lightbox" role="dialog" aria-modal="true" aria-label="物品照片放大查看" onclick="closePhotoLightbox()"><button type="button" class="lightbox-close" onclick="closePhotoLightbox()" aria-label="关闭大图">× 关闭</button><img id="lightboxImage" alt="物品大图" onclick="event.stopPropagation()"><div id="lightboxTitle" class="lightbox-title"></div></div><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script><script src="./firebase-config.js"></script><script>
@@ -867,7 +867,7 @@ function startCloudListener(){
 
 // Firebase Auth + Firestore：管理员授权由 Firestore 规则验证。
 let careAdminUnsubs=[];
-function stopCareAdmin(){if(carePostListener){carePostListener();carePostListener=null;}for(const stop of careAdminUnsubs)stop();careAdminUnsubs=[];careArchives=[];}
+function stopCareAdmin(){if(careArchiveUnsub){careArchiveUnsub();careArchiveUnsub=null;}if(carePostListener){carePostListener();carePostListener=null;}for(const stop of careAdminUnsubs)stop();careAdminUnsubs=[];careArchives=[];}
 let carePublic=[],carePrivate=[],careNeeds=[],careMatches=[],careArchives=[];
 let carePostLimit=30,carePostListener=null;
 function limitCareMatches(){const wrap=$('careMatchedScroll');if(!wrap)return;const rows=[...$('careMatchedList').children].slice(0,2);wrap.style.maxHeight=rows.length?Math.ceil(rows.reduce((n,r)=>n+r.getBoundingClientRect().height,0)+2)+'px':'none';}
@@ -915,7 +915,7 @@ function renderCareArchives(){
   const del=document.createElement('button');del.type='button';del.className='danger';del.textContent='永久删除此留档（需确认3次）';
   del.onclick=()=>deleteCareArchive(post.id);row.append(del);list.append(row);
  }
- $('careArchiveStatus').textContent='云端已加载 '+careArchives.length+' 条留档（最近100条）；每屏2条';
+ $('careArchiveStatus').textContent='云端已加载 '+careArchives.length+' 条留档（全部已加载记录）；每屏2条';
  requestAnimationFrame(()=>{const w=$('careArchiveScroll');const rows=[...list.children].slice(0,2);w.style.maxHeight=rows.length?Math.ceil(rows.reduce((n,r)=>n+r.getBoundingClientRect().height,0)+2)+'px':'none'});
 }
 async function deleteCareArchive(id){
@@ -929,6 +929,7 @@ async function deleteCareArchive(id){
  try{
   const btns=[...document.querySelectorAll('#careArchiveList button')];btns.forEach(b=>b.disabled=true);
   await fzhAdminStore.collection('carePostArchives').doc(id).delete();
+  careArchives=careArchives.filter(x=>x.id!==id);renderCareArchives();
   alert('云端留档已删除');
  }catch(e){alert('删除留档失败：'+e.message)}
  finally{[...document.querySelectorAll('#careArchiveList button')].forEach(b=>b.disabled=false)}
@@ -1040,6 +1041,28 @@ document.querySelectorAll('#careManagement .care-accordion').forEach((section,i)
   requestAnimationFrame(()=>{limitCarePostRows();limitCareRequestRows();limitCareMatches()});
  }});
 });
+let careArchiveUnsub=null,careArchiveCursor=null,careArchiveHasMore=true,careArchiveLoading=false;
+async function loadMoreCareArchives(){
+ if(!fzhAdminReady||careArchiveLoading||!careArchiveHasMore)return;
+ careArchiveLoading=true;
+ const btn=$('careArchiveLoadMore');if(btn)btn.disabled=true;
+ try{
+  let q=fzhAdminStore.collection('carePostArchives').orderBy('archivedAt','desc').limit(50);
+  if(careArchiveCursor)q=q.startAfter(careArchiveCursor);
+  const snap=await q.get();
+  careArchiveCursor=snap.docs[snap.docs.length-1]||careArchiveCursor;
+  careArchiveHasMore=snap.size===50;
+  const seen=new Set(careArchives.map(x=>x.id));
+  for(const doc of snap.docs){if(!seen.has(doc.id)){careArchives.push({id:doc.id,...doc.data()});seen.add(doc.id)}}
+  renderCareArchives();
+  if(btn)btn.hidden=!careArchiveHasMore;
+ }catch(e){$('careArchiveStatus').textContent='加载历史留档失败：'+e.message}
+ finally{careArchiveLoading=false;if(btn)btn.disabled=false}
+}
+function listenCareArchives(){
+ careArchives=[];careArchiveCursor=null;careArchiveHasMore=true;
+ loadMoreCareArchives();
+}
 function listenCareAdmin(){
  stopCareAdmin();if(!fzhAdminReady)return;
  // 只取近期帖子，减少图片 base64 导致的重复传输与 DOM 重绘。
@@ -1054,7 +1077,7 @@ function listenCareAdmin(){
  subscribe('carePostContacts','createdAt',30,v=>carePrivate=v,'contacts','carePostStatus');
  subscribe('careNeeds','createdAt',100,v=>careNeeds=v,'needs','careAdminStatus');
  subscribe('careMatches','matchedAt',100,v=>careMatches=v,'matches','careMatchedStatus');
- subscribe('carePostArchives','archivedAt',100,v=>careArchives=v,'archives','careArchiveStatus');
+ listenCareArchives();
 }
 let fzhAdminAuth=null,fzhAdminStore=null,fzhAdminReady=false,cloudBaseVersion=null;
 function setAdminLoginButtonState(){const b=$('adminLoginButton');if(!b)return;b.disabled=!!(fzhAdminAuth?.currentUser||adminLoginPending);b.textContent=fzhAdminAuth?.currentUser?'已登录':adminLoginPending?'登录中…':'管理员登录';}
@@ -1259,11 +1282,37 @@ async function loadPlatformAccounts(){
    const info=document.createElement('span');info.textContent=(v.name||'未填写姓名')+' · '+(v.email||'未填写邮箱');
    const edit=document.createElement('button');edit.type='button';edit.textContent='修改姓名';edit.style.marginLeft='10px';
    edit.addEventListener('click',()=>editPlatformMemberName(d.id,v.name||'',v.email||''));
-   line.append(info,edit);users.append(line);
+   const state=document.createElement('span');state.style.marginLeft='8px';state.textContent=' · '+(v.status==='pending'?'待审核':v.status==='rejected'?'已拒绝':'已批准');
+   const approve=document.createElement('button');approve.type='button';approve.textContent='批准';approve.onclick=()=>setPlatformMemberApproval(d.id,'approved');
+   const reject=document.createElement('button');reject.type='button';reject.textContent='拒绝';reject.onclick=()=>setPlatformMemberApproval(d.id,'rejected');
+   const remove=document.createElement('button');remove.type='button';remove.className='danger';remove.textContent='删除账号（确认3次）';remove.onclick=()=>deletePlatformMemberAccount(d.id,v.email||'');
+   line.append(info,state,edit,approve,reject,remove);users.append(line);
   });
   r.forEach(d=>{const v=d.data(),line=document.createElement('div');line.style.cssText='padding:9px;border-bottom:1px solid #ddd';const time=v.createdAt?.toDate?.()?.toLocaleString('zh-CN')||'';line.textContent=(v.name||'')+' · '+time;recovery.append(line)});
   requestAnimationFrame(()=>{limitAdminFourRows('platformAccountList');limitAdminFourRows('accountRecoveryList')});
  }catch(e){status.textContent='读取失败：'+e.message}
+}
+async function setPlatformMemberApproval(uid,state){
+ if(!fzhAdminReady)return;
+ if(!confirm('确定'+(state==='approved'?'批准':'拒绝')+'此会员账号吗？'))return;
+ try{await fzhAdminStore.collection('platformMembers').doc(uid).update({status:state});await loadPlatformAccounts()}
+ catch(e){alert('审核失败：'+e.message)}
+}
+async function deletePlatformMemberAccount(uid,email){
+ if(!fzhAdminReady)return;
+ if(!confirm('第1次确认：删除会员账号 '+email+'？'))return;
+ if(!confirm('第2次确认：此操作会删除 Firebase Authentication 登录账号与实名资料，不能撤销。继续吗？'))return;
+ if(!confirm('第3次最终确认：永久删除账号 '+email+'？之后该邮箱可重新注册。'))return;
+ try{
+  const token=await fzhAdminAuth.currentUser.getIdToken();
+  const response=await fetch('https://europe-west1-yesuaini-8cad6.cloudfunctions.net/deletePlatformMemberAccount',{
+   method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({uid})
+  });
+  const data=await response.json();
+  if(!response.ok)throw Error(data.error||'服务器拒绝删除');
+  alert('账号已从 Firebase Authentication 和平台会员资料中删除。');
+  await loadPlatformAccounts();
+ }catch(e){alert('删除失败：'+e.message+'。请先部署升级包内的 Firebase Cloud Function。')}
 }
 async function editPlatformMemberName(uid,currentName,email){
  if(!fzhAdminReady||!fzhAdminStore){alert('请先登录管理员账号');return;}
