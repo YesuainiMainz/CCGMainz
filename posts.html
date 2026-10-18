@@ -17,6 +17,11 @@ a{color:inherit}#more{display:block;margin:15px auto}
 @media(max-width:560px){.card,.post{padding:13px}header{padding:16px 12px}}
 #needDialog[hidden]{display:none}#needDialog{position:fixed;inset:0;background:#000a;z-index:6;display:flex;justify-content:center;align-items:center;padding:12px}#needForm{width:min(100%,500px);max-height:92vh;overflow:auto}#needForm h2{margin-top:0}button.secondary{background:#68776d}button.need{margin-top:12px}.photo-previews{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.photo-previews img{width:100px;height:100px;object-fit:cover;border-radius:8px}.post-gallery{display:flex;flex-wrap:wrap;gap:8px}.post-gallery img{max-width:min(100%,320px);max-height:300px}
 
+#photoEditor[hidden]{display:none}#photoEditor{position:fixed;inset:0;z-index:12;background:#000a;display:flex;justify-content:center;align-items:center;padding:12px}
+.photo-editor-panel{width:min(100%,960px);max-height:94vh;overflow:auto}
+.photo-canvas-wrap{overflow:auto;background:#edf1ed;border-radius:8px;text-align:center}
+#photoCanvas{max-width:100%;height:auto;touch-action:none;cursor:crosshair}
+.photo-editor-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .mcg-language-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
 .mcg-language-row h1{margin:0}
 #mcgLanguageSwitch{background:#fff;color:#22583d;border:1px solid #fff;border-radius:9px;padding:9px 14px;min-height:42px;cursor:pointer;font-size:15px;font-weight:600}
@@ -36,6 +41,15 @@ a{color:inherit}#more{display:block;margin:15px auto}
 </form></section>
 <section><h2>最新闲置物品</h2><p class="muted" id="feedStatus">正在加载…</p><div id="feed"></div><button id="more" type="button" hidden>加载更多</button></section>
 </main>
+<div id="photoEditor" hidden role="dialog" aria-modal="true" aria-labelledby="photoEditorTitle">
+ <div class="card photo-editor-panel">
+  <h2 id="photoEditorTitle">编辑图片：标记已送出物品</h2>
+  <p class="muted">选择红叉工具后，在图片上拖动框选已送出的物品；可以撤销上一步或恢复原图。保存后再点击帖子下方的「保存修改」才会同步云端。</p>
+  <div class="photo-canvas-wrap"><canvas id="photoCanvas"></canvas></div>
+  <div class="photo-editor-actions"><button id="crossTool" type="button">红叉标记</button><button id="undoCross" type="button" class="secondary">撤销上一步</button><button id="resetCross" type="button" class="secondary">恢复本次编辑前图片</button><button id="applyCross" type="button">应用图片修改</button><button id="cancelCross" type="button" class="secondary">取消</button></div>
+  <p id="crossStatus" class="muted"></p>
+ </div>
+</div>
 <div id="needDialog" hidden role="dialog" aria-modal="true" aria-labelledby="needTitle"><form id="needForm" class="card"><h2 id="needTitle">我有需要</h2><p id="needItem"></p><label for="requester">您的真实姓名（由账号自动填写） *</label><input id="requester" type="text" maxlength="40" readonly required><label for="needDetails">大致需要的物品及数量 *</label><textarea id="needDetails" maxlength="500" required placeholder="例如：儿童外套2件、书包1个"></textarea><p class="muted">需求内容仅发布者和管理员可见。双方请通过其他方式自行联系。请勿在公开物品说明中留下联系方式。</p><button id="sendNeed" type="submit">发送给发布者</button><button id="cancelNeed" type="button" class="secondary">取消</button><p id="needStatus" role="status"></p></form></div><div id="viewer" hidden role="dialog" aria-modal="true" aria-label="查看图片"><button id="closeViewer" type="button">关闭 ×</button><img id="largeImage" alt="物品图片"></div>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
@@ -133,7 +147,52 @@ async function compressImage(file){
   throw Error('图片压缩后仍过大，请换一张图片');
  }finally{URL.revokeObjectURL(url)}
 }
-function renderPreviews(){const root=$('photoPreviews');root.replaceChildren();for(const [i,src] of selectedPhotos.entries()){const box=document.createElement('div'),img=document.createElement('img'),remove=make('button','移除');img.src=src;img.alt='图片'+(i+1);remove.type='button';remove.style.cssText='display:block;padding:5px 8px;min-height:30px';remove.onclick=()=>{selectedPhotos.splice(i,1);selectedPhoto=selectedPhotos[0]||'';renderPreviews()};box.append(img,remove);root.append(box)}$('preview').hidden=true}
+let editingPhotoIndex=-1,crossBase=null,crossMarks=[],crossStart=null;
+const crossCanvas=$('photoCanvas'),crossCtx=crossCanvas.getContext('2d');
+function drawCrosses(){
+ if(!crossBase)return;
+ crossCtx.clearRect(0,0,crossCanvas.width,crossCanvas.height);
+ crossCtx.drawImage(crossBase,0,0,crossCanvas.width,crossCanvas.height);
+ crossCtx.lineWidth=Math.max(5,Math.min(crossCanvas.width,crossCanvas.height)*.012);
+ crossCtx.strokeStyle='#e21b23';crossCtx.lineCap='round';
+ for(const [x1,y1,x2,y2] of crossMarks){
+  const left=Math.min(x1,x2),right=Math.max(x1,x2),top=Math.min(y1,y2),bottom=Math.max(y1,y2);
+  crossCtx.beginPath();crossCtx.moveTo(left,top);crossCtx.lineTo(right,bottom);crossCtx.moveTo(right,top);crossCtx.lineTo(left,bottom);crossCtx.stroke();
+ }
+}
+function crossPoint(e){
+ const r=crossCanvas.getBoundingClientRect();
+ return [Math.max(0,Math.min(crossCanvas.width,(e.clientX-r.left)*crossCanvas.width/r.width)),Math.max(0,Math.min(crossCanvas.height,(e.clientY-r.top)*crossCanvas.height/r.height))];
+}
+async function openCrossEditor(index){
+ editingPhotoIndex=index;crossMarks=[];crossStart=null;
+ const img=new Image();
+ try{
+  await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=()=>reject(Error('图片加载失败'));img.src=selectedPhotos[index]});
+  crossBase=img;crossCanvas.width=img.naturalWidth;crossCanvas.height=img.naturalHeight;
+  drawCrosses();$('crossStatus').textContent='拖动框选物品即可画红叉';$('photoEditor').hidden=false;
+ }catch(e){alert(e.message)}
+}
+crossCanvas.addEventListener('pointerdown',e=>{if(!crossBase)return;e.preventDefault();crossStart=crossPoint(e);crossCanvas.setPointerCapture(e.pointerId)});
+crossCanvas.addEventListener('pointerup',e=>{
+ if(!crossStart)return;e.preventDefault();const end=crossPoint(e);
+ if(Math.hypot(end[0]-crossStart[0],end[1]-crossStart[1])>8){crossMarks.push([...crossStart,...end]);drawCrosses()}
+ crossStart=null;
+});
+crossCanvas.addEventListener('pointercancel',()=>{crossStart=null});
+$('undoCross').onclick=()=>{crossMarks.pop();drawCrosses()};
+$('resetCross').onclick=()=>{crossMarks=[];drawCrosses()};
+$('cancelCross').onclick=()=>{$('photoEditor').hidden=true;crossBase=null;editingPhotoIndex=-1};
+$('applyCross').onclick=()=>{
+ if(editingPhotoIndex<0||!crossBase)return;
+ if(!crossMarks.length){$('crossStatus').textContent='请先在图片上画叉';return}
+ const result=crossCanvas.toDataURL('image/jpeg',.8);
+ if(result.length>300000){$('crossStatus').textContent='标记后图片过大，请缩小原图后重试';return}
+ selectedPhotos[editingPhotoIndex]=result;selectedPhoto=selectedPhotos[0]||'';
+ $('photoEditor').hidden=true;crossBase=null;editingPhotoIndex=-1;renderPreviews();
+ $('publishStatus').textContent='红叉已应用到图片预览，请点击「保存修改」同步到云端。';
+};
+function renderPreviews(){const root=$('photoPreviews');root.replaceChildren();for(const [i,src] of selectedPhotos.entries()){const box=document.createElement('div'),img=document.createElement('img'),remove=make('button','移除');img.src=src;img.alt='图片'+(i+1);remove.type='button';remove.style.cssText='display:block;padding:5px 8px;min-height:30px';remove.onclick=()=>{selectedPhotos.splice(i,1);selectedPhoto=selectedPhotos[0]||'';renderPreviews()};const mark=make('button','图片打叉');mark.type='button';mark.style.cssText='display:block;padding:5px 8px;min-height:30px;margin:4px 0';mark.onclick=()=>openCrossEditor(i);box.append(img,mark,remove);root.append(box)}$('preview').hidden=true}
 $('image').addEventListener('change',async e=>{
  const files=[...(e.target.files||[])];if(!files.length)return;
  if(files.length+selectedPhotos.length>4){$('publishStatus').textContent='最多只能添加4张图片';e.target.value='';return}

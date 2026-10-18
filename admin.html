@@ -911,10 +911,27 @@ function renderCareArchives(){
  for(const post of careArchives){
   const row=document.createElement('article');row.className='care-post-row';row.style.cssText='padding:14px;border-bottom:1px solid #dce6dd;overflow-wrap:anywhere';
   for(const text of ['帖子：'+(post.text||'（仅图片）'),'发布者：'+(post.author||'—'),'原帖ID：'+(post.postId||post.id),'原发布时间：'+(post.createdAt?.toDate?.()?.toLocaleString('zh-CN')||'—'),'最后留档：'+(post.archivedAt?.toDate?.()?.toLocaleString('zh-CN')||'—')]){const line=document.createElement('div');line.textContent=text;row.append(line)}
-  appendCareImages(row,post);list.append(row);
+  appendCareImages(row,post);
+  const del=document.createElement('button');del.type='button';del.className='danger';del.textContent='永久删除此留档（需确认3次）';
+  del.onclick=()=>deleteCareArchive(post.id);row.append(del);list.append(row);
  }
  $('careArchiveStatus').textContent='云端已加载 '+careArchives.length+' 条留档（最近100条）；每屏2条';
  requestAnimationFrame(()=>{const w=$('careArchiveScroll');const rows=[...list.children].slice(0,2);w.style.maxHeight=rows.length?Math.ceil(rows.reduce((n,r)=>n+r.getBoundingClientRect().height,0)+2)+'px':'none'});
+}
+async function deleteCareArchive(id){
+ if(!fzhAdminReady)return alert('请先登录管理员账号');
+ const archive=careArchives.find(p=>p.id===id);
+ if(!archive)return alert('留档未加载或已不存在');
+ const title=String(archive.text||'仅图片帖子').slice(0,55);
+ if(!confirm('第1次确认：确定要删除这条历史留档吗？\\n'+title))return;
+ if(!confirm('第2次确认：删除后该留档中的文字和图片将无法从本平台恢复。仍要删除吗？'))return;
+ if(!confirm('第3次最终确认：永久删除该云端留档？此操作不可撤销。'))return;
+ try{
+  const btns=[...document.querySelectorAll('#careArchiveList button')];btns.forEach(b=>b.disabled=true);
+  await fzhAdminStore.collection('carePostArchives').doc(id).delete();
+  alert('云端留档已删除');
+ }catch(e){alert('删除留档失败：'+e.message)}
+ finally{[...document.querySelectorAll('#careArchiveList button')].forEach(b=>b.disabled=false)}
 }
 async function archiveCarePost(post){
  const {id,text='',author='',uid='',createdAt=null,photo='',photos=[]}=post;
