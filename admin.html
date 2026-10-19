@@ -140,7 +140,7 @@ button{touch-action:manipulation}
  <div class="card"><h2>CCGMainz图书馆 · 目录同步状态</h2>
  <p class="muted" id="libraryMirrorStatus">管理员登录后自动同步图书数据到公开目录。</p>
  </div>
- <div class="card"><h2>CCGMainz图书馆 · 借阅申请审批与归还</h2><p class="muted">会员登录后可提交借阅申请。管理员可批准、拒绝、登记归还，也可手动冻结或解冻图书；冻结期间不能提交新申请。与库存家庭端申请独立。</p><p class="muted">最多显示4条借阅记录，其余在列表内上下滑动。</p><p class="muted" id="libraryRequestStatus">登录后自动加载通知。</p><div class="scroll admin-four-scroll" id="libraryRequestScroll" aria-label="借阅申请审批与归还列表"><table><thead><tr><th>图书</th><th>姓名</th><th>提交时间</th><th>状态</th><th>操作</th></tr></thead><tbody id="libraryRequestRows"></tbody></table></div><h3>图书冻结管理</h3><p class="muted">最多显示4条，其余在列表内上下滑动。</p><p class="muted">管理员可暂停某种图书的新借阅申请；已借出的书登记归还后可解冻。</p><div id="libraryFreezeList" class="admin-four-scroll" aria-label="图书冻结管理列表"></div></div>
+ <div class="card"><h2>CCGMainz图书馆 · 借阅申请审批与归还</h2><p class="muted">会员登录后可提交借阅申请。管理员可批准、拒绝、登记归还，也可手动冻结或解冻图书；冻结期间不能提交新申请。与库存家庭端申请独立。</p><p class="muted">最多显示4条借阅记录，其余在列表内上下滑动。</p><p class="muted" id="libraryRequestStatus">登录后自动加载通知。</p><div class="scroll admin-four-scroll" id="libraryRequestScroll" aria-label="借阅申请审批与归还列表"><table><thead><tr><th>图书</th><th>库存位置（仅管理员）</th><th>姓名</th><th>提交时间</th><th>状态</th><th>操作</th></tr></thead><tbody id="libraryRequestRows"></tbody></table></div><h3>图书冻结管理</h3><p class="muted">最多显示4条，其余在列表内上下滑动。</p><p class="muted">管理员可暂停某种图书的新借阅申请；已借出的书登记归还后可解冻。</p><div id="libraryFreezeList" class="admin-four-scroll" aria-label="图书冻结管理列表"></div></div>
 </section>
 <section id="careManagement" class="management-view" hidden>
  <div class="card"><p><a href="./posts.html" target="_blank" rel="noopener noreferrer">❤️ 打开公开爱心站 ↗</a></p><p class="muted">公开端按照当前会员登录账号决定权限；管理员账号也可登录会员平台进行发帖与需求测试。</p></div>
@@ -347,11 +347,19 @@ function listenLibraryRequestNotifications(){
  },e=>{$('libraryRequestStatus').textContent='借阅申请加载失败：'+e.message});
 }
 function libraryButton(label,action){const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=action;b.style.margin='2px';return b}
+// Only resolve the location against the private admin inventory snapshot.
+// Never write it into publicLibrary or a libraryRequests document.
+function getAdminLibraryBookLocation(request){
+ const items=Array.isArray(libraryCloudItems)?libraryCloudItems:[];
+ const book=items.find(i=>String(i.id)===String(request.bookId));
+ if(!book)return libraryCloudItems?'未找到对应库存':'库存加载中…';
+ return book.location||'未设置库位';
+}
 function renderLibraryRequests(){
  const tbody=$('libraryRequestRows');tbody.replaceChildren();
  for(const r of libraryRequests){
   const tr=document.createElement('tr');
-  for(const value of [r.bookName||'—',r.borrowerName||'—',r.createdAt?.toDate?.()?.toLocaleString('zh-CN')||'—',
+  for(const value of [r.bookName||'—',getAdminLibraryBookLocation(r),r.borrowerName||'—',r.createdAt?.toDate?.()?.toLocaleString('zh-CN')||'—',
     ({pending:'待审批',approved:'借出未归还',returned:'已归还',rejected:'已拒绝'})[r.status||'pending']||r.status]){
    const td=document.createElement('td');td.textContent=value;tr.append(td);
   }
@@ -832,7 +840,7 @@ function applyCloud(doc){
  inventoryRemoteSnapshot=snap;
  if(!inventoryDiffLocalSeed)inventoryDiffLocalSeed=inventoryPart(db);
  updateLatestStockTime();
- libraryCloudItems=snap.items.map(i=>({...i}));scheduleLibraryMirror();
+ libraryCloudItems=snap.items.map(i=>({...i}));renderLibraryRequests();scheduleLibraryMirror();
  if(draft&&draft.baseVersion!==undefined&&draft.local&&draft.base&&(!cloudBaseline)){
   cloudBaseline=draft.base;
   db.items=draft.local.items.map(i=>({...i,photo:''}));db.categories=draft.local.categories;db.locations=draft.local.locations;db.version=draft.baseVersion;
