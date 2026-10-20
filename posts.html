@@ -68,7 +68,7 @@ a{color:inherit}.post-actions{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0
   <p id="crossStatus" class="muted"></p>
  </div>
 </div>
-<div id="needDialog" hidden role="dialog" aria-modal="true" aria-labelledby="needTitle"><form id="needForm" class="card"><h2 id="needTitle">我有需要</h2><p id="needItem"></p><label for="requester">您的真实姓名（由账号自动填写） *</label><input id="requester" type="text" maxlength="40" readonly required><label for="needDetails">大致需要的物品及数量 *</label><textarea id="needDetails" maxlength="500" required placeholder="例如：儿童外套2件、书包1个"></textarea><p class="muted">需求内容仅发布者和管理员可见。双方请通过其他方式自行联系。请勿在公开物品说明中留下联系方式。</p><button id="sendNeed" type="submit">发送给发布者</button><button id="cancelNeed" type="button" class="secondary">取消</button><p id="needStatus" role="status"></p></form></div><div id="viewer" hidden role="dialog" aria-modal="true" aria-label="查看图片"><button id="closeViewer" type="button">关闭 ×</button><img id="largeImage" alt="物品图片"></div>
+<div id="needDialog" hidden role="dialog" aria-modal="true" aria-labelledby="needTitle"><form id="needForm" class="card"><h2 id="needTitle">我有需要</h2><p id="needItem"></p><label for="requester">您的真实姓名（由账号自动填写） *</label><input id="requester" type="text" maxlength="40" readonly required><label for="needDetails">大致需要的物品及数量 *</label><textarea id="needDetails" maxlength="500" required placeholder="例如：儿童外套2件、书包1个"></textarea><div id="needPhotoTools" hidden><label for="needPhotoSelect">选择要圈出的帖子图片（可选）</label><select id="needPhotoSelect"></select><p class="muted">用鼠标或手指在图片上拖动，圈出需要的物品。圈出的图片只随本次需求发送，不修改发布者的原图。</p><canvas id="needMarkCanvas" style="width:100%;max-height:350px;object-fit:contain;border:1px solid #dce6dd;border-radius:8px;touch-action:none"></canvas><div class="actions"><button type="button" class="secondary" id="needUndoCircle">撤销上一个圈</button><button type="button" class="secondary" id="needResetCircle">清除所有圈</button></div></div><p class="muted">需求内容仅发布者和管理员可见。双方请通过其他方式自行联系。请勿在公开物品说明中留下联系方式。</p><button id="sendNeed" type="submit">发送给发布者</button><button id="cancelNeed" type="button" class="secondary">取消</button><p id="needStatus" role="status"></p></form></div><div id="viewer" hidden role="dialog" aria-modal="true" aria-label="查看图片"><button id="closeViewer" type="button">关闭 ×</button><img id="largeImage" alt="物品图片"></div>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="./firebase-config.js"></script><script src="./member-session.js"></script>
@@ -83,7 +83,49 @@ function ccgEnableFirestoreCache(store){
  });
 }
 let memberReady=false;
-let selectedPhotos=[];let editingPostId=null;let myPosts=[];let db=null,posts=[],nextPage=null,loading=false,hasMore=true,selectedPhoto='',chosenPost=null,needBusy=false;
+let selectedPhotos=[];let needMarkedPhoto="";let needSourcePhoto="";let needCircles=[];let needStart=null;let needBaseImage=null;let editingPostId=null;let myPosts=[];let db=null,posts=[],nextPage=null,loading=false,hasMore=true,selectedPhoto='',chosenPost=null,needBusy=false;
+const needCanvas=()=>$('needMarkCanvas');
+function redrawNeedCircles(){
+ const canvas=needCanvas();if(!needBaseImage)return;
+ const ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(needBaseImage,0,0,canvas.width,canvas.height);
+ ctx.strokeStyle='#e11925';ctx.lineWidth=Math.max(5,Math.min(canvas.width,canvas.height)*.012);ctx.lineCap='round';
+ for(const [x1,y1,x2,y2] of needCircles){ctx.beginPath();ctx.ellipse((x1+x2)/2,(y1+y2)/2,Math.max(4,Math.abs(x2-x1)/2),Math.max(4,Math.abs(y2-y1)/2),0,0,Math.PI*2);ctx.stroke()}
+}
+function needPoint(event){const r=needCanvas().getBoundingClientRect();return [(event.clientX-r.left)*needCanvas().width/r.width,(event.clientY-r.top)*needCanvas().height/r.height]}
+async function loadNeedImage(index){
+ needMarkedPhoto='';needCircles=[];needBaseImage=null;
+ const pictures=Array.isArray(chosenPost?.photos)&&chosenPost.photos.length?chosenPost.photos:(chosenPost?.photo?[chosenPost.photo]:[]);
+ needSourcePhoto=pictures[index]||'';
+ if(!needSourcePhoto)return;
+ const image=new Image();
+ try{
+  await new Promise((ok,bad)=>{image.onload=ok;image.onerror=()=>bad(Error('图片加载失败'));image.src=needSourcePhoto});
+  if(image.src!==needSourcePhoto)return;
+  const scale=Math.min(1,720/image.naturalWidth,720/image.naturalHeight);
+  const canvas=needCanvas();canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));
+  needBaseImage=image;redrawNeedCircles();
+ }catch(e){$('needStatus').textContent=e.message}
+}
+function openNeedPhotoTools(post){
+ needMarkedPhoto='';needCircles=[];needBaseImage=null;
+ const pictures=Array.isArray(post.photos)&&post.photos.length?post.photos:(post.photo?[post.photo]:[]);
+ $('needPhotoTools').hidden=!pictures.length;
+ const select=$('needPhotoSelect');select.replaceChildren();
+ pictures.forEach((_,i)=>{const option=document.createElement('option');option.value=String(i);option.textContent='图片 '+(i+1);select.append(option)});
+ if(pictures.length)loadNeedImage(0);
+}
+$('needPhotoSelect').onchange=e=>loadNeedImage(Number(e.target.value));
+needCanvas().addEventListener('pointerdown',e=>{if(!needBaseImage)return;e.preventDefault();needStart=needPoint(e);needCanvas().setPointerCapture(e.pointerId)});
+needCanvas().addEventListener('pointerup',e=>{if(!needStart)return;e.preventDefault();const point=needPoint(e);if(Math.hypot(point[0]-needStart[0],point[1]-needStart[1])>8){needCircles.push([...needStart,...point]);redrawNeedCircles()}needStart=null});
+needCanvas().addEventListener('pointercancel',()=>{needStart=null});
+$('needUndoCircle').onclick=()=>{needCircles.pop();redrawNeedCircles()};
+$('needResetCircle').onclick=()=>{needCircles=[];redrawNeedCircles()};
+function createNeedMarkedPhoto(){
+ if(!needCircles.length)return '';
+ const canvas=needCanvas();const image=canvas.toDataURL('image/jpeg',.68);
+ if(image.length>450000)throw Error('画圈图片太大，请尝试更换图片');
+ return image;
+}
 function make(tag,text,cls){const el=document.createElement(tag);if(text!==undefined)el.textContent=text;if(cls)el.className=cls;return el}
 function openPhoto(src){$('largeImage').src=src;$('viewer').hidden=false}
 function closePhoto(){$('viewer').hidden=true;$('largeImage').removeAttribute('src')}
@@ -108,7 +150,7 @@ function renderCards(feed,items){
    img.addEventListener('click',()=>openPhoto(p.photo));card.append(img);
   }
   if(Array.isArray(p.photos)&&p.photos.length){const gallery=make('div',undefined,'post-gallery');for(const src of p.photos){if(typeof src!=='string'||!src.startsWith('data:image/jpeg;base64,'))continue;const img=document.createElement('img');img.src=src;img.alt='物品图片';img.loading='lazy';img.onclick=()=>openPhoto(src);gallery.append(img)}card.append(gallery)}
-  if(memberReady&&p.uid!==window.CCGMember?.user?.uid){const need=make('button','❤️ 我有需要','need');need.type='button';need.addEventListener('click',()=>{chosenPost=p;$('needItem').textContent='您正在申请这条闲置物品：'+(p.text||'图片所示物品');$('requester').value=window.CCGMember?.profile?.name||'';$('needDetails').value='';$('needStatus').textContent='';$('needDialog').hidden=false;$('requester').focus()});card.append(need);}
+  if(memberReady&&p.uid!==window.CCGMember?.user?.uid){const need=make('button','❤️ 我有需要','need');need.type='button';need.addEventListener('click',()=>{chosenPost=p;$('needItem').textContent='您正在申请这条闲置物品：'+(p.text||'图片所示物品');$('requester').value=window.CCGMember?.profile?.name||'';$('needDetails').value='';$('needStatus').textContent='';$('needDialog').hidden=false;openNeedPhotoTools(p);$('requester').focus()});card.append(need);}
   if(memberReady&&p.uid===window.CCGMember?.user?.uid){
    const edit=make('button','编辑我的帖子');edit.type='button';edit.style.marginRight='8px';
    edit.onclick=()=>{editingPostId=p.id;$('body').value=p.text||'';selectedPhotos=Array.isArray(p.photos)&&p.photos.length?[...p.photos]:(p.photo?[p.photo]:[]);selectedPhoto=selectedPhotos[0]||'';renderPreviews();
@@ -234,7 +276,7 @@ $('applyCross').onclick=()=>{
  $('photoEditor').hidden=true;crossBase=null;editingPhotoIndex=-1;renderPreviews();
  $('publishStatus').textContent='红叉已应用到图片预览，请点击「保存修改」同步到云端。';
 };
-function renderPreviews(){const root=$('photoPreviews');root.replaceChildren();for(const [i,src] of selectedPhotos.entries()){const box=document.createElement('div'),img=document.createElement('img'),remove=make('button','移除');img.src=src;img.alt='图片'+(i+1);remove.type='button';remove.style.cssText='display:block;padding:5px 8px;min-height:30px';remove.onclick=()=>{selectedPhotos.splice(i,1);selectedPhoto=selectedPhotos[0]||'';renderPreviews()};const mark=make('button','图片打叉');mark.type='button';mark.style.cssText='display:block;padding:5px 8px;min-height:30px;margin:4px 0';mark.onclick=()=>openCrossEditor(i);box.append(img,mark,remove);root.append(box)}$('preview').hidden=true}
+function renderPreviews(){const root=$('photoPreviews');root.replaceChildren();for(const [i,src] of selectedPhotos.entries()){const box=document.createElement('div'),img=document.createElement('img'),remove=make('button','移除');img.src=src;img.alt='图片'+(i+1);remove.type='button';remove.style.cssText='display:block;padding:5px 8px;min-height:30px';remove.onclick=()=>{if(!confirm('确定移除第 '+(i+1)+' 张图片吗？'))return;selectedPhotos.splice(i,1);selectedPhoto=selectedPhotos[0]||'';renderPreviews()};const mark=make('button','图片打叉');mark.type='button';mark.style.cssText='display:block;padding:5px 8px;min-height:30px;margin:4px 0';mark.onclick=()=>openCrossEditor(i);box.append(img,mark,remove);root.append(box)}$('preview').hidden=true}
 $('image').addEventListener('change',async e=>{
  const files=[...(e.target.files||[])];if(!files.length)return;
  if(files.length+selectedPhotos.length>4){$('publishStatus').textContent='最多只能添加4张图片';e.target.value='';return}
@@ -248,11 +290,12 @@ $('needForm').addEventListener('submit',async e=>{
  e.preventDefault();if(!memberReady||!db||!chosenPost||needBusy||!window.CCGMember?.user)return;
  const requester=$('requester').value.trim(),details=$('needDetails').value.trim();
  if(!requester||requester.length>40||!details||details.length>500){$('needStatus').textContent='请填写称呼及需要的物品、数量';return}
- if(!confirm('确定将您的称呼、所需物品及数量发送给发布者吗？仅发布者和管理员可见。'))return;
+ let annotatedPhoto='';try{annotatedPhoto=createNeedMarkedPhoto()}catch(err){$('needStatus').textContent=err.message;return}
+ if(!confirm('确定将您的称呼、所需物品及数量'+(annotatedPhoto?'以及圈选图片':'')+'发送给发布者吗？仅发布者和管理员可见。'))return;
  needBusy=true;$('sendNeed').disabled=true;$('needStatus').textContent='正在发送…';
  try{
   const id=db.collection('careNeeds').doc().id,stamp=firebase.firestore.FieldValue.serverTimestamp();
-  const batch=db.batch();batch.set(db.collection('careNeeds').doc(id),{postId:chosenPost.id,requester,uid:window.CCGMember.user.uid,ownerUid:chosenPost.uid,ownerName:chosenPost.author||"",postText:(chosenPost.text||"").slice(0,1500),details,status:"pending",createdAt:stamp});
+  const batch=db.batch();batch.set(db.collection('careNeeds').doc(id),{postId:chosenPost.id,requester,uid:window.CCGMember.user.uid,ownerUid:chosenPost.uid,ownerName:chosenPost.author||"",postText:(chosenPost.text||"").slice(0,1500),details,annotatedPhoto,status:"pending",createdAt:stamp});
   if(chosenPost.uid)batch.set(db.collection('memberNotifications').doc(id),{uid:chosenPost.uid,postId:chosenPost.id,needId:id,text:details,createdAt:stamp});
   await batch.commit();
   $('needStatus').textContent='需求已发送；您和发布者均可在「我的消息」查看详情。';

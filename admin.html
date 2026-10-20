@@ -1006,6 +1006,10 @@ function renderCareAdmin(){
   for(const line of ['物品：'+(n.postText||p?.text||'原帖子已删除 / 旧记录'), '发布者：'+(n.ownerName||p?.author||'历史记录'), '申请者：'+(n.requester||'—'), '申请内容：'+(n.details||'—'), '发送时间：'+(n.createdAt?.toDate?.()?.toLocaleString('zh-CN')||'—'), '状态：'+status]){
    const div=document.createElement('div');div.textContent=line;card.append(div);
   }
+  if(typeof n.annotatedPhoto==='string'&&n.annotatedPhoto.startsWith('data:image/')){
+   const label=document.createElement('div');label.textContent='申请人圈选的物品：';
+   const img=document.createElement('img');img.src=n.annotatedPhoto;img.alt='需求申请圈选图片';img.style.cssText='max-width:280px;max-height:260px;object-fit:contain;cursor:zoom-in;border-radius:8px';img.onclick=()=>window.open(img.src,'_blank');card.append(label,img);
+  }
   list.append(card);
  }
  $('careAdminStatus').textContent='最近 '+careNeeds.length+' 条请求发送记录（每屏最多2条）';

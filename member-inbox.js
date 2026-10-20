@@ -7,8 +7,8 @@ const status=x=>({pending:'需求已发送',accepted:'历史记录：已接受',
 function render(){
  const rows=[
  ...loans.map(x=>({kind:'图书借阅进度',title:x.bookName||'图书借阅',summary:({pending:'等待管理员审核',approved:'已借出未归还',returned:'已归还',rejected:'申请未获批准'})[x.status]||x.status||'处理中',details:[['书名',x.bookName],['处理状态',x.status==='approved'?'已借出未归还':x.status==='returned'?'已归还':x.status==='rejected'?'未获批准':'等待管理员审核'],['借阅申请时间',when(x.createdAt)]],time:x.createdAt})),
- ...myNeeds.map(x=>({postId:x.postId,kind:'我的爱心站需求',title:'已向发布者发送需求',summary:status(x.status),details:[['申请人',x.requester],['需求内容',x.details],['申请状态',status(x.status)],['发送时间',when(x.createdAt)]],time:x.createdAt})),
- ...requests.map(x=>({postId:x.postId,kind:'有人需要您的物品',title:(x.requester||'会员')+' 提交了需求',summary:'点击查看需求详情',details:[['申请人',x.requester],['需求内容',x.details],['状态','已通知发布者（无需线上批准或拒绝）'],['发送时间',when(x.createdAt)]],time:x.createdAt})),
+ ...myNeeds.map(x=>({postId:x.postId,kind:'我的爱心站需求',title:'已向发布者发送需求',summary:status(x.status),annotatedPhoto:x.annotatedPhoto,details:[['申请人',x.requester],['需求内容',x.details],['申请状态',status(x.status)],['发送时间',when(x.createdAt)]],time:x.createdAt})),
+ ...requests.map(x=>({postId:x.postId,kind:'有人需要您的物品',title:(x.requester||'会员')+' 提交了需求',summary:'点击查看需求详情',annotatedPhoto:x.annotatedPhoto,details:[['申请人',x.requester],['需求内容',x.details],['状态','已通知发布者（无需线上批准或拒绝）'],['发送时间',when(x.createdAt)]],time:x.createdAt})),
  ...notices.filter(x=>!requests.some(r=>r.id===x.needId)).map(x=>({postId:x.postId,kind:'爱心站提醒',title:'您的物品收到需求',summary:'点击查看通知详情',details:[['需求内容',x.text],['通知时间',when(x.createdAt)]],time:x.createdAt}))
  ].sort((a,b)=>(b.time?.seconds||0)-(a.time?.seconds||0));
  const root=$('memberInbox');if(!root)return;root.replaceChildren();
@@ -22,6 +22,7 @@ function render(){
   left.append(strong,title,sub);heading.append(left);
   const panel=document.createElement('div');panel.className='ccg-message-detail';
   for(const [label,value] of x.details){const line=document.createElement('p');const b=document.createElement('strong');b.textContent=label+'：';line.append(b,document.createTextNode(value||'—'));panel.append(line)}
+  if(typeof x.annotatedPhoto==='string' && x.annotatedPhoto.startsWith('data:image/')){const label=document.createElement('p');label.textContent='申请人圈选的物品：';const img=document.createElement('img');img.src=x.annotatedPhoto;img.alt='申请人标注的物品';img.style.cssText='display:block;max-width:100%;max-height:360px;object-fit:contain;border-radius:8px;cursor:zoom-in';img.onclick=()=>window.open(img.src,'_blank');panel.append(label,img)}
   if(x.postId){
    const link=document.createElement('a');link.href='./posts.html?post='+encodeURIComponent(x.postId);
    link.className='ccg-message-post-link';link.textContent='查看对应的爱心站帖子 →';

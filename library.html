@@ -97,7 +97,8 @@ $('borrowPanel').addEventListener('submit',async e=>{
    bookId:borrowBook.id,bookName:borrowBook.name,borrowerName:name,uid:window.CCGMember.user.uid,status:"pending",
    createdAt:firebase.firestore.FieldValue.serverTimestamp()
   });
-  $('borrowMessage').textContent='借阅申请已发送，等待管理员审批。';
+  $('borrowMessage').textContent='管理员将会尽快与您联系，您借阅的图书将会在下一次聚会时送达';
+  alert('管理员将会尽快与您联系，您借阅的图书将会在下一次聚会时送达');
   $('sendBorrow').textContent='已发送';
   setTimeout(()=>{borrowSubmitting=false;$('sendBorrow').disabled=false;$('sendBorrow').textContent='发送借书申请';closeBorrow();},1200);
  }catch(err){$('borrowMessage').textContent='发送失败：'+err.message;borrowSubmitting=false;$('sendBorrow').disabled=false;}
