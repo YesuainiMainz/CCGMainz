@@ -118,7 +118,13 @@ button{touch-action:manipulation}
  <button class="management-nav-button" type="button" onclick="showManagementView('care')">❤️ CCGMainz爱心站 <span aria-hidden="true">→</span></button>
  <button class="management-nav-button" type="button" onclick="showManagementView('privacy')">🔒 隐私管理 <span aria-hidden="true">→</span></button>
 </nav>
-
+<div class="card" id="announcementPanel_platform"><h2>幸福家人平台公告管理</h2><p class="muted">在这里发布、修改或撤下幸福家人平台公告（文字及图片）。用户进入相应页面时弹窗显示。</p>
+<label>公告标题<input id="announcementTitle_platform" maxlength="100" placeholder="公告标题" style="width:100%;padding:10px"></label>
+<label style="display:block;margin:10px 0">公告正文<textarea id="announcementBody_platform" maxlength="4000" rows="5" style="width:100%;padding:10px"></textarea></label>
+<label style="display:block;margin:10px 0">公告图片（可选）<input id="announcementPhoto_platform" type="file" accept="image/*" onchange="previewAnnouncementImage(event,'platform')"></label>
+<img id="announcementImagePreview_platform" alt="公告图片预览" hidden style="max-width:100%;max-height:260px;object-fit:contain">
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0"><button type="button" onclick="saveAnnouncement('platform')">发布／保存修改</button><button type="button" onclick="clearAnnouncementImage('platform')">移除图片</button><button type="button" class="danger" onclick="removeAnnouncement('platform')">撤下公告</button></div>
+<p id="announcementAdminStatus_platform" class="muted" role="status">登录管理员后可管理公告。</p></div>
 </div>
 <div id="managementSubpageHeader" class="management-subpage-header" hidden>
  <button class="alt back-button" type="button" onclick="showManagementView('home')">← 返回管理中心</button>
@@ -136,34 +142,30 @@ button{touch-action:manipulation}
 <label id="qtyModeWrap" style="display:none">数量比较<select id="qtyMode" onchange="render()"><option value="eq">等于</option><option value="gte">大于或等于</option><option value="lte">小于或等于</option></select></label>
 </div><div class="scroll inventory-scroll" id="inventoryScroll"><table><thead><tr><th>照片</th><th>名称</th><th>位置</th><th>备注</th><th>数量</th><th>操作</th></tr></thead><tbody id="items"></tbody></table></div></div><div class="card"><h2>出入库记录</h2><button onclick="exportHistoryCSV()">导出记录 Excel CSV</button><button onclick="exportHistoryJSON()">导出记录 JSON</button><button class="danger" onclick="clearAllHistory()" type="button">清空全部记录（确认3次）</button><p class="muted">包含库位移动（移库）、取用、销毁等操作记录。清空仅删除此浏览器保存的记录，不会改变库存数量或云端库存。</p><div style="margin:12px 0"><label for="historySearch">搜索历史出入库记录</label><input id="historySearch" type="search" placeholder="输入物品名称、操作类型、库位、日期或备注" oninput="renderHistory()" autocomplete="off" style="width:100%;box-sizing:border-box"><p class="muted" id="historySearchStatus" aria-live="polite"></p></div><div class="ten-row-scroll" id="history"></div></div></section>
 <section id="libraryManagement" class="management-view" hidden>
+<div class="card" id="announcementPanel_library"><h2>图书馆公告管理</h2><p class="muted">在这里发布、修改或撤下图书馆公告（文字及图片）。用户进入相应页面时弹窗显示。</p>
+<label>公告标题<input id="announcementTitle_library" maxlength="100" placeholder="公告标题" style="width:100%;padding:10px"></label>
+<label style="display:block;margin:10px 0">公告正文<textarea id="announcementBody_library" maxlength="4000" rows="5" style="width:100%;padding:10px"></textarea></label>
+<label style="display:block;margin:10px 0">公告图片（可选）<input id="announcementPhoto_library" type="file" accept="image/*" onchange="previewAnnouncementImage(event,'library')"></label>
+<img id="announcementImagePreview_library" alt="公告图片预览" hidden style="max-width:100%;max-height:260px;object-fit:contain">
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0"><button type="button" onclick="saveAnnouncement('library')">发布／保存修改</button><button type="button" onclick="clearAnnouncementImage('library')">移除图片</button><button type="button" class="danger" onclick="removeAnnouncement('library')">撤下公告</button></div>
+<p id="announcementAdminStatus_library" class="muted" role="status">登录管理员后可管理公告。</p></div>
  <div class="card"><p><a href="./library.html" target="_blank" rel="noopener noreferrer">📖 打开公开图书馆 ↗</a></p><p class="muted">公开端按照当前会员登录账号决定权限；管理员账号也可登录会员平台进行借阅测试。</p></div>
  <div class="card"><h2>CCGMainz图书馆 · 目录同步状态</h2>
  <p class="muted" id="libraryMirrorStatus">管理员登录后自动同步图书数据到公开目录。</p>
  </div>
- <div class="card"><h2>CCGMainz图书馆 · 借阅申请审批与归还</h2><p class="muted">会员登录后可提交借阅申请。管理员可批准、拒绝、登记归还，也可手动冻结或解冻图书；冻结期间不能提交新申请。与库存家庭端申请独立。</p><p class="muted">最多显示4条借阅记录，其余在列表内上下滑动。</p><p class="muted" id="libraryRequestStatus">登录后自动加载通知。</p><div class="scroll admin-four-scroll" id="libraryRequestScroll" aria-label="借阅申请审批与归还列表"><table><thead><tr><th>图书</th><th>库存位置（仅管理员）</th><th>姓名</th><th>提交时间</th><th>状态</th><th>操作</th></tr></thead><tbody id="libraryRequestRows"></tbody></table></div><div class="card" id="announcementAdminPanel">
-<h2>三端公告管理</h2>
-<p class="muted">可分别发布幸福家人平台、图书馆和爱心站公告。文字及图片发布后，会员进入对应页面即会弹窗查看；修改后再次弹出。</p>
-<label>公告发布位置
-<select id="announcementTarget" onchange="loadAnnouncementEditor()" style="padding:10px">
-<option value="platform">幸福家人平台</option><option value="library">图书馆</option><option value="posts">爱心站</option>
-</select></label>
-<label style="display:block;margin:10px 0">公告标题 <input id="announcementTitle" maxlength="100" placeholder="例如：本周聚会通知" style="width:100%;padding:10px"></label>
-<label style="display:block;margin:10px 0">公告正文 <textarea id="announcementBody" maxlength="4000" rows="5" style="width:100%;padding:10px"></textarea></label>
-<label style="display:block;margin:10px 0">公告图片（可选，选择后自动压缩）
-<input id="announcementPhoto" type="file" accept="image/*" onchange="previewAnnouncementImage(event)"></label>
-<img id="announcementImagePreview" alt="公告图片预览" hidden style="max-width:100%;max-height:260px;object-fit:contain">
-<div style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0">
-<button type="button" onclick="saveAnnouncement()">发布／保存修改</button>
-<button type="button" onclick="clearAnnouncementImage()">移除图片</button>
-<button type="button" class="danger" onclick="removeAnnouncement()">撤下公告</button>
-</div><p id="announcementAdminStatus" class="muted" role="status">登录管理员后可管理公告。</p>
-</div>
-<h3>图书冻结管理</h3><p class="muted">最多显示4条，其余在列表内上下滑动。</p><p class="muted">管理员可暂停某种图书的新借阅申请；已借出的书登记归还后可解冻。</p><label for="libraryFreezeSearch">搜索图书名称或库存位置（仅管理员）</label>
+ <div class="card"><h2>CCGMainz图书馆 · 借阅申请审批与归还</h2><p class="muted">会员登录后可提交借阅申请。管理员可批准、拒绝、登记归还，也可手动冻结或解冻图书；冻结期间不能提交新申请。与库存家庭端申请独立。</p><p class="muted">最多显示4条借阅记录，其余在列表内上下滑动。</p><p class="muted" id="libraryRequestStatus">登录后自动加载通知。</p><div class="scroll admin-four-scroll" id="libraryRequestScroll" aria-label="借阅申请审批与归还列表"><table><thead><tr><th>图书</th><th>库存位置（仅管理员）</th><th>姓名</th><th>提交时间</th><th>状态</th><th>操作</th></tr></thead><tbody id="libraryRequestRows"></tbody></table></div><h3>图书冻结管理</h3><p class="muted">最多显示4条，其余在列表内上下滑动。</p><p class="muted">管理员可暂停某种图书的新借阅申请；已借出的书登记归还后可解冻。</p><label for="libraryFreezeSearch">搜索图书名称或库存位置（仅管理员）</label>
 <input id="libraryFreezeSearch" type="search" placeholder="输入书名或库位，例如 A1" oninput="renderLibraryFreeze()" style="width:100%;max-width:440px;padding:10px;margin:8px 0">
 <p class="muted" id="libraryFreezeSearchStatus" aria-live="polite"></p>
 <div id="libraryFreezeList" class="admin-four-scroll"  aria-label="图书冻结管理列表"></div></div>
 </section>
 <section id="careManagement" class="management-view" hidden>
+<div class="card" id="announcementPanel_posts"><h2>爱心站公告管理</h2><p class="muted">在这里发布、修改或撤下爱心站公告（文字及图片）。用户进入相应页面时弹窗显示。</p>
+<label>公告标题<input id="announcementTitle_posts" maxlength="100" placeholder="公告标题" style="width:100%;padding:10px"></label>
+<label style="display:block;margin:10px 0">公告正文<textarea id="announcementBody_posts" maxlength="4000" rows="5" style="width:100%;padding:10px"></textarea></label>
+<label style="display:block;margin:10px 0">公告图片（可选）<input id="announcementPhoto_posts" type="file" accept="image/*" onchange="previewAnnouncementImage(event,'posts')"></label>
+<img id="announcementImagePreview_posts" alt="公告图片预览" hidden style="max-width:100%;max-height:260px;object-fit:contain">
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0"><button type="button" onclick="saveAnnouncement('posts')">发布／保存修改</button><button type="button" onclick="clearAnnouncementImage('posts')">移除图片</button><button type="button" class="danger" onclick="removeAnnouncement('posts')">撤下公告</button></div>
+<p id="announcementAdminStatus_posts" class="muted" role="status">登录管理员后可管理公告。</p></div>
  <div class="card"><p><a href="./posts.html" target="_blank" rel="noopener noreferrer">❤️ 打开公开爱心站 ↗</a></p><p class="muted">公开端按照当前会员登录账号决定权限；管理员账号也可登录会员平台进行发帖与需求测试。</p></div>
 <div class="card"><h2>CCGMainz爱心站 · 需求通知记录</h2><p class="muted">发布者姓名将在爱心站公开显示；需求者的姓名及需求详情仅管理员可见。申请发送后直接通知发布者，双方自行联系。管理员只查看发送记录和旧版匹配历史。</p><details class="care-accordion"><summary>帖子浏览与管理<span class="care-chevron" aria-hidden="true">⌄</span></summary><div class="care-accordion-body"><p class="muted">可直接删除任何帖子。展开后每屏最多显示2条，其余上下滑动。管理员删除帖子前自动云端留档；历史留档包含帖子文字及照片。</p><p id="carePostStatus" class="muted">登录后自动加载帖子。</p><button type="button" class="alt" id="careLoadMore" onclick="loadMoreCarePosts()" style="margin:0 0 10px;display:none">加载更多旧帖子（每次30条）</button><div id="carePostScroll"><div id="carePostList"></div></div> </div></details><details class="care-accordion"><summary>帖子及图片历史留档<span class="care-chevron" aria-hidden="true">⌄</span></summary><div class="care-accordion-body"><p class="muted">管理员专用云端留档。帖子删除后仍可查看文字、照片及保存图片。最多显示2条，其余上下滚动。</p><p id="careArchiveStatus" class="muted">等待云端加载…</p><button id="careArchiveLoadMore" type="button" class="alt" onclick="loadMoreCareArchives()" hidden>加载更多历史留档（每次50条）</button><div id="careArchiveScroll" style="overflow-y:auto;max-width:100%;border:1px solid #dce6dd;border-radius:12px"><div id="careArchiveList"></div></div></div></details><details class="care-accordion"><summary>需求申请发送记录<span class="care-chevron" aria-hidden="true">⌄</span></summary><div class="care-accordion-body"><p class="muted">每屏最多2条，其余上下滑动查看。即使帖子删除也保留发送记录；管理员不参与匹配。</p><p id="careAdminStatus" class="muted">请先登录管理员账号。</p><div id="careRequestScroll" style="overflow-y:auto;overscroll-behavior:contain;min-width:0;max-width:100%"><div id="careAdminList"></div></div> </div></details><details class="care-accordion"><summary>旧版匹配历史<span class="care-chevron" aria-hidden="true">⌄</span></summary><div class="care-accordion-body"><p class="muted">每屏最多2条，其余上下滑动；这是旧版历史数据；新版需求不再需要线上匹配。</p><p id="careMatchedStatus" class="muted"></p><div id="careMatchedScroll"><div id="careMatchedList"></div></div> </div></details></div></section>
 <section id="privacyManagement" class="management-view" hidden>
@@ -435,6 +437,7 @@ function renderLibraryFreeze(){
  const items=Array.isArray(libraryCloudItems)?libraryCloudItems:[];
  const keyword=($('libraryFreezeSearch')?.value||'').trim().toLocaleLowerCase();
  const books=items.filter(b=>b.category==='图书').filter(b=>!keyword||String(b.name||'').toLocaleLowerCase().includes(keyword)||String(b.location||'').toLocaleLowerCase().includes(keyword));
+ books.sort((a,b)=>Number(!!libraryLoanStates[b.id]?.frozen)-Number(!!libraryLoanStates[a.id]?.frozen));
  const status=$('libraryFreezeSearchStatus');if(status)status.textContent='符合条件 '+books.length+' 本（图书共 '+items.filter(b=>b.category==='图书').length+' 本）';
  for(const book of books){
   const line=document.createElement('div');line.style.cssText='display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px;border-bottom:1px solid #ddd';
@@ -1126,28 +1129,27 @@ function ccgEnableFirestoreCache(store){
   if(e.code!=='failed-precondition'&&e.code!=='unimplemented')console.warn('Firestore 缓存不可用',e);
  });
 }
-let adminAnnouncementImage='',adminAnnouncementLoaded=false;
-function showAnnouncementPreview(){
- const img=$('announcementImagePreview');img.hidden=!adminAnnouncementImage;
- if(adminAnnouncementImage)img.src=adminAnnouncementImage;else img.removeAttribute('src');
+const adminAnnouncementImages={platform:'',library:'',posts:''};
+const announcementTargets=['platform','library','posts'];
+function announcementEl(target,name){return $(name+'_'+target)}
+function showAnnouncementPreview(target){
+ const img=announcementEl(target,'announcementImagePreview'),src=adminAnnouncementImages[target];
+ img.hidden=!src;if(src)img.src=src;else img.removeAttribute('src');
 }
-async function loadAnnouncementEditor(){
+async function loadAnnouncementEditor(target){
  if(!fzhAdminReady||!fzhAdminStore)return;
- const target=$('announcementTarget').value;
- $('announcementAdminStatus').textContent='正在读取公告…';
+ const status=announcementEl(target,'announcementAdminStatus');status.textContent='正在读取公告…';
  try{
   const snap=await fzhAdminStore.collection('siteAnnouncements').doc(target).get();
-  if($('announcementTarget').value!==target)return;
   const data=snap.exists?snap.data():{};
-  $('announcementTitle').value=data.title||'';
-  $('announcementBody').value=data.body||'';
-  adminAnnouncementImage=data.image||'';
-  $('announcementPhoto').value='';
-  showAnnouncementPreview();
-  $('announcementAdminStatus').textContent=snap.exists?'已读取公告，可编辑后重新发布':'此页面尚未发布公告';
- }catch(e){$('announcementAdminStatus').textContent='读取失败：'+e.message}
+  announcementEl(target,'announcementTitle').value=data.title||'';
+  announcementEl(target,'announcementBody').value=data.body||'';
+  adminAnnouncementImages[target]=data.image||'';
+  announcementEl(target,'announcementPhoto').value='';showAnnouncementPreview(target);
+  status.textContent=snap.exists?'已读取公告，可编辑后重新发布':'此页面尚未发布公告';
+ }catch(e){status.textContent='读取失败：'+e.message}
 }
-function previewAnnouncementImage(e){
+function previewAnnouncementImage(e,target){
  const file=e.target.files?.[0];if(!file)return;
  if(!file.type.startsWith('image/'))return alert('请选择图片文件');
  if(file.size>12*1024*1024)return alert('图片超过12MB，请先压缩');
@@ -1160,38 +1162,38 @@ function previewAnnouncementImage(e){
   let quality=.75,data=canvas.toDataURL('image/jpeg',quality);
   while(data.length>180000&&quality>.25){quality-=.1;data=canvas.toDataURL('image/jpeg',quality)}
   if(data.length>180000){alert('图片仍然过大，请选择更小的图片');return}
-  adminAnnouncementImage=data;showAnnouncementPreview();
+  adminAnnouncementImages[target]=data;showAnnouncementPreview(target);
  };
  img.onerror=()=>{URL.revokeObjectURL(url);alert('图片读取失败')};img.src=url;
 }
-function clearAnnouncementImage(){
+function clearAnnouncementImage(target){
  if(!confirm('确定移除当前公告图片吗？需点击发布／保存修改才会生效。'))return;
- adminAnnouncementImage='';$('announcementPhoto').value='';showAnnouncementPreview();
+ adminAnnouncementImages[target]='';announcementEl(target,'announcementPhoto').value='';showAnnouncementPreview(target);
 }
-async function saveAnnouncement(){
+async function saveAnnouncement(target){
  if(!fzhAdminReady)return alert('请先登录管理员');
- const target=$('announcementTarget').value,title=$('announcementTitle').value.trim(),body=$('announcementBody').value.trim();
- if(!title&&!body&&!adminAnnouncementImage)return alert('请填写公告文字或选择图片');
+ const title=announcementEl(target,'announcementTitle').value.trim(),body=announcementEl(target,'announcementBody').value.trim();
+ if(!title&&!body&&!adminAnnouncementImages[target])return alert('请填写公告文字或选择图片');
  if(!confirm('确定向'+({platform:'幸福家人平台',library:'图书馆',posts:'爱心站'}[target])+'发布或更新公告吗？'))return;
  try{
   await fzhAdminStore.collection('siteAnnouncements').doc(target).set({
-   title,body,image:adminAnnouncementImage,active:true,
-   updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
-   updatedBy:fzhAdminAuth.currentUser.uid
+   title,body,image:adminAnnouncementImages[target],active:true,
+   updatedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedBy:fzhAdminAuth.currentUser.uid
   });
-  $('announcementAdminStatus').textContent='公告已保存，会员打开相应页面即可看到';
+  announcementEl(target,'announcementAdminStatus').textContent='公告已保存，会员打开相应页面即可看到';
  }catch(e){alert('发布失败：'+e.message)}
 }
-async function removeAnnouncement(){
+async function removeAnnouncement(target){
  if(!fzhAdminReady)return;
  if(!confirm('确定撤下当前页面的公告吗？'))return;
  try{
-  await fzhAdminStore.collection('siteAnnouncements').doc($('announcementTarget').value).delete();
-  $('announcementTitle').value='';$('announcementBody').value='';adminAnnouncementImage='';showAnnouncementPreview();
-  $('announcementAdminStatus').textContent='公告已撤下';
+  await fzhAdminStore.collection('siteAnnouncements').doc(target).delete();
+  announcementEl(target,'announcementTitle').value='';announcementEl(target,'announcementBody').value='';
+  adminAnnouncementImages[target]='';showAnnouncementPreview(target);
+  announcementEl(target,'announcementAdminStatus').textContent='公告已撤下';
  }catch(e){alert('撤下失败：'+e.message)}
 }
-function initAdminFirebase(){const c=window.FZH_FIREBASE_CONFIG;if(!c||c.apiKey.startsWith('REPLACE')){document.getElementById('adminAuthStatus').textContent='请先配置 firebase-config.js';return;}const adminApp=firebase.apps.find(a=>a.name==='ccg-mainz-admin')||firebase.initializeApp(c,'ccg-mainz-admin');fzhAdminAuth=adminApp.auth();fzhAdminStore=adminApp.firestore();ccgEnableFirestoreCache(fzhAdminStore);fzhAdminAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e=>console.warn('持久登录设置失败',e));fzhAdminAuth.onAuthStateChanged(async u=>{fzhAdminReady=false;setAdminLoginButtonState();if(!u){ccgAdminLoaded={library:false,care:false,privacy:false,inventory:false};stopCareAdmin();stopLibraryRequestNotifications();if(photoUnsub){photoUnsub();photoUnsub=null;}photoCache.clear();libraryCloudItems=null;document.getElementById('adminAuthStatus').textContent='尚未登录';stopCloudListener();return;}try{const d=await fzhAdminStore.doc('admins/'+u.uid).get();if(!d.exists){document.getElementById('adminAuthStatus').textContent='账号已登录，但不是管理员。请按说明在 Firestore 添加 admins/'+u.uid;return;}fzhAdminReady=true;loadAnnouncementEditor();listenAdminPhotos();startCloudListener();loadOfflinePhotos().then(flushOfflinePhotos);document.getElementById('adminAuthStatus').textContent='管理员已验证：'+u.email;loadAdminSectionOnDemand();}catch(e){document.getElementById('adminAuthStatus').textContent='权限检查失败：'+e.message;}});}
+function initAdminFirebase(){const c=window.FZH_FIREBASE_CONFIG;if(!c||c.apiKey.startsWith('REPLACE')){document.getElementById('adminAuthStatus').textContent='请先配置 firebase-config.js';return;}const adminApp=firebase.apps.find(a=>a.name==='ccg-mainz-admin')||firebase.initializeApp(c,'ccg-mainz-admin');fzhAdminAuth=adminApp.auth();fzhAdminStore=adminApp.firestore();ccgEnableFirestoreCache(fzhAdminStore);fzhAdminAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e=>console.warn('持久登录设置失败',e));fzhAdminAuth.onAuthStateChanged(async u=>{fzhAdminReady=false;setAdminLoginButtonState();if(!u){ccgAdminLoaded={library:false,care:false,privacy:false,inventory:false};stopCareAdmin();stopLibraryRequestNotifications();if(photoUnsub){photoUnsub();photoUnsub=null;}photoCache.clear();libraryCloudItems=null;document.getElementById('adminAuthStatus').textContent='尚未登录';stopCloudListener();return;}try{const d=await fzhAdminStore.doc('admins/'+u.uid).get();if(!d.exists){document.getElementById('adminAuthStatus').textContent='账号已登录，但不是管理员。请按说明在 Firestore 添加 admins/'+u.uid;return;}fzhAdminReady=true;announcementTargets.forEach(loadAnnouncementEditor);listenAdminPhotos();startCloudListener();loadOfflinePhotos().then(flushOfflinePhotos);document.getElementById('adminAuthStatus').textContent='管理员已验证：'+u.email;loadAdminSectionOnDemand();}catch(e){document.getElementById('adminAuthStatus').textContent='权限检查失败：'+e.message;}});}
 // 保存账号（仅邮箱，不保存密码），并让浏览器密码管理器识别 username 字段。
 const FZH_ADMIN_ACCOUNT_KEY='fzh_admin_account';
 try{$('adminEmail').value=localStorage.getItem(FZH_ADMIN_ACCOUNT_KEY)||'';}catch(e){}
