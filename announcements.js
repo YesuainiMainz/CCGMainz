@@ -43,6 +43,7 @@
   authOff=auth.onAuthStateChanged(user=>{
    if(profileOff){profileOff();profileOff=null}
    stop();
+   if(target==='platform'){start(db);return}
    if(!user)return;
    profileOff=db.collection('platformMembers').doc(user.uid).onSnapshot(snap=>{
     if(approved(snap.exists?snap.data():null))start(db);
