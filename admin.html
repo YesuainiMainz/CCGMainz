@@ -140,7 +140,28 @@ button{touch-action:manipulation}
  <div class="card"><h2>CCGMainz图书馆 · 目录同步状态</h2>
  <p class="muted" id="libraryMirrorStatus">管理员登录后自动同步图书数据到公开目录。</p>
  </div>
- <div class="card"><h2>CCGMainz图书馆 · 借阅申请审批与归还</h2><p class="muted">会员登录后可提交借阅申请。管理员可批准、拒绝、登记归还，也可手动冻结或解冻图书；冻结期间不能提交新申请。与库存家庭端申请独立。</p><p class="muted">最多显示4条借阅记录，其余在列表内上下滑动。</p><p class="muted" id="libraryRequestStatus">登录后自动加载通知。</p><div class="scroll admin-four-scroll" id="libraryRequestScroll" aria-label="借阅申请审批与归还列表"><table><thead><tr><th>图书</th><th>库存位置（仅管理员）</th><th>姓名</th><th>提交时间</th><th>状态</th><th>操作</th></tr></thead><tbody id="libraryRequestRows"></tbody></table></div><h3>图书冻结管理</h3><p class="muted">最多显示4条，其余在列表内上下滑动。</p><p class="muted">管理员可暂停某种图书的新借阅申请；已借出的书登记归还后可解冻。</p><div id="libraryFreezeList" class="admin-four-scroll" aria-label="图书冻结管理列表"></div></div>
+ <div class="card"><h2>CCGMainz图书馆 · 借阅申请审批与归还</h2><p class="muted">会员登录后可提交借阅申请。管理员可批准、拒绝、登记归还，也可手动冻结或解冻图书；冻结期间不能提交新申请。与库存家庭端申请独立。</p><p class="muted">最多显示4条借阅记录，其余在列表内上下滑动。</p><p class="muted" id="libraryRequestStatus">登录后自动加载通知。</p><div class="scroll admin-four-scroll" id="libraryRequestScroll" aria-label="借阅申请审批与归还列表"><table><thead><tr><th>图书</th><th>库存位置（仅管理员）</th><th>姓名</th><th>提交时间</th><th>状态</th><th>操作</th></tr></thead><tbody id="libraryRequestRows"></tbody></table></div><div class="card" id="announcementAdminPanel">
+<h2>三端公告管理</h2>
+<p class="muted">可分别发布幸福家人平台、图书馆和爱心站公告。文字及图片发布后，会员进入对应页面即会弹窗查看；修改后再次弹出。</p>
+<label>公告发布位置
+<select id="announcementTarget" onchange="loadAnnouncementEditor()" style="padding:10px">
+<option value="platform">幸福家人平台</option><option value="library">图书馆</option><option value="posts">爱心站</option>
+</select></label>
+<label style="display:block;margin:10px 0">公告标题 <input id="announcementTitle" maxlength="100" placeholder="例如：本周聚会通知" style="width:100%;padding:10px"></label>
+<label style="display:block;margin:10px 0">公告正文 <textarea id="announcementBody" maxlength="4000" rows="5" style="width:100%;padding:10px"></textarea></label>
+<label style="display:block;margin:10px 0">公告图片（可选，选择后自动压缩）
+<input id="announcementPhoto" type="file" accept="image/*" onchange="previewAnnouncementImage(event)"></label>
+<img id="announcementImagePreview" alt="公告图片预览" hidden style="max-width:100%;max-height:260px;object-fit:contain">
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0">
+<button type="button" onclick="saveAnnouncement()">发布／保存修改</button>
+<button type="button" onclick="clearAnnouncementImage()">移除图片</button>
+<button type="button" class="danger" onclick="removeAnnouncement()">撤下公告</button>
+</div><p id="announcementAdminStatus" class="muted" role="status">登录管理员后可管理公告。</p>
+</div>
+<h3>图书冻结管理</h3><p class="muted">最多显示4条，其余在列表内上下滑动。</p><p class="muted">管理员可暂停某种图书的新借阅申请；已借出的书登记归还后可解冻。</p><label for="libraryFreezeSearch">搜索图书名称或库存位置（仅管理员）</label>
+<input id="libraryFreezeSearch" type="search" placeholder="输入书名或库位，例如 A1" oninput="renderLibraryFreeze()" style="width:100%;max-width:440px;padding:10px;margin:8px 0">
+<p class="muted" id="libraryFreezeSearchStatus" aria-live="polite"></p>
+<div id="libraryFreezeList" class="admin-four-scroll"  aria-label="图书冻结管理列表"></div></div>
 </section>
 <section id="careManagement" class="management-view" hidden>
  <div class="card"><p><a href="./posts.html" target="_blank" rel="noopener noreferrer">❤️ 打开公开爱心站 ↗</a></p><p class="muted">公开端按照当前会员登录账号决定权限；管理员账号也可登录会员平台进行发帖与需求测试。</p></div>
@@ -412,10 +433,13 @@ async function setLibraryFrozen(bookId,freeze){
 function renderLibraryFreeze(){
  const el=$('libraryFreezeList');if(!el)return;el.replaceChildren();
  const items=Array.isArray(libraryCloudItems)?libraryCloudItems:[];
- for(const book of items.filter(b=>b.category==='图书')){
+ const keyword=($('libraryFreezeSearch')?.value||'').trim().toLocaleLowerCase();
+ const books=items.filter(b=>b.category==='图书').filter(b=>!keyword||String(b.name||'').toLocaleLowerCase().includes(keyword)||String(b.location||'').toLocaleLowerCase().includes(keyword));
+ const status=$('libraryFreezeSearchStatus');if(status)status.textContent='符合条件 '+books.length+' 本（图书共 '+items.filter(b=>b.category==='图书').length+' 本）';
+ for(const book of books){
   const line=document.createElement('div');line.style.cssText='display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px;border-bottom:1px solid #ddd';
   const state=libraryLoanStates[book.id]||{},frozen=!!state.frozen,count=state.borrowedCount||0;
-  const title=document.createElement('span');title.textContent=book.name+' · 已借 '+count+'/'+book.qty+' · '+(count>=book.qty?'📕 已借出':frozen?'🔒 已冻结':'可借阅');line.append(title);
+  const title=document.createElement('span');title.textContent=book.name+' · 库位：'+(book.location||'未设置')+' · 已借 '+count+'/'+book.qty+' · '+(count>=book.qty?'📕 已借出':frozen?'🔒 已冻结':'可借阅');line.append(title);
   line.append(libraryButton(frozen?'解冻':'冻结',()=>setLibraryFrozen(book.id,!frozen)));el.append(line);
  }
  requestAnimationFrame(()=>limitAdminFourRows('libraryFreezeList'));
@@ -1102,7 +1126,72 @@ function ccgEnableFirestoreCache(store){
   if(e.code!=='failed-precondition'&&e.code!=='unimplemented')console.warn('Firestore 缓存不可用',e);
  });
 }
-function initAdminFirebase(){const c=window.FZH_FIREBASE_CONFIG;if(!c||c.apiKey.startsWith('REPLACE')){document.getElementById('adminAuthStatus').textContent='请先配置 firebase-config.js';return;}const adminApp=firebase.apps.find(a=>a.name==='ccg-mainz-admin')||firebase.initializeApp(c,'ccg-mainz-admin');fzhAdminAuth=adminApp.auth();fzhAdminStore=adminApp.firestore();ccgEnableFirestoreCache(fzhAdminStore);fzhAdminAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e=>console.warn('持久登录设置失败',e));fzhAdminAuth.onAuthStateChanged(async u=>{fzhAdminReady=false;setAdminLoginButtonState();if(!u){ccgAdminLoaded={library:false,care:false,privacy:false,inventory:false};stopCareAdmin();stopLibraryRequestNotifications();if(photoUnsub){photoUnsub();photoUnsub=null;}photoCache.clear();libraryCloudItems=null;document.getElementById('adminAuthStatus').textContent='尚未登录';stopCloudListener();return;}try{const d=await fzhAdminStore.doc('admins/'+u.uid).get();if(!d.exists){document.getElementById('adminAuthStatus').textContent='账号已登录，但不是管理员。请按说明在 Firestore 添加 admins/'+u.uid;return;}fzhAdminReady=true;listenAdminPhotos();startCloudListener();loadOfflinePhotos().then(flushOfflinePhotos);document.getElementById('adminAuthStatus').textContent='管理员已验证：'+u.email;loadAdminSectionOnDemand();}catch(e){document.getElementById('adminAuthStatus').textContent='权限检查失败：'+e.message;}});}
+let adminAnnouncementImage='',adminAnnouncementLoaded=false;
+function showAnnouncementPreview(){
+ const img=$('announcementImagePreview');img.hidden=!adminAnnouncementImage;
+ if(adminAnnouncementImage)img.src=adminAnnouncementImage;else img.removeAttribute('src');
+}
+async function loadAnnouncementEditor(){
+ if(!fzhAdminReady||!fzhAdminStore)return;
+ const target=$('announcementTarget').value;
+ $('announcementAdminStatus').textContent='正在读取公告…';
+ try{
+  const snap=await fzhAdminStore.collection('siteAnnouncements').doc(target).get();
+  if($('announcementTarget').value!==target)return;
+  const data=snap.exists?snap.data():{};
+  $('announcementTitle').value=data.title||'';
+  $('announcementBody').value=data.body||'';
+  adminAnnouncementImage=data.image||'';
+  $('announcementPhoto').value='';
+  showAnnouncementPreview();
+  $('announcementAdminStatus').textContent=snap.exists?'已读取公告，可编辑后重新发布':'此页面尚未发布公告';
+ }catch(e){$('announcementAdminStatus').textContent='读取失败：'+e.message}
+}
+function previewAnnouncementImage(e){
+ const file=e.target.files?.[0];if(!file)return;
+ if(!file.type.startsWith('image/'))return alert('请选择图片文件');
+ if(file.size>12*1024*1024)return alert('图片超过12MB，请先压缩');
+ const url=URL.createObjectURL(file),img=new Image();
+ img.onload=()=>{
+  URL.revokeObjectURL(url);
+  const canvas=document.createElement('canvas'),scale=Math.min(1,1000/Math.max(img.width,img.height));
+  canvas.width=Math.max(1,Math.round(img.width*scale));canvas.height=Math.max(1,Math.round(img.height*scale));
+  canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+  let quality=.75,data=canvas.toDataURL('image/jpeg',quality);
+  while(data.length>180000&&quality>.25){quality-=.1;data=canvas.toDataURL('image/jpeg',quality)}
+  if(data.length>180000){alert('图片仍然过大，请选择更小的图片');return}
+  adminAnnouncementImage=data;showAnnouncementPreview();
+ };
+ img.onerror=()=>{URL.revokeObjectURL(url);alert('图片读取失败')};img.src=url;
+}
+function clearAnnouncementImage(){
+ if(!confirm('确定移除当前公告图片吗？需点击发布／保存修改才会生效。'))return;
+ adminAnnouncementImage='';$('announcementPhoto').value='';showAnnouncementPreview();
+}
+async function saveAnnouncement(){
+ if(!fzhAdminReady)return alert('请先登录管理员');
+ const target=$('announcementTarget').value,title=$('announcementTitle').value.trim(),body=$('announcementBody').value.trim();
+ if(!title&&!body&&!adminAnnouncementImage)return alert('请填写公告文字或选择图片');
+ if(!confirm('确定向'+({platform:'幸福家人平台',library:'图书馆',posts:'爱心站'}[target])+'发布或更新公告吗？'))return;
+ try{
+  await fzhAdminStore.collection('siteAnnouncements').doc(target).set({
+   title,body,image:adminAnnouncementImage,active:true,
+   updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
+   updatedBy:fzhAdminAuth.currentUser.uid
+  });
+  $('announcementAdminStatus').textContent='公告已保存，会员打开相应页面即可看到';
+ }catch(e){alert('发布失败：'+e.message)}
+}
+async function removeAnnouncement(){
+ if(!fzhAdminReady)return;
+ if(!confirm('确定撤下当前页面的公告吗？'))return;
+ try{
+  await fzhAdminStore.collection('siteAnnouncements').doc($('announcementTarget').value).delete();
+  $('announcementTitle').value='';$('announcementBody').value='';adminAnnouncementImage='';showAnnouncementPreview();
+  $('announcementAdminStatus').textContent='公告已撤下';
+ }catch(e){alert('撤下失败：'+e.message)}
+}
+function initAdminFirebase(){const c=window.FZH_FIREBASE_CONFIG;if(!c||c.apiKey.startsWith('REPLACE')){document.getElementById('adminAuthStatus').textContent='请先配置 firebase-config.js';return;}const adminApp=firebase.apps.find(a=>a.name==='ccg-mainz-admin')||firebase.initializeApp(c,'ccg-mainz-admin');fzhAdminAuth=adminApp.auth();fzhAdminStore=adminApp.firestore();ccgEnableFirestoreCache(fzhAdminStore);fzhAdminAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e=>console.warn('持久登录设置失败',e));fzhAdminAuth.onAuthStateChanged(async u=>{fzhAdminReady=false;setAdminLoginButtonState();if(!u){ccgAdminLoaded={library:false,care:false,privacy:false,inventory:false};stopCareAdmin();stopLibraryRequestNotifications();if(photoUnsub){photoUnsub();photoUnsub=null;}photoCache.clear();libraryCloudItems=null;document.getElementById('adminAuthStatus').textContent='尚未登录';stopCloudListener();return;}try{const d=await fzhAdminStore.doc('admins/'+u.uid).get();if(!d.exists){document.getElementById('adminAuthStatus').textContent='账号已登录，但不是管理员。请按说明在 Firestore 添加 admins/'+u.uid;return;}fzhAdminReady=true;loadAnnouncementEditor();listenAdminPhotos();startCloudListener();loadOfflinePhotos().then(flushOfflinePhotos);document.getElementById('adminAuthStatus').textContent='管理员已验证：'+u.email;loadAdminSectionOnDemand();}catch(e){document.getElementById('adminAuthStatus').textContent='权限检查失败：'+e.message;}});}
 // 保存账号（仅邮箱，不保存密码），并让浏览器密码管理器识别 username 字段。
 const FZH_ADMIN_ACCOUNT_KEY='fzh_admin_account';
 try{$('adminEmail').value=localStorage.getItem(FZH_ADMIN_ACCOUNT_KEY)||'';}catch(e){}
