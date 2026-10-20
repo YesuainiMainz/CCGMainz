@@ -1,4 +1,4 @@
-/* CCGMainz v9.4 公告弹窗：仅已审核会员可以读取 */
+/* CCGMainz 公告：平台登录页公开，图书馆及爱心站仅限已审核会员 */
 (function(){
  'use strict';
  const target=document.currentScript?.dataset?.target;
