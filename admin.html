@@ -132,7 +132,7 @@ html{scroll-padding-top:90px}body{padding-top:calc(56px + env(safe-area-inset-to
 <label>投票选项（启用投票时每行一个，至少2项，最多8项）<textarea id="churchVoteOptions" rows="3" style="width:100%" placeholder="参加
 不参加"></textarea></label>
 <button type="button" onclick="publishChurchPost()">发布教会生活帖子</button><p id="churchAdminStatus" class="muted"></p><div id="churchAdminList" class="admin-four-scroll"></div></div>
-<div class="card" id="adminActivityPanel"><h2>🔔 各端实时动态提醒</h2><p class="muted">管理员登录后自动监听注册申请、图书借阅、爱心站帖子和教会生活互动。页面打开期间持续更新。</p><p id="adminActivityStatus" class="muted">登录后开始监听。</p><div id="adminActivityList" role="list" aria-label="各端实时动态记录（最多显示四条，滚动查看更多）" style="max-height:256px;overflow-y:auto;overscroll-behavior:contain"></div></div>
+<div class="card" id="adminActivityPanel"><h2>🔔 各端实时动态提醒 <small style="font-size:12px;color:#72867c">v10.8</small></h2><p class="muted">管理员登录后自动监听注册申请、图书借阅、爱心站帖子和教会生活互动。点击提醒进入对应管理页后标为已处理（仅代表已浏览，不会自动审批申请）。</p><p id="adminActivityStatus" class="muted">登录后开始监听。</p><div id="adminActivityList" role="list" aria-label="各端实时动态记录（最多显示四条，滚动查看更多）" style="max-height:256px;overflow-y:auto;overscroll-behavior:contain"></div></div>
 <div class="card" id="announcementPanel_platform"><h2>幸福家人平台公告管理</h2><p class="muted">在这里发布、修改或撤下幸福家人平台公告（文字及图片）。用户进入相应页面时弹窗显示。</p>
 <label>公告标题<input id="announcementTitle_platform" maxlength="100" placeholder="公告标题" style="width:100%;padding:10px"></label>
 <label style="display:block;margin:10px 0">公告正文<textarea id="announcementBody_platform" maxlength="4000" rows="5" style="width:100%;padding:10px"></textarea></label>
@@ -1981,6 +1981,38 @@ function ccgActivityDestination(collection){
  if(collection==='churchInteractions')return 'church';
  return 'home';
 }
+// v10.8: 管理员点开对应管理页即视为该条提醒已浏览。
+// 已浏览状态保存在当前浏览器，按管理员 UID 隔离，不更改业务申请本身的审批状态。
+function ccgActivityReadKey(){return 'ccg-activity-visited-v108-'+(fzhAdminAuth?.currentUser?.uid||'unknown')}
+function ccgActivityVisited(){try{return JSON.parse(localStorage.getItem(ccgActivityReadKey())||'{}')}catch(e){return {}}}
+let ccgActivityCloudVisited=new Set(),ccgActivityCloudUnsub=null;
+function ccgActivityMarkVisited(item){
+ const visited=ccgActivityVisited();visited[item.key]=Date.now();
+ try{localStorage.setItem(ccgActivityReadKey(),JSON.stringify(visited))}catch(e){console.warn('浏览状态无法保存',e)}
+ item.visited=true;ccgActivityRender();
+ // 浏览状态写入 Firestore，同一管理员在其他设备上实时变绿。
+ const uid=fzhAdminAuth?.currentUser?.uid;
+ if(!uid||!fzhAdminReady||!fzhAdminStore)return;
+ const id=uid+'_'+encodeURIComponent(item.key).replace(/%/g,'_');
+ fzhAdminStore.collection('adminActivityViewed').doc(id).set({uid,key:item.key,viewedAt:firebase.firestore.FieldValue.serverTimestamp()})
+ .catch(err=>{
+  console.error('提醒浏览状态云端同步失败',err);
+  const el=document.getElementById('adminActivityStatus');
+  if(el)el.textContent='⚠️ 浏览状态已在本机记录，但云端同步失败：'+err.message;
+ });
+}
+function ccgActivityListenViewed(){
+ const uid=fzhAdminAuth?.currentUser?.uid;
+ if(!uid||!fzhAdminStore)return;
+ ccgActivityCloudUnsub=fzhAdminStore.collection('adminActivityViewed').where('uid','==',uid).limit(1000)
+ .onSnapshot(snapshot=>{
+  ccgActivityCloudVisited=new Set(snapshot.docs.map(doc=>doc.data().key).filter(Boolean));
+  ccgActivityRecords.forEach(item=>{item.visited=ccgActivityCloudVisited.has(item.key)||!!ccgActivityVisited()[item.key]});
+  ccgActivityRender();
+ },err=>{console.warn('提醒已浏览记录读取失败',err);
+  const el=document.getElementById('adminActivityStatus');if(el)el.textContent='⚠️ 无法同步其他设备的提醒浏览状态：'+err.message;
+ });
+}
 function ccgActivityGo(item){
  const destination=ccgActivityDestination(item.collection);
  if(destination==='church'){
@@ -1988,11 +2020,12 @@ function ccgActivityGo(item){
   const panel=document.getElementById('churchAdminPanel');
   if(panel.hidden)toggleChurchAdminPanel();
   panel.scrollIntoView({behavior:'smooth',block:'start'});
-  return;
+ }else{
+  showManagementView(destination);
+  const section=destination==='privacy'?'platformAccountList':destination==='library'?'libraryRequestScroll':destination==='care'?'careManagement':null;
+  if(section)requestAnimationFrame(()=>document.getElementById(section)?.scrollIntoView({behavior:'smooth',block:'start'}));
  }
- showManagementView(destination);
- const section=destination==='privacy'?'platformAccountList':destination==='library'?'libraryRequestScroll':destination==='care'?'careManagement':null;
- if(section)requestAnimationFrame(()=>document.getElementById(section)?.scrollIntoView({behavior:'smooth',block:'start'}));
+ ccgActivityMarkVisited(item);
 }
 function ccgActivityRender(){
  const target=document.getElementById('adminActivityList');if(!target)return;
@@ -2003,17 +2036,25 @@ function ccgActivityRender(){
   button.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:58px;padding:9px 12px;margin:0;border:0;border-bottom:1px solid #e2e8e3;background:transparent;color:inherit;text-align:left;cursor:pointer;box-sizing:border-box';
   const text=document.createElement('span');text.style.cssText='flex:1;min-width:0;overflow-wrap:anywhere';
   text.textContent=(item.ms?new Date(item.ms).toLocaleString('zh-CN'):'时间待确认')+' · '+item.text;
-  const status=document.createElement('span');status.style.cssText='white-space:nowrap;font-weight:700;color:'+(item.processed?'#137a3c':'#b42318');
-  status.textContent=item.processed?'🟢 已处理':'🔴 待处理';
+  const handled=item.processed||item.visited;
+  const status=document.createElement('span');status.style.cssText='white-space:nowrap;font-weight:700;color:'+(handled?'#137a3c':'#b42318');
+  status.textContent=handled?'🟢 已处理':'🔴 待处理';
   button.append(text,status);button.onclick=()=>ccgActivityGo(item);
   button.title='点击前往对应管理界面';target.append(button);
  }
- document.getElementById('adminActivityStatus').textContent='实时监控 · 最近 '+items.length+' 条动态（显示4条，其余滚动查看；点击跳转）';
+ document.getElementById('adminActivityStatus').textContent='实时监控 · 最近 '+items.length+' 条动态（显示4条，其余滚动查看；点击跳转即标记已处理）';
 }
-function ccgActivityStop(){ccgActivityUnsubs.forEach(fn=>{try{fn()}catch(e){}});ccgActivityUnsubs=[];ccgActivityRecords.clear();if(ccgChurchAdminUnsub){ccgChurchAdminUnsub();ccgChurchAdminUnsub=null}}
+function ccgActivityStop(){if(ccgActivityCloudUnsub){ccgActivityCloudUnsub();ccgActivityCloudUnsub=null;}ccgActivityCloudVisited.clear();ccgActivityUnsubs.forEach(fn=>{try{fn()}catch(e){}});ccgActivityUnsubs=[];ccgActivityRecords.clear();if(ccgChurchAdminUnsub){ccgChurchAdminUnsub();ccgChurchAdminUnsub=null}}
 function ccgActivityStart(){
  if(!fzhAdminReady||!fzhAdminStore)return;
  ccgActivityStop();
+ ccgActivityListenViewed();
+ // 将旧版浏览器的已浏览标记尽力迁移到云端，避免升级后旧绿灯丢失。
+ const legacy=ccgActivityVisited(),uid=fzhAdminAuth?.currentUser?.uid;
+ if(uid){Object.keys(legacy).slice(0,500).forEach(key=>{
+  const id=uid+'_'+encodeURIComponent(key).replace(/%/g,'_');
+  fzhAdminStore.collection('adminActivityViewed').doc(id).set({uid,key,viewedAt:firebase.firestore.FieldValue.serverTimestamp()}).catch(e=>console.warn('旧浏览记录迁移失败',e));
+ });}
  const streams=[
   ['platformMembers','会员注册',d=>'会员注册：'+(d.name||'未填写姓名')],
   ['libraryBorrowRequests','图书借阅',d=>'图书借阅请求：'+(d.bookTitle||d.title||d.bookId||'待查看')],
@@ -2029,7 +2070,8 @@ function ccgActivityStart(){
    snap.docs.forEach(doc=>{const data=doc.data(),message=format(data);if(!message)return;
     const stamp=data.createdAt||data.updatedAt||data.requestedAt||data.timestamp;
     const ms=stamp?ccgActivityDate(stamp).getTime():0;
-    ccgActivityRecords.set(collection+'/'+doc.id,{text:message,ms,collection,processed:ccgActivityProcessed(collection,data)});
+    const key=collection+'/'+doc.id;
+    ccgActivityRecords.set(key,{key,text:message,ms,collection,processed:ccgActivityProcessed(collection,data),visited:ccgActivityCloudVisited.has(key)||!!ccgActivityVisited()[key]});
    });ccgActivityRender();
   },err=>{console.warn('提醒监听失败 '+collection,err);document.getElementById('adminActivityStatus').textContent='部分提醒无法读取（请检查 Firebase Rules）：'+collection});ccgActivityUnsubs.push(unsubscribe)}catch(e){console.warn(e)}
  }
