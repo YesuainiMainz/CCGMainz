@@ -124,6 +124,14 @@ html{scroll-padding-top:90px}body{padding-top:calc(56px + env(safe-area-inset-to
  <button class="management-nav-button" type="button" onclick="showManagementView('care')">❤️ CCGMainz爱心站 <span aria-hidden="true">→</span></button>
  <button class="management-nav-button" type="button" onclick="showManagementView('privacy')">🔒 隐私管理 <span aria-hidden="true">→</span></button>
 </nav>
+<div class="card" id="churchAdminPanel"><h2>⛪ 教会生活 · 发布帖子</h2><p class="muted">发布前勾选允许会员参与的互动方式（可多选）；帖子发布后可在下方查看并撤下。</p>
+<label>标题<input id="churchPostTitle" maxlength="100" style="width:100%" placeholder="例如：本周主日活动"></label>
+<label>正文<textarea id="churchPostBody" maxlength="4000" rows="4" style="width:100%"></textarea></label>
+<div style="display:flex;gap:16px;flex-wrap:wrap;margin:12px 0"><label><input type="checkbox" id="churchOptLike" checked> 点赞</label><label><input type="checkbox" id="churchOptVote"> 投票</label><label><input type="checkbox" id="churchOptPhoto"> 上传照片</label><label><input type="checkbox" id="churchOptChain"> 接龙</label></div>
+<label>投票选项（启用投票时每行一个，至少2项，最多8项）<textarea id="churchVoteOptions" rows="3" style="width:100%" placeholder="参加
+不参加"></textarea></label>
+<button type="button" onclick="publishChurchPost()">发布教会生活帖子</button><p id="churchAdminStatus" class="muted"></p><div id="churchAdminList" class="admin-four-scroll"></div></div>
+<div class="card" id="adminActivityPanel"><h2>🔔 各端实时动态提醒</h2><p class="muted">管理员登录后自动监听注册申请、图书借阅、爱心站帖子和教会生活互动。页面打开期间持续更新。</p><p id="adminActivityStatus" class="muted">登录后开始监听。</p><div id="adminActivityList" style="max-height:360px;overflow:auto"></div></div>
 <div class="card" id="announcementPanel_platform"><h2>幸福家人平台公告管理</h2><p class="muted">在这里发布、修改或撤下幸福家人平台公告（文字及图片）。用户进入相应页面时弹窗显示。</p>
 <label>公告标题<input id="announcementTitle_platform" maxlength="100" placeholder="公告标题" style="width:100%;padding:10px"></label>
 <label style="display:block;margin:10px 0">公告正文<textarea id="announcementBody_platform" maxlength="4000" rows="5" style="width:100%;padding:10px"></textarea></label>
@@ -1468,7 +1476,7 @@ function ccgMigrateLegacyDraft(){
  localStorage.removeItem(FZH_DRAFT_KEY);draft=null;
  updateConnectionIndicator();
 }
-function initAdminFirebase(){const c=window.FZH_FIREBASE_CONFIG;if(!c||c.apiKey.startsWith('REPLACE')){document.getElementById('adminAuthStatus').textContent='请先配置 firebase-config.js';return;}const adminApp=firebase.apps.find(a=>a.name==='ccg-mainz-admin')||firebase.initializeApp(c,'ccg-mainz-admin');fzhAdminAuth=adminApp.auth();fzhAdminStore=adminApp.firestore();ccgEnableFirestoreCache(fzhAdminStore);fzhAdminAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e=>console.warn('持久登录设置失败',e));fzhAdminAuth.onAuthStateChanged(async u=>{fzhAdminReady=false;setAdminLoginButtonState();if(!u){ccgAdminLoaded={library:false,care:false,privacy:false,inventory:false};stopCareAdmin();stopLibraryRequestNotifications();if(photoUnsub){photoUnsub();photoUnsub=null;}photoCache.clear();libraryCloudItems=null;document.getElementById('adminAuthStatus').textContent='尚未登录';stopCloudListener();ccgLastVerifiedSyncAt=null;updateLatestStockTime();setCcgServerStatus(false);return;}try{const d=await fzhAdminStore.doc('admins/'+u.uid).get();if(!d.exists){document.getElementById('adminAuthStatus').textContent='账号已登录，但不是管理员。请按说明在 Firestore 添加 admins/'+u.uid;return;}fzhAdminReady=true;ccgMigrateLegacyDraft();checkCcgServer();revisionArchiveLoad().then(()=>loadCloudRevisionArchives());announcementTargets.forEach(loadAnnouncementEditor);listenAdminPhotos();startCloudListener();loadOfflinePhotos().then(flushOfflinePhotos);document.getElementById('adminAuthStatus').textContent='管理员已验证：'+u.email;loadAdminSectionOnDemand();}catch(e){document.getElementById('adminAuthStatus').textContent='权限检查失败：'+e.message;}});}
+function initAdminFirebase(){const c=window.FZH_FIREBASE_CONFIG;if(!c||c.apiKey.startsWith('REPLACE')){document.getElementById('adminAuthStatus').textContent='请先配置 firebase-config.js';return;}const adminApp=firebase.apps.find(a=>a.name==='ccg-mainz-admin')||firebase.initializeApp(c,'ccg-mainz-admin');fzhAdminAuth=adminApp.auth();fzhAdminStore=adminApp.firestore();ccgEnableFirestoreCache(fzhAdminStore);fzhAdminAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e=>console.warn('持久登录设置失败',e));fzhAdminAuth.onAuthStateChanged(async u=>{fzhAdminReady=false;setAdminLoginButtonState();if(!u){ccgAdminLoaded={library:false,care:false,privacy:false,inventory:false};stopCareAdmin();stopLibraryRequestNotifications();ccgActivityStop();if(photoUnsub){photoUnsub();photoUnsub=null;}photoCache.clear();libraryCloudItems=null;document.getElementById('adminAuthStatus').textContent='尚未登录';stopCloudListener();ccgLastVerifiedSyncAt=null;updateLatestStockTime();setCcgServerStatus(false);return;}try{const d=await fzhAdminStore.doc('admins/'+u.uid).get();if(!d.exists){document.getElementById('adminAuthStatus').textContent='账号已登录，但不是管理员。请按说明在 Firestore 添加 admins/'+u.uid;return;}fzhAdminReady=true;ccgActivityStart();ccgMigrateLegacyDraft();checkCcgServer();revisionArchiveLoad().then(()=>loadCloudRevisionArchives());announcementTargets.forEach(loadAnnouncementEditor);listenAdminPhotos();startCloudListener();loadOfflinePhotos().then(flushOfflinePhotos);document.getElementById('adminAuthStatus').textContent='管理员已验证：'+u.email;loadAdminSectionOnDemand();}catch(e){document.getElementById('adminAuthStatus').textContent='权限检查失败：'+e.message;}});}
 // 保存账号（仅邮箱，不保存密码），并让浏览器密码管理器识别 username 字段。
 const FZH_ADMIN_ACCOUNT_KEY='fzh_admin_account';
 try{$('adminEmail').value=localStorage.getItem(FZH_ADMIN_ACCOUNT_KEY)||'';}catch(e){}
@@ -1944,4 +1952,49 @@ function syncManagementRoute(){showManagementView(location.hash==='#inventory'?'
 window.addEventListener('popstate',syncManagementRoute);
 window.addEventListener('hashchange',syncManagementRoute);
 syncManagementRoute();loadOfflinePhotos();
+
+// v10.5 教会生活：管理员发帖、实时提醒（仅管理员可访问管理功能）
+let ccgActivityUnsubs=[],ccgActivityRecords=new Map(),ccgChurchAdminUnsub=null;
+function ccgActivityDate(v){try{return v?.toDate?v.toDate():v?new Date(v):new Date()}catch(e){return new Date()}}
+function ccgActivityRender(){
+ const target=document.getElementById('adminActivityList');if(!target)return;
+ const items=[...ccgActivityRecords.values()].sort((a,b)=>b.ms-a.ms).slice(0,60);
+ target.replaceChildren();for(const item of items){const p=document.createElement('p');p.style.cssText='border-bottom:1px solid #e2e8e3;padding:8px 0;margin:0';p.textContent=new Date(item.ms).toLocaleString('zh-CN')+' · '+item.text;target.append(p)}
+ document.getElementById('adminActivityStatus').textContent='实时监控中 · 最近 '+items.length+' 条动态（仅页面打开期间更新）';
+}
+function ccgActivityStop(){ccgActivityUnsubs.forEach(fn=>{try{fn()}catch(e){}});ccgActivityUnsubs=[];ccgActivityRecords.clear();if(ccgChurchAdminUnsub){ccgChurchAdminUnsub();ccgChurchAdminUnsub=null}}
+function ccgActivityStart(){
+ if(!fzhAdminReady||!fzhAdminStore)return;
+ ccgActivityStop();
+ const streams=[
+  ['platformMembers','会员注册',d=>d.status==='pending'?'新会员注册申请：'+(d.name||'未填写姓名'):null],
+  ['libraryBorrowRequests','图书借阅',d=>'图书借阅请求：'+(d.bookTitle||d.title||d.bookId||'待查看')],
+  ['libraryRequests','图书借阅',d=>'图书馆请求：'+(d.bookTitle||d.title||'待查看')],
+  ['carePosts','爱心站',d=>'新帖子：'+(d.text||'图片帖子').slice(0,55)],
+  ['careNeeds','爱心站',d=>'物品申请：'+(d.details||'新需求').slice(0,55)],
+  ['careMessages','爱心站',d=>'新沟通消息：'+(d.text||'图片消息').slice(0,55)],
+  ['churchInteractions','教会生活',d=>'新'+({like:'点赞',vote:'投票',photo:'照片',chain:'接龙'}[d.type]||'互动')+'：'+(d.author||'会员')]
+ ];
+ for(const [collection,label,format] of streams){
+  try{const unsubscribe=fzhAdminStore.collection(collection).limit(100).onSnapshot(snap=>{
+   snap.docs.forEach(doc=>{const data=doc.data(),message=format(data);if(!message)return;
+    const stamp=data.createdAt||data.updatedAt||data.requestedAt||data.timestamp;
+    const ms=stamp?ccgActivityDate(stamp).getTime():0;
+    ccgActivityRecords.set(collection+'/'+doc.id,{text:message,ms});
+   });ccgActivityRender();
+  },err=>{console.warn('提醒监听失败 '+collection,err);document.getElementById('adminActivityStatus').textContent='部分提醒无法读取（请检查 Firebase Rules）：'+collection});ccgActivityUnsubs.push(unsubscribe)}catch(e){console.warn(e)}
+ }
+ ccgChurchAdminUnsub=fzhAdminStore.collection('churchPosts').orderBy('createdAt','desc').limit(30).onSnapshot(snap=>{
+  const list=document.getElementById('churchAdminList');list.replaceChildren();snap.docs.forEach(doc=>{const data=doc.data(),p=document.createElement('div');p.style.cssText='border-bottom:1px solid #ddd;padding:8px';const t=document.createElement('span');t.textContent=(data.title||'无标题')+' · '+(data.active===false?'已撤下':'已发布')+' ';const btn=document.createElement('button');btn.type='button';btn.textContent=data.active===false?'恢复发布':'撤下';btn.onclick=async()=>{if(!confirm('确认'+btn.textContent+'？'))return;try{await doc.ref.update({active:data.active===false})}catch(e){alert(e.message)}};p.append(t,btn);list.append(p)})
+ },e=>document.getElementById('churchAdminStatus').textContent='教会帖子读取失败：'+e.message);
+}
+async function publishChurchPost(){
+ if(!fzhAdminReady)return alert('请先以管理员身份登录');
+ const title=document.getElementById('churchPostTitle').value.trim(),body=document.getElementById('churchPostBody').value.trim();
+ const options={like:document.getElementById('churchOptLike').checked,vote:document.getElementById('churchOptVote').checked,photo:document.getElementById('churchOptPhoto').checked,chain:document.getElementById('churchOptChain').checked};
+ const choices=document.getElementById('churchVoteOptions').value.split('\n').map(s=>s.trim()).filter(Boolean);
+ if(!title||!body)return alert('请填写标题和正文');if(!Object.values(options).some(Boolean))return alert('请至少选择一种互动方式');
+ if(options.vote&&(choices.length<2||choices.length>8||choices.some(x=>x.length>80)))return alert('投票需要2至8个选项，每项最多80字');
+ try{await fzhAdminStore.collection('churchPosts').add({title,body,options,voteOptions:options.vote?choices:[],active:true,createdAt:firebase.firestore.FieldValue.serverTimestamp(),authorUid:fzhAdminAuth.currentUser.uid});document.getElementById('churchAdminStatus').textContent='发布成功';document.getElementById('churchPostTitle').value='';document.getElementById('churchPostBody').value=''}catch(e){document.getElementById('churchAdminStatus').textContent='发布失败：'+e.message}
+}
 </script></html>
