@@ -49,7 +49,7 @@ button{touch-action:manipulation}
 .management-nav{margin:14px 0;display:flex;flex-wrap:wrap;gap:10px}
 .management-nav-button{min-width:150px;min-height:52px;border-radius:12px;font-size:1.08rem;font-weight:700;padding:12px 22px}
 .management-nav-button{display:flex;align-items:center;justify-content:space-between;gap:14px}
-.management-view[hidden],#managementHome[hidden],#managementSubpageHeader[hidden]{display:none!important}
+#churchAdminPanel[hidden],.management-view[hidden],#managementHome[hidden],#managementSubpageHeader[hidden]{display:none!important}
 .inventory-management{margin:12px 0;padding:10px;border:1px solid #d4e5d8;border-radius:14px;background:#f6faf7}
 .inventory-management>.card{margin:12px 0}
 
@@ -124,14 +124,15 @@ html{scroll-padding-top:90px}body{padding-top:calc(56px + env(safe-area-inset-to
  <button class="management-nav-button" type="button" onclick="showManagementView('care')">❤️ CCGMainz爱心站 <span aria-hidden="true">→</span></button>
  <button class="management-nav-button" type="button" onclick="showManagementView('privacy')">🔒 隐私管理 <span aria-hidden="true">→</span></button>
 </nav>
-<div class="card" id="churchAdminPanel"><h2>⛪ 教会生活 · 发布帖子</h2><p class="muted">发布前勾选允许会员参与的互动方式（可多选）；帖子发布后可在下方查看并撤下。</p>
+<button type="button" id="churchAdminToggle" aria-expanded="false" aria-controls="churchAdminPanel" onclick="toggleChurchAdminPanel()" style="display:block;width:100%;text-align:left;margin:12px 0;padding:15px">⛪ 教会生活管理 · 发布帖子　▾</button>
+<div class="card" id="churchAdminPanel" hidden><h2>⛪ 教会生活 · 发布帖子</h2><p class="muted">发布前勾选允许会员参与的互动方式（可多选）；帖子发布后可在下方查看并撤下。</p>
 <label>标题<input id="churchPostTitle" maxlength="100" style="width:100%" placeholder="例如：本周主日活动"></label>
 <label>正文<textarea id="churchPostBody" maxlength="4000" rows="4" style="width:100%"></textarea></label>
 <div style="display:flex;gap:16px;flex-wrap:wrap;margin:12px 0"><label><input type="checkbox" id="churchOptLike" checked> 点赞</label><label><input type="checkbox" id="churchOptVote"> 投票</label><label><input type="checkbox" id="churchOptPhoto"> 上传照片</label><label><input type="checkbox" id="churchOptChain"> 接龙</label></div>
 <label>投票选项（启用投票时每行一个，至少2项，最多8项）<textarea id="churchVoteOptions" rows="3" style="width:100%" placeholder="参加
 不参加"></textarea></label>
 <button type="button" onclick="publishChurchPost()">发布教会生活帖子</button><p id="churchAdminStatus" class="muted"></p><div id="churchAdminList" class="admin-four-scroll"></div></div>
-<div class="card" id="adminActivityPanel"><h2>🔔 各端实时动态提醒</h2><p class="muted">管理员登录后自动监听注册申请、图书借阅、爱心站帖子和教会生活互动。页面打开期间持续更新。</p><p id="adminActivityStatus" class="muted">登录后开始监听。</p><div id="adminActivityList" style="max-height:360px;overflow:auto"></div></div>
+<div class="card" id="adminActivityPanel"><h2>🔔 各端实时动态提醒</h2><p class="muted">管理员登录后自动监听注册申请、图书借阅、爱心站帖子和教会生活互动。页面打开期间持续更新。</p><p id="adminActivityStatus" class="muted">登录后开始监听。</p><div id="adminActivityList" role="list" aria-label="各端实时动态记录（最多显示四条，滚动查看更多）" style="max-height:256px;overflow-y:auto;overscroll-behavior:contain"></div></div>
 <div class="card" id="announcementPanel_platform"><h2>幸福家人平台公告管理</h2><p class="muted">在这里发布、修改或撤下幸福家人平台公告（文字及图片）。用户进入相应页面时弹窗显示。</p>
 <label>公告标题<input id="announcementTitle_platform" maxlength="100" placeholder="公告标题" style="width:100%;padding:10px"></label>
 <label style="display:block;margin:10px 0">公告正文<textarea id="announcementBody_platform" maxlength="4000" rows="5" style="width:100%;padding:10px"></textarea></label>
@@ -1956,18 +1957,65 @@ syncManagementRoute();loadOfflinePhotos();
 // v10.5 教会生活：管理员发帖、实时提醒（仅管理员可访问管理功能）
 let ccgActivityUnsubs=[],ccgActivityRecords=new Map(),ccgChurchAdminUnsub=null;
 function ccgActivityDate(v){try{return v?.toDate?v.toDate():v?new Date(v):new Date()}catch(e){return new Date()}}
+function toggleChurchAdminPanel(){
+ const panel=document.getElementById('churchAdminPanel');
+ panel.hidden=!panel.hidden;
+ const button=document.getElementById('churchAdminToggle');
+ button.setAttribute('aria-expanded',String(!panel.hidden));
+ button.textContent=panel.hidden?'⛪ 教会生活管理 · 发布帖子　▾':'⛪ 收起教会生活管理　▴';
+ if(!panel.hidden)panel.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function ccgActivityProcessed(collection,data){
+ const status=String(data.status||data.state||'').toLowerCase();
+ if(collection==='platformMembers')return status==='approved'||status==='rejected'||status==='disabled';
+ if(collection==='libraryRequests'||collection==='libraryBorrowRequests')return ['approved','returned','rejected','completed','closed'].includes(status);
+ if(collection==='carePosts')return true; // 帖子已成功发布即为已处理；需求和消息仍可待处理
+ if(collection==='careNeeds'||collection==='careMessages')return ['fulfilled','resolved','completed','done','closed','replied','approved','rejected'].includes(status);
+ if(collection==='churchInteractions')return true; // 互动已提交成功
+ return false;
+}
+function ccgActivityDestination(collection){
+ if(collection==='platformMembers')return 'privacy';
+ if(collection==='libraryRequests'||collection==='libraryBorrowRequests')return 'library';
+ if(collection==='carePosts'||collection==='careNeeds'||collection==='careMessages')return 'care';
+ if(collection==='churchInteractions')return 'church';
+ return 'home';
+}
+function ccgActivityGo(item){
+ const destination=ccgActivityDestination(item.collection);
+ if(destination==='church'){
+  showManagementView('home');
+  const panel=document.getElementById('churchAdminPanel');
+  if(panel.hidden)toggleChurchAdminPanel();
+  panel.scrollIntoView({behavior:'smooth',block:'start'});
+  return;
+ }
+ showManagementView(destination);
+ const section=destination==='privacy'?'platformAccountList':destination==='library'?'libraryRequestScroll':destination==='care'?'careManagement':null;
+ if(section)requestAnimationFrame(()=>document.getElementById(section)?.scrollIntoView({behavior:'smooth',block:'start'}));
+}
 function ccgActivityRender(){
  const target=document.getElementById('adminActivityList');if(!target)return;
  const items=[...ccgActivityRecords.values()].sort((a,b)=>b.ms-a.ms).slice(0,60);
- target.replaceChildren();for(const item of items){const p=document.createElement('p');p.style.cssText='border-bottom:1px solid #e2e8e3;padding:8px 0;margin:0';p.textContent=new Date(item.ms).toLocaleString('zh-CN')+' · '+item.text;target.append(p)}
- document.getElementById('adminActivityStatus').textContent='实时监控中 · 最近 '+items.length+' 条动态（仅页面打开期间更新）';
+ target.replaceChildren();
+ for(const item of items){
+  const button=document.createElement('button');button.type='button';
+  button.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:58px;padding:9px 12px;margin:0;border:0;border-bottom:1px solid #e2e8e3;background:transparent;color:inherit;text-align:left;cursor:pointer;box-sizing:border-box';
+  const text=document.createElement('span');text.style.cssText='flex:1;min-width:0;overflow-wrap:anywhere';
+  text.textContent=(item.ms?new Date(item.ms).toLocaleString('zh-CN'):'时间待确认')+' · '+item.text;
+  const status=document.createElement('span');status.style.cssText='white-space:nowrap;font-weight:700;color:'+(item.processed?'#137a3c':'#b42318');
+  status.textContent=item.processed?'🟢 已处理':'🔴 待处理';
+  button.append(text,status);button.onclick=()=>ccgActivityGo(item);
+  button.title='点击前往对应管理界面';target.append(button);
+ }
+ document.getElementById('adminActivityStatus').textContent='实时监控 · 最近 '+items.length+' 条动态（显示4条，其余滚动查看；点击跳转）';
 }
 function ccgActivityStop(){ccgActivityUnsubs.forEach(fn=>{try{fn()}catch(e){}});ccgActivityUnsubs=[];ccgActivityRecords.clear();if(ccgChurchAdminUnsub){ccgChurchAdminUnsub();ccgChurchAdminUnsub=null}}
 function ccgActivityStart(){
  if(!fzhAdminReady||!fzhAdminStore)return;
  ccgActivityStop();
  const streams=[
-  ['platformMembers','会员注册',d=>d.status==='pending'?'新会员注册申请：'+(d.name||'未填写姓名'):null],
+  ['platformMembers','会员注册',d=>'会员注册：'+(d.name||'未填写姓名')],
   ['libraryBorrowRequests','图书借阅',d=>'图书借阅请求：'+(d.bookTitle||d.title||d.bookId||'待查看')],
   ['libraryRequests','图书借阅',d=>'图书馆请求：'+(d.bookTitle||d.title||'待查看')],
   ['carePosts','爱心站',d=>'新帖子：'+(d.text||'图片帖子').slice(0,55)],
@@ -1977,10 +2025,11 @@ function ccgActivityStart(){
  ];
  for(const [collection,label,format] of streams){
   try{const unsubscribe=fzhAdminStore.collection(collection).limit(100).onSnapshot(snap=>{
+   for(const key of [...ccgActivityRecords.keys()])if(key.startsWith(collection+'/'))ccgActivityRecords.delete(key);
    snap.docs.forEach(doc=>{const data=doc.data(),message=format(data);if(!message)return;
     const stamp=data.createdAt||data.updatedAt||data.requestedAt||data.timestamp;
     const ms=stamp?ccgActivityDate(stamp).getTime():0;
-    ccgActivityRecords.set(collection+'/'+doc.id,{text:message,ms});
+    ccgActivityRecords.set(collection+'/'+doc.id,{text:message,ms,collection,processed:ccgActivityProcessed(collection,data)});
    });ccgActivityRender();
   },err=>{console.warn('提醒监听失败 '+collection,err);document.getElementById('adminActivityStatus').textContent='部分提醒无法读取（请检查 Firebase Rules）：'+collection});ccgActivityUnsubs.push(unsubscribe)}catch(e){console.warn(e)}
  }
