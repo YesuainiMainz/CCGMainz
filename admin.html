@@ -156,7 +156,13 @@ html{scroll-padding-top:90px}body{padding-top:calc(56px + env(safe-area-inset-to
 <label id="searchTextWrap">搜索内容<input id="search" oninput="render()" placeholder="输入物品名称"/></label>
 <label id="searchChoiceWrap" style="display:none">筛选选项<select id="searchChoice" onchange="render()"></select></label>
 <label id="qtyModeWrap" style="display:none">数量比较<select id="qtyMode" onchange="render()"><option value="eq">等于</option><option value="gte">大于或等于</option><option value="lte">小于或等于</option></select></label>
-</div><div class="scroll inventory-scroll" id="inventoryScroll"><table><thead><tr><th>照片</th><th>名称</th><th>位置</th><th>备注</th><th>数量</th><th>操作</th></tr></thead><tbody id="items"></tbody></table></div></div><div class="card"><h2>出入库记录</h2><button onclick="exportHistoryCSV()">导出记录 Excel CSV</button><button onclick="exportHistoryJSON()">导出记录 JSON</button><button class="danger" onclick="clearAllHistory()" type="button">清空全部记录（确认3次）</button><p class="muted">包含库位移动（移库）、取用、销毁等操作记录。清空仅删除此浏览器保存的记录，不会改变库存数量或云端库存。</p><div style="margin:12px 0"><label for="historySearch">搜索历史出入库记录</label><input id="historySearch" type="search" placeholder="输入物品名称、操作类型、库位、日期或备注" oninput="renderHistory()" autocomplete="off" style="width:100%;box-sizing:border-box"><p class="muted" id="historySearchStatus" aria-live="polite"></p></div><div class="ten-row-scroll" id="history"></div></div></section>
+</div><div class="scroll inventory-scroll" id="inventoryScroll"><table><thead><tr><th>照片</th><th>名称</th><th>位置</th><th>备注</th><th>数量</th><th>操作</th></tr></thead><tbody id="items"></tbody></table></div></div><div class="card"><h2>出入库记录</h2><button onclick="exportHistoryCSV()">导出记录 Excel CSV</button><button onclick="exportHistoryJSON()">导出记录 JSON</button><button class="danger" onclick="clearAllHistory()" type="button">清空全部记录（确认3次）</button><p class="muted">包含库位移动（移库）、取用、销毁等操作记录。清空仅删除此浏览器保存的记录，不会改变库存数量或云端库存。</p><div style="margin:12px 0"><label for="historySearch">搜索历史出入库记录</label><input id="historySearch" type="search" placeholder="输入物品名称、操作类型、库位、日期或备注" oninput="renderHistory()" autocomplete="off" style="width:100%;box-sizing:border-box"><p class="muted" id="historySearchStatus" aria-live="polite"></p></div><p class="muted">每次编辑会单独留档「修改前」与「修改后」的完整库存信息和当时照片。可查看、导出或作为新库存重新入库；不会覆盖当前物品。</p>
+<div class="ten-row-scroll" id="history"></div>
+<h3>库存修改版本档案（独立保存）</h3>
+<p id="revisionArchiveStatus" class="muted">正在读取历史版本…</p>
+<input type="search" id="revisionSearch" placeholder="搜索旧名称、库位或时间" oninput="renderRevisionArchive()" style="width:100%;box-sizing:border-box">
+<div id="revisionArchiveList" class="ten-row-scroll"></div>
+<button type="button" onclick="exportAllRevisions()">导出所有版本（含照片 JSON）</button></div></section>
 <section id="libraryManagement" class="management-view" hidden>
 <div class="card" id="announcementPanel_library"><h2>图书馆公告管理</h2><p class="muted">在这里发布、修改或撤下图书馆公告（文字及图片）。用户进入相应页面时弹窗显示。</p>
 <label>公告标题<input id="announcementTitle_library" maxlength="100" placeholder="公告标题" style="width:100%;padding:10px"></label>
@@ -371,6 +377,168 @@ function render(){
 
  renderHistory();
 }
+
+// v10.4: 版本档案独立 IndexedDB，包含每次编辑前后快照及当时的图片。
+// Firestore 上传使用相同记录 ID，重试不会创建重复版本。
+const REV_DB_NAME='ccg-inventory-revisions-v104';
+let revisionArchiveCache=[],revisionArchiveBusy=false,revisionArchiveReady=false;
+function revisionDB(){
+ return new Promise((resolve,reject)=>{
+  const req=indexedDB.open(REV_DB_NAME,1);
+  req.onupgradeneeded=()=>req.result.createObjectStore('revisions',{keyPath:'id'});
+  req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);
+ });
+}
+async function revisionTx(mode,cb){
+ const database=await revisionDB();
+ return new Promise((resolve,reject)=>{
+  const tx=database.transaction('revisions',mode),store=tx.objectStore('revisions');
+  let result;
+  try{result=cb(store)}catch(e){database.close();reject(e);return}
+  tx.oncomplete=()=>{database.close();resolve(result)};
+  tx.onerror=()=>{database.close();reject(tx.error)};
+  tx.onabort=()=>{database.close();reject(tx.error)};
+ });
+}
+async function revisionArchivePut(record){
+ await revisionTx('readwrite',store=>store.put(record));
+ const i=revisionArchiveCache.findIndex(x=>x.id===record.id);
+ if(i<0)revisionArchiveCache.unshift(record);else revisionArchiveCache[i]=record;
+ revisionArchiveCache.sort((a,b)=>b.time.localeCompare(a.time));
+ renderRevisionArchive();
+}
+async function revisionArchiveLoad(){
+ const database=await revisionDB();
+ const records=await new Promise((resolve,reject)=>{
+  const tx=database.transaction('revisions','readonly');
+  const req=tx.objectStore('revisions').getAll();
+  req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);
+ });
+ database.close();
+ revisionArchiveCache=records.sort((a,b)=>b.time.localeCompare(a.time));
+ revisionArchiveReady=true;renderRevisionArchive();
+}
+async function revisionCapturePhoto(data){
+ if(!data||!String(data).startsWith('data:image/'))return '';
+ return new Promise(resolve=>{
+  const image=new Image();
+  image.onload=()=>{
+   const canvas=document.createElement('canvas');
+   const scale=Math.min(1,700/Math.max(image.width,image.height));
+   canvas.width=Math.max(1,Math.round(image.width*scale));
+   canvas.height=Math.max(1,Math.round(image.height*scale));
+   canvas.getContext('2d').drawImage(image,0,0,canvas.width,canvas.height);
+   let result='';
+   for(const quality of [.68,.5,.35,.2]){
+    result=canvas.toDataURL('image/jpeg',quality);
+    if(result.length<190000)break;
+   }
+   resolve(result.length<190000?result:'');
+  };
+  image.onerror=()=>resolve('');
+  image.src=data;
+ });
+}
+async function archiveInventoryChange(before,after,kind){
+ const record={id:uuid(),itemId:(after||before).id,time:new Date().toISOString(),kind,
+  before:before?{...before,photo:await revisionCapturePhoto(imageFor(before))}:null,
+  after:after?{...after,photo:await revisionCapturePhoto(imageFor(after))}:null,
+  uploaded:false};
+ await revisionArchivePut(record);
+ return record;
+}
+function revisionDataText(i){
+ return '名称：'+i.name+'\n分类：'+i.category+'\n库位：'+i.location+'\n数量：'+i.qty+' '+i.unit+'\n备注：'+(i.notes||'');
+}
+function renderRevisionArchive(){
+ const target=$('revisionArchiveList');if(!target)return;
+ const term=($('revisionSearch')?.value||'').trim().toLowerCase();
+ const found=revisionArchiveCache.filter(r=>!term||[r.time,r.before?.name,r.before?.location,r.after?.name,r.after?.location].join(' ').toLowerCase().includes(term));
+ $('revisionArchiveStatus').textContent=revisionArchiveReady?`已保存 ${revisionArchiveCache.length} 次库存编辑版本；显示 ${found.length} 条`:'正在读取历史版本…';
+ target.replaceChildren();
+ for(const record of found){
+  const row=document.createElement('div');
+  row.style.cssText='padding:12px 0;border-bottom:1px solid #d9e4dd';
+  const title=document.createElement('strong');
+  title.textContent=new Date(record.time).toLocaleString('zh-CN')+' · '+record.before.name+' → '+record.after.name;
+  row.append(title);
+  const state=document.createElement('small');
+  state.style.cssText='display:block;color:#66786e;margin:6px 0';
+  state.textContent=record.uploaded?'☁️ 云端已存档':'📱 本机已存档，等待云端上传';
+  row.append(state);
+  for(const [key,label] of [['before','修改前'],['after','修改后']]){
+   const part=record[key],wrap=document.createElement('details'),sum=document.createElement('summary');
+   sum.textContent=label+'：'+part.name+' / '+part.location+' / '+part.qty+' '+part.unit;
+   wrap.append(sum);
+   const pre=document.createElement('pre');pre.style.whiteSpace='pre-wrap';pre.textContent=revisionDataText(part);wrap.append(pre);
+   if(part.photo){
+    const img=document.createElement('img');img.src=part.photo;img.alt=label+'库存照片';img.style.cssText='max-width:180px;max-height:150px;object-fit:contain;display:block;margin:6px 0';wrap.append(img);
+   }
+   const exportButton=document.createElement('button');exportButton.type='button';exportButton.textContent='导出'+label+'（含照片）';
+   exportButton.onclick=()=>download('库存历史_'+record.id+'_'+key+'.json',{type:'ccg-inventory-revision',schema:1,revisionId:record.id,at:record.time,stage:key,item:part});
+   wrap.append(exportButton);
+   const restore=document.createElement('button');restore.type='button';restore.textContent='将此版本重新入库';
+   restore.style.marginLeft='8px';
+   restore.onclick=()=>restoreRevisionVersion(record.id,key);
+   wrap.append(restore);row.append(wrap);
+  }
+  const all=document.createElement('button');all.type='button';all.textContent='导出完整修改记录（前后照片）';
+  all.onclick=()=>download('库存修改档案_'+record.id+'.json',{type:'ccg-inventory-revision',schema:1,...record});
+  row.append(all);target.append(row);
+ }
+}
+async function restoreRevisionVersion(id,stage){
+ if(!fzhAdminReady)return alert('请先登录管理员');
+ const r=revisionArchiveCache.find(x=>x.id===id);if(!r)return;
+ const source=r[stage];
+ if(!confirm('确定把历史版本「'+source.name+'」作为【全新库存】重新入库吗？不会覆盖现有物品。'))return;
+ const item={...source,id:uuid(),name:uniqueName(source.name,db.items),photo:''};
+ db.items.push(item);touch('从历史版本重新入库：'+item.name+'（档案 '+id.slice(0,8)+'）');
+ if(!ccgSaveInventoryOperations()){
+  db.items=db.items.filter(i=>i.id!==item.id);db.version--;db.history.shift();return alert('本机库存队列写入失败');
+ }
+ if(!saveLocal(KEY,db))return alert('本机库存快照保存失败，请不要清理站点数据');
+ render();updateConnectionIndicator();scheduleAutoSync();
+ if(source.photo){
+  try{await queueOfflinePhoto(item.id,source.photo)}catch(e){alert('库存已入库，但照片保存失败：'+e.message)}
+ }
+ alert('已作为新库存入库，正在自动同步；历史版本保留不变。');
+}
+function exportAllRevisions(){
+ if(!revisionArchiveCache.length)return alert('暂无库存修改版本档案');
+ download('CCGMainz_全部库存修改版本_'+Date.now()+'.json',{type:'ccg-inventory-revisions',schema:1,exportedAt:new Date().toISOString(),records:revisionArchiveCache});
+}
+async function loadCloudRevisionArchives(){
+ if(!fzhAdminReady||!fzhAdminStore)return;
+ try{
+  const query=await fzhAdminStore.collection('inventoryRevisions').orderBy('time','desc').limit(500).get({source:'server'});
+  for(const doc of query.docs){
+   if(revisionArchiveCache.some(r=>r.id===doc.id))continue;
+   const r={...doc.data(),id:doc.id,uploaded:true};
+   delete r.savedAt;delete r.createdBy;
+   await revisionArchivePut(r);
+  }
+ }catch(e){console.warn('历史版本云端读取失败',e)}
+}
+async function flushRevisionArchives(){
+ if(revisionArchiveBusy||!fzhAdminReady||!ccgServerConnected||!fzhAdminStore)return;
+ revisionArchiveBusy=true;
+ try{
+  for(const record of revisionArchiveCache.filter(r=>!r.uploaded)){
+   const {uploaded,...payload}=record;
+   try{
+    await fzhAdminStore.collection('inventoryRevisions').doc(record.id).set({
+     ...payload,createdBy:fzhAdminAuth.currentUser.uid,
+     savedAt:firebase.firestore.FieldValue.serverTimestamp()
+    });
+    record.uploaded=true;
+    await revisionArchivePut(record);
+   }catch(e){console.warn('库存历史版本上传失败，保留本机重试',e);break}
+  }
+ }finally{revisionArchiveBusy=false;renderRevisionArchive()}
+}
+revisionArchiveLoad().catch(e=>{$('revisionArchiveStatus').textContent='历史档案读取失败：'+e.message});
+
 $('form').onsubmit=async e=>{
  e.preventDefault();
  try{
@@ -384,15 +552,25 @@ $('form').onsubmit=async e=>{
   if(!d.name.trim())throw Error('请输入物品名称');
   const file=$('photo').files[0];
   const before={...existing};
+  // 先捕获旧照片：每次编辑都形成独立历史版本，不再依赖之后可能被覆盖的 itemPhotos 文档。
+  const beforePhoto=await revisionCapturePhoto(imageFor(existing));
+  const newPhoto=file?await photoToData(file):imageFor(existing);
+  const afterPhoto=await revisionCapturePhoto(newPhoto);
   const item={...existing,id,name:uniqueName(d.name,db.items,id),category:d.category,location:d.location,qty,unit:d.unit.slice(0,20),notes:d.notes.slice(0,500)};
-  Object.assign(existing,item);touch('修改物品：'+item.name);
+  const revision={id:uuid(),itemId:id,time:new Date().toISOString(),kind:'edit',
+   before:{...before,photo:beforePhoto},after:{...item,photo:afterPhoto},
+   uploaded:false};
+  // 必须先把版本档案持久保存成功，才能修改正式库存。
+  await revisionArchivePut(revision);
+  Object.assign(existing,item);touch('修改物品：'+item.name+'（版本：'+revision.id.slice(0,8)+'）');
   if(!ccgSaveInventoryOperations()){
    Object.assign(existing,before);db.version--;db.history.shift();throw Error('无法保存本机修改队列');
   }
   saveLocal(KEY,db);render();updateConnectionIndicator();scheduleAutoSync();
-  if(file){try{await queueOfflinePhoto(id,await photoToData(file));if(ccgServerConnected)flushOfflinePhotos()}catch(err){alert('改动已记录，照片保存失败：'+err.message)}}
+  if(file){try{await queueOfflinePhoto(id,newPhoto);if(ccgServerConnected)flushOfflinePhotos()}catch(err){alert('改动已记录，照片保存失败：'+err.message)}}
   $('stockEditStatus').textContent='保存改动已记录，'+(ccgServerConnected?'正在自动同步':'离线等待自动同步');
   closeStockEditor();
+  flushRevisionArchives();
  }catch(err){alert(err.message)}
 };
 function edit(id){
@@ -414,7 +592,14 @@ function pickPhotoForItem(id){
 async function savePhotoForItem(file){
  const id=pendingPhotoItemId;pendingPhotoItemId=null;if(!file)return;
  const item=db.items.find(i=>i.id===id);if(!item)return msg('找不到该物品');
- try{await queueOfflinePhoto(id,await photoToData(file));if(navigator.onLine)flushOfflinePhotos();
+ try{
+  const newData=await photoToData(file);
+  const oldData=await revisionCapturePhoto(imageFor(item));
+  await revisionArchivePut({id:uuid(),itemId:id,time:new Date().toISOString(),kind:'photo',
+   before:{...item,photo:oldData},after:{...item,photo:await revisionCapturePhoto(newData)},uploaded:false});
+  await queueOfflinePhoto(id,newData);
+  flushRevisionArchives();
+  if(navigator.onLine)flushOfflinePhotos();
  }catch(e){msg('照片上传失败：'+e.message)}
 }
 
@@ -1283,7 +1468,7 @@ function ccgMigrateLegacyDraft(){
  localStorage.removeItem(FZH_DRAFT_KEY);draft=null;
  updateConnectionIndicator();
 }
-function initAdminFirebase(){const c=window.FZH_FIREBASE_CONFIG;if(!c||c.apiKey.startsWith('REPLACE')){document.getElementById('adminAuthStatus').textContent='请先配置 firebase-config.js';return;}const adminApp=firebase.apps.find(a=>a.name==='ccg-mainz-admin')||firebase.initializeApp(c,'ccg-mainz-admin');fzhAdminAuth=adminApp.auth();fzhAdminStore=adminApp.firestore();ccgEnableFirestoreCache(fzhAdminStore);fzhAdminAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e=>console.warn('持久登录设置失败',e));fzhAdminAuth.onAuthStateChanged(async u=>{fzhAdminReady=false;setAdminLoginButtonState();if(!u){ccgAdminLoaded={library:false,care:false,privacy:false,inventory:false};stopCareAdmin();stopLibraryRequestNotifications();if(photoUnsub){photoUnsub();photoUnsub=null;}photoCache.clear();libraryCloudItems=null;document.getElementById('adminAuthStatus').textContent='尚未登录';stopCloudListener();ccgLastVerifiedSyncAt=null;updateLatestStockTime();setCcgServerStatus(false);return;}try{const d=await fzhAdminStore.doc('admins/'+u.uid).get();if(!d.exists){document.getElementById('adminAuthStatus').textContent='账号已登录，但不是管理员。请按说明在 Firestore 添加 admins/'+u.uid;return;}fzhAdminReady=true;ccgMigrateLegacyDraft();checkCcgServer();announcementTargets.forEach(loadAnnouncementEditor);listenAdminPhotos();startCloudListener();loadOfflinePhotos().then(flushOfflinePhotos);document.getElementById('adminAuthStatus').textContent='管理员已验证：'+u.email;loadAdminSectionOnDemand();}catch(e){document.getElementById('adminAuthStatus').textContent='权限检查失败：'+e.message;}});}
+function initAdminFirebase(){const c=window.FZH_FIREBASE_CONFIG;if(!c||c.apiKey.startsWith('REPLACE')){document.getElementById('adminAuthStatus').textContent='请先配置 firebase-config.js';return;}const adminApp=firebase.apps.find(a=>a.name==='ccg-mainz-admin')||firebase.initializeApp(c,'ccg-mainz-admin');fzhAdminAuth=adminApp.auth();fzhAdminStore=adminApp.firestore();ccgEnableFirestoreCache(fzhAdminStore);fzhAdminAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e=>console.warn('持久登录设置失败',e));fzhAdminAuth.onAuthStateChanged(async u=>{fzhAdminReady=false;setAdminLoginButtonState();if(!u){ccgAdminLoaded={library:false,care:false,privacy:false,inventory:false};stopCareAdmin();stopLibraryRequestNotifications();if(photoUnsub){photoUnsub();photoUnsub=null;}photoCache.clear();libraryCloudItems=null;document.getElementById('adminAuthStatus').textContent='尚未登录';stopCloudListener();ccgLastVerifiedSyncAt=null;updateLatestStockTime();setCcgServerStatus(false);return;}try{const d=await fzhAdminStore.doc('admins/'+u.uid).get();if(!d.exists){document.getElementById('adminAuthStatus').textContent='账号已登录，但不是管理员。请按说明在 Firestore 添加 admins/'+u.uid;return;}fzhAdminReady=true;ccgMigrateLegacyDraft();checkCcgServer();revisionArchiveLoad().then(()=>loadCloudRevisionArchives());announcementTargets.forEach(loadAnnouncementEditor);listenAdminPhotos();startCloudListener();loadOfflinePhotos().then(flushOfflinePhotos);document.getElementById('adminAuthStatus').textContent='管理员已验证：'+u.email;loadAdminSectionOnDemand();}catch(e){document.getElementById('adminAuthStatus').textContent='权限检查失败：'+e.message;}});}
 // 保存账号（仅邮箱，不保存密码），并让浏览器密码管理器识别 username 字段。
 const FZH_ADMIN_ACCOUNT_KEY='fzh_admin_account';
 try{$('adminEmail').value=localStorage.getItem(FZH_ADMIN_ACCOUNT_KEY)||'';}catch(e){}
@@ -1345,7 +1530,7 @@ function updateConnectionIndicator(){
 function setCcgServerStatus(connected){
  ccgServerConnected=!!connected&&!!fzhAdminReady;
  updateConnectionIndicator();
- if(ccgServerConnected){ccgFlushQueue();flushOfflinePhotos()}
+ if(ccgServerConnected){ccgFlushQueue();flushOfflinePhotos();flushRevisionArchives()}
 }
 async function checkCcgServer(){
  if(ccgProbeBusy||!fzhAdminReady||!fzhAdminStore||!navigator.onLine){setCcgServerStatus(false);return}
@@ -1439,6 +1624,7 @@ async function submitStockAction(){
  if(type==='move'&&(!location||location===item.location))return error.textContent='请选择其他库位';
  const label={move:'库位移动',use:'取用',destroy:'销毁'}[type];
  if(!confirmThree(label,item.name+' × '+qty))return;
+ const original={...item};
  let summary='';
  if(type==='move'){
   const old=item.location;
@@ -1450,10 +1636,11 @@ async function submitStockAction(){
   }
   if(!db.locations.includes(location))db.locations.push(location);
  }else{item.qty-=qty;summary=label+'：'+item.name+' × '+qty}
+ try{await archiveInventoryChange(original,{...item},type)}catch(e){error.textContent='历史版本保存失败，操作已暂存，请勿刷新：'+e.message;return}
  touch(summary+(note?'；'+note:''));
  if(!ccgSaveInventoryOperations()){error.textContent='无法保存本机待上传操作，请导出备份';return}
  saveLocal(KEY,db);closeStockAction();render();updateConnectionIndicator();scheduleAutoSync();
- $('ghPublishStatus').textContent='已保存'+label+'操作，正在等待服务器确认';
+ $('ghPublishStatus').textContent='已保存'+label+'操作，正在等待服务器确认';flushRevisionArchives();
 }
 
 let onlineRequestDocs=[];
