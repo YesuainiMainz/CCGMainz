@@ -34,22 +34,23 @@ a{color:inherit}.post-actions{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0
 .mcg-language-status{display:block;color:#ffe7bf;font-size:13px;margin-top:5px}
 @media(max-width:560px){.mcg-language-row{align-items:stretch}.mcg-language-row h1{flex:1 1 100%}#mcgLanguageSwitch{width:100%}}
 </style></head><body>
-<header><div><div class="mcg-language-row"><h1>CCGMainz爱心站</h1><button id="mcgLanguageSwitch" type="button" data-no-translate>选择语言</button></div><span id="mcgLanguageStatus" class="mcg-language-status" role="status" data-no-translate></span><span>分享家中闲置或多余的物品 · 需求申请会通知发布者</span></div></header>
+<header><div><div class="mcg-language-row"><h1>CCGMainz爱心站</h1><button id="mcgLanguageSwitch" type="button" data-no-translate>选择语言</button></div><span id="mcgLanguageStatus" class="mcg-language-status" role="status" data-no-translate></span><span>分享闲置物品或发布个人需求 · 可通过文字与图片联系发布者</span></div></header>
 <main><p><a href="./platform.html" style="color:#22583d">← 返回 CCGMainz幸福家人数字平台</a></p>
 <nav class="post-actions" aria-label="爱心站操作">
- <button id="goPublish" type="button">发布闲置物品</button>
+ <button id="goPublish" type="button">发布帖子</button>
  <button id="goMyPosts" type="button" class="secondary">访问我发布的帖子</button>
 </nav>
-<section class="card" id="publishSection"><h2>发布闲置物品</h2>
+<section class="card" id="publishSection"><h2>发布帖子</h2>
+<div class="actions" id="postKindButtons"><button type="button" id="kindOffer">发布闲置物品</button><button type="button" id="kindRequest" class="secondary">发布需求</button></div><p class="muted" id="kindHint">请选择发布类型。</p>
 <form id="postForm">
 <p id="postingIdentity" class="muted">正在验证会员身份…</p>
-<label for="body">物品说明（可选）</label><textarea id="body" maxlength="1500" placeholder="请描述闲置或多余的物品（最多1500字）"></textarea>
+<label for="body" id="postBodyLabel">闲置物品说明（可选）</label><textarea id="body" maxlength="1500" placeholder="请描述闲置或多余的物品（最多1500字）"></textarea>
 <label for="image">上传图片（可选，最多4张，可追加）</label><input id="image" type="file" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/*">
 <div id="photoPreviews" class="photo-previews"></div><img id="preview" hidden alt="图片预览">
 <p class="muted">文字和图片至少填写一项。发布帖子将公开显示您注册的真实姓名。请勿在公开文字或图片中写入电话、地址等隐私。</p>
 <button id="publish" type="submit">发布物品</button><p id="publishStatus" class="muted" role="status"></p>
 </form></section>
-<section><h2>最新闲置物品</h2><p class="muted" id="feedStatus">正在加载…</p><div id="feed"></div><button id="more" type="button" hidden>加载更多</button></section>
+<section><h2>爱心站最新帖子</h2><p class="muted" id="feedStatus">正在加载…</p><div id="feed"></div><button id="more" type="button" hidden>加载更多</button></section>
 </main>
 <div id="myPostsDialog" hidden role="dialog" aria-modal="true" aria-labelledby="myPostsTitle">
  <div class="card my-posts-panel">
@@ -68,7 +69,7 @@ a{color:inherit}.post-actions{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0
   <p id="crossStatus" class="muted"></p>
  </div>
 </div>
-<div id="needDialog" hidden role="dialog" aria-modal="true" aria-labelledby="needTitle"><form id="needForm" class="card"><h2 id="needTitle">我有需要</h2><p id="needItem"></p><label for="requester">您的真实姓名（由账号自动填写） *</label><input id="requester" type="text" maxlength="40" readonly required><label for="needDetails">大致需要的物品及数量 *</label><textarea id="needDetails" maxlength="500" required placeholder="例如：儿童外套2件、书包1个"></textarea><div id="needPhotoTools" hidden><label for="needPhotoSelect">选择要圈出的帖子图片（可选）</label><select id="needPhotoSelect"></select><p class="muted">用鼠标或手指在图片上拖动，圈出需要的物品。圈出的图片只随本次需求发送，不修改发布者的原图。</p><canvas id="needMarkCanvas" style="width:100%;max-height:350px;object-fit:contain;border:1px solid #dce6dd;border-radius:8px;touch-action:none"></canvas><div class="actions"><button type="button" class="secondary" id="needUndoCircle">撤销上一个圈</button><button type="button" class="secondary" id="needResetCircle">清除所有圈</button></div></div><p class="muted">需求内容仅发布者和管理员可见。双方请通过其他方式自行联系。请勿在公开物品说明中留下联系方式。</p><button id="sendNeed" type="submit">发送给发布者</button><button id="cancelNeed" type="button" class="secondary">取消</button><p id="needStatus" role="status"></p></form></div><div id="viewer" hidden role="dialog" aria-modal="true" aria-label="查看图片"><button id="closeViewer" type="button">关闭 ×</button><img id="largeImage" alt="物品图片"></div>
+<div id="needDialog" hidden role="dialog" aria-modal="true" aria-labelledby="needTitle"><form id="needForm" class="card"><h2 id="needTitle">我有需要</h2><p id="needItem"></p><label for="requester">您的真实姓名（由账号自动填写） *</label><input id="requester" type="text" maxlength="40" readonly required><label for="needDetails">大致需要的物品及数量 *</label><textarea id="needDetails" maxlength="500" required placeholder="例如：儿童外套2件、书包1个"></textarea><div id="needPhotoTools" hidden><label for="needPhotoSelect">选择要圈出的帖子图片（可选）</label><select id="needPhotoSelect"></select><p class="muted">用鼠标或手指在图片上拖动，圈出需要的物品。圈出的图片只随本次需求发送，不修改发布者的原图。</p><canvas id="needMarkCanvas" style="width:100%;max-height:350px;object-fit:contain;border:1px solid #dce6dd;border-radius:8px;touch-action:none"></canvas><div class="actions"><button type="button" class="secondary" id="needUndoCircle">撤销上一个圈</button><button type="button" class="secondary" id="needResetCircle">清除所有圈</button></div></div><label for="needOwnImage">附上您自己的图片（可选）</label><input id="needOwnImage" type="file" accept="image/*"><p class="muted">消息和图片仅发送双方及管理员可见。请勿上传个人证件等敏感信息。</p><button id="sendNeed" type="submit">发送给发布者</button><button id="cancelNeed" type="button" class="secondary">取消</button><p id="needStatus" role="status"></p></form></div><div id="viewer" hidden role="dialog" aria-modal="true" aria-label="查看图片"><button id="closeViewer" type="button">关闭 ×</button><img id="largeImage" alt="物品图片"></div>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="./firebase-config.js"></script><script src="./member-session.js"></script>
@@ -83,7 +84,16 @@ function ccgEnableFirestoreCache(store){
  });
 }
 let memberReady=false;
-let selectedPhotos=[];let needMarkedPhoto="";let needSourcePhoto="";let needCircles=[];let needStart=null;let needBaseImage=null;let editingPostId=null;let myPosts=[];let db=null,posts=[],nextPage=null,loading=false,hasMore=true,selectedPhoto='',chosenPost=null,needBusy=false;
+let postKind='offer';let selectedPhotos=[];let needMarkedPhoto="";let needSourcePhoto="";let needCircles=[];let needStart=null;let needBaseImage=null;let editingPostId=null;let myPosts=[];let db=null,posts=[],nextPage=null,loading=false,hasMore=true,selectedPhoto='',chosenPost=null,needBusy=false;
+function setPostKind(kind){postKind=kind==='request'?'request':'offer';
+ $('kindOffer').className=postKind==='offer'?'':'secondary';$('kindRequest').className=postKind==='request'?'':'secondary';
+ $('kindHint').textContent=postKind==='request'?'发布您正在寻找的物品，可添加最多4张参考图片。':'发布闲置物品，供其他会员联系领取。';
+ $('postBodyLabel').textContent=postKind==='request'?'需求说明（可选）':'闲置物品说明（可选）';
+ $('body').placeholder=postKind==='request'?'例如：需要儿童冬衣，尺码140（最多1500字）':'请描述闲置或多余的物品（最多1500字）';
+ $('publish').textContent=editingPostId?'保存修改':postKind==='request'?'发布需求':'发布物品';
+}
+$('kindOffer').onclick=()=>setPostKind('offer');$('kindRequest').onclick=()=>setPostKind('request');
+setPostKind('offer');
 const needCanvas=()=>$('needMarkCanvas');
 function redrawNeedCircles(){
  const canvas=needCanvas();if(!needBaseImage)return;
@@ -143,17 +153,17 @@ function renderCards(feed,items){
  for(const p of items.filter(x=>x.author&&x.uid)){
   const card=make('article',undefined,'post'),head=make('div',undefined,'post-head');
   head.append(make('strong',p.author||'历史匿名发布'));
-  const t=make('time',p.createdAt?.toDate?.()?.toLocaleString('zh-CN')||'刚刚');head.append(t);card.append(head);
+  const t=make('time',p.createdAt?.toDate?.()?.toLocaleString('zh-CN')||'刚刚');head.append(t);head.append(make('span',(p.kind==='request'?'【个人需求】':'【闲置物品】')));card.append(head);
   if(p.text)card.append(make('p',p.text));
   if(p.photo?.startsWith('data:image/jpeg;base64,') && !(p.photos?.length)){
    const img=document.createElement('img');img.src=p.photo;img.alt='物品图片';img.loading='lazy';
    img.addEventListener('click',()=>openPhoto(p.photo));card.append(img);
   }
   if(Array.isArray(p.photos)&&p.photos.length){const gallery=make('div',undefined,'post-gallery');for(const src of p.photos){if(typeof src!=='string'||!src.startsWith('data:image/jpeg;base64,'))continue;const img=document.createElement('img');img.src=src;img.alt='物品图片';img.loading='lazy';img.onclick=()=>openPhoto(src);gallery.append(img)}card.append(gallery)}
-  if(memberReady&&p.uid!==window.CCGMember?.user?.uid){const need=make('button','❤️ 我有需要','need');need.type='button';need.addEventListener('click',()=>{chosenPost=p;$('needItem').textContent='您正在申请这条闲置物品：'+(p.text||'图片所示物品');$('requester').value=window.CCGMember?.profile?.name||'';$('needDetails').value='';$('needStatus').textContent='';$('needDialog').hidden=false;openNeedPhotoTools(p);$('requester').focus()});card.append(need);}
+  if(memberReady&&p.uid!==window.CCGMember?.user?.uid){const need=make('button',p.kind==='request'?'💬 联系需求发布者':'❤️ 我有需要','need');need.type='button';need.addEventListener('click',()=>{chosenPost=p;$('needItem').textContent=(p.kind==='request'?'您正在联系需求发布者：':'您正在申请这条闲置物品：')+(p.text||'图片所示物品');$('needTitle').textContent=p.kind==='request'?'联系需求发布者':'我有需要';$('needDetails').placeholder=p.kind==='request'?'例如：我有您需要的物品，想进一步了解…':'例如：儿童外套2件、书包1个';$('needOwnImage').value='';$('requester').value=window.CCGMember?.profile?.name||'';$('needDetails').value='';$('needStatus').textContent='';$('needDialog').hidden=false;openNeedPhotoTools(p);$('requester').focus()});card.append(need);}
   if(memberReady&&p.uid===window.CCGMember?.user?.uid){
    const edit=make('button','编辑我的帖子');edit.type='button';edit.style.marginRight='8px';
-   edit.onclick=()=>{editingPostId=p.id;$('body').value=p.text||'';selectedPhotos=Array.isArray(p.photos)&&p.photos.length?[...p.photos]:(p.photo?[p.photo]:[]);selectedPhoto=selectedPhotos[0]||'';renderPreviews();
+   edit.onclick=()=>{editingPostId=p.id;setPostKind(p.kind||'offer');$('body').value=p.text||'';selectedPhotos=Array.isArray(p.photos)&&p.photos.length?[...p.photos]:(p.photo?[p.photo]:[]);selectedPhoto=selectedPhotos[0]||'';renderPreviews();
     $('preview').hidden=!selectedPhoto;if(selectedPhoto)$('preview').src=selectedPhoto;
     $('publish').textContent='保存修改';$('publishStatus').textContent='正在编辑自己的帖子；选择图片可继续追加，最多4张。';
     closeMyPosts();$('postForm').scrollIntoView({behavior:'smooth'});};
@@ -290,11 +300,12 @@ $('needForm').addEventListener('submit',async e=>{
  e.preventDefault();if(!memberReady||!db||!chosenPost||needBusy||!window.CCGMember?.user)return;
  const requester=$('requester').value.trim(),details=$('needDetails').value.trim();
  if(!requester||requester.length>40||!details||details.length>500){$('needStatus').textContent='请填写称呼及需要的物品、数量';return}
- let annotatedPhoto='';try{annotatedPhoto=createNeedMarkedPhoto()}catch(err){$('needStatus').textContent=err.message;return}
- if(!confirm('确定将您的称呼、所需物品及数量'+(annotatedPhoto?'以及圈选图片':'')+'发送给发布者吗？仅发布者和管理员可见。'))return;
+ let annotatedPhoto='',ownPhoto='';try{annotatedPhoto=createNeedMarkedPhoto();if($('needOwnImage').files[0])ownPhoto=await compressImage($('needOwnImage').files[0]);}catch(err){$('needStatus').textContent=err.message;return}
+ if(!confirm('确定将您的称呼、所需物品及数量'+(annotatedPhoto?'、圈选图片':'')+(ownPhoto?'、您上传的图片':'')+'发送给发布者吗？仅发布者和管理员可见。'))return;
  needBusy=true;$('sendNeed').disabled=true;$('needStatus').textContent='正在发送…';
  try{
   const id=db.collection('careNeeds').doc().id,stamp=firebase.firestore.FieldValue.serverTimestamp();
+   if(chosenPost.kind==='request'||ownPhoto){await db.collection('careMessages').doc().set({postId:chosenPost.id,fromUid:window.CCGMember.user.uid,toUid:chosenPost.uid,fromName:requester,postKind:chosenPost.kind||'offer',text:details,annotatedPhoto,photo:ownPhoto,createdAt:stamp});$('needStatus').textContent='消息已发送，发布者可在「我的消息」查看文字及图片。';$('sendNeed').textContent='已发送';setTimeout(()=>{$('needDialog').hidden=true;chosenPost=null;$('sendNeed').textContent='发送给发布者'},1100);return;}
   const batch=db.batch();batch.set(db.collection('careNeeds').doc(id),{postId:chosenPost.id,requester,uid:window.CCGMember.user.uid,ownerUid:chosenPost.uid,ownerName:chosenPost.author||"",postText:(chosenPost.text||"").slice(0,1500),details,annotatedPhoto,status:"pending",createdAt:stamp});
   if(chosenPost.uid)batch.set(db.collection('memberNotifications').doc(id),{uid:chosenPost.uid,postId:chosenPost.id,needId:id,text:details,createdAt:stamp});
   await batch.commit();
@@ -310,11 +321,11 @@ $('postForm').addEventListener('submit',async e=>{
  const author=window.CCGMember?.profile?.name||'',text=$('body').value.trim();
  if(!author||author.length>40){$('publishStatus').textContent='请填写不超过40字的称呼';return}
  if(!text&&!selectedPhotos.length){$('publishStatus').textContent='请填写文字或上传图片';return}
- if(!confirm(editingPostId?'确定保存对这条帖子的修改吗？':'确定发布这条闲置物品信息吗？物品说明、照片和您的真实姓名会公开。'))return;
+ if(!confirm(editingPostId?'确定保存对这条帖子的修改吗？':'确定发布这条'+(postKind==='request'?'个人需求':'闲置物品')+'吗？文字、照片和您的真实姓名会公开。'))return;
  const btn=$('publish');btn.disabled=true;$('publishStatus').textContent='正在发布…';
  try{
-  if(editingPostId){await db.collection('carePosts').doc(editingPostId).update({text,photo:selectedPhotos[0]||'',photos:selectedPhotos});editingPostId=null;$('publish').textContent='发布物品';}
-  else{const id=db.collection('carePosts').doc().id;await db.collection('carePosts').doc(id).set({text,photo:selectedPhotos[0]||'',photos:selectedPhotos,author,uid:window.CCGMember.user.uid,createdAt:firebase.firestore.FieldValue.serverTimestamp()});}
+  if(editingPostId){await db.collection('carePosts').doc(editingPostId).update({text,photo:selectedPhotos[0]||'',photos:selectedPhotos,kind:postKind});editingPostId=null;setPostKind('offer');}
+  else{const id=db.collection('carePosts').doc().id;await db.collection('carePosts').doc(id).set({text,photo:selectedPhotos[0]||'',photos:selectedPhotos,kind:postKind,author,uid:window.CCGMember.user.uid,createdAt:firebase.firestore.FieldValue.serverTimestamp()});}
   $('body').value='';$('image').value='';$('preview').hidden=true;selectedPhoto='';selectedPhotos=[];renderPreviews();
   $('publishStatus').textContent='保存成功！';nextPage=null;await loadMore(true);
  }catch(err){$('publishStatus').textContent='发布失败：'+err.message}

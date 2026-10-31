@@ -141,7 +141,17 @@ html{scroll-padding-top:90px}body{padding-top:calc(56px + env(safe-area-inset-to
 <p class="muted">红色：云端有、本机没有。绿色：本机有、云端没有。逐条选择保留或删除，每次操作确认一次。相同 ID 但内容不同的物品另行提示，避免误覆盖。</p>
 <p id="inventoryDiffStatus" class="muted">登录后对比云端与本机库存。</p>
 <div id="inventoryDiffScroll" class="inventory-diff-scroll" aria-label="库存差异记录"><div id="inventoryDiffList"></div></div>
-</div><div class="card"><h2>在线申请审批 / 归还</h2><p class="muted">家庭端提交后自动出现。批准时在 Firestore 事务中检查库存并扣减，防止多人同时申请造成超额出库。归还支持分批登记。</p><button onclick="loadOnlineRequests()">刷新在线申请</button><p class="warn" id="onlineRequestStatus">请先登录管理员账号。</p><div class="scroll ten-row-table" id="onlineRequestsScroll"><table><thead><tr><th>申请人 / 物品</th><th>申请</th><th>状态</th><th>操作</th></tr></thead><tbody id="onlineRequestRows"></tbody></table></div></div><div class="card"><h2>分类与位置管理</h2><div class="grid"><div><b>分类</b><div id="categoriesList"></div><input id="newCategory" placeholder="新分类名称"/><button onclick="addOption('categories','newCategory')">添加分类</button></div><div><b>存放位置</b><div id="locationsList"></div><input id="newLocation" placeholder="新位置名称"/><button onclick="addOption('locations','newLocation')">添加位置</button></div></div></div><input accept="image/*" id="itemPhotoPicker" onchange="savePhotoForItem(this.files[0]);this.value=''" style="display:none" type="file"/><div class="card" id="itemEditorSection"><h2>添加 / 编辑物品</h2><form id="form"><input name="id" type="hidden"/><div class="grid"><label>名称 *<input name="name" required=""/></label><label>分类<select id="categorySelect" name="category"></select></label><label>存放位置<select id="locationSelect" name="location"></select></label><label>库存数量<input min="0" name="qty" required="" step="1" type="number" value="1"/></label><label>单位<input name="unit" value="个"/></label><label>照片<input accept="image/*" id="photo" type="file"/></label><label>备注<input name="notes"/></label></div><button type="submit">保存物品</button><button class="alt" onclick="clearForm()" type="button">清空表单</button><button class="danger" id="editorDeleteButton" onclick="deleteEditingItem()" style="display:none" type="button">删除此物品</button></form></div><div class="card"><h2>物品库存</h2><div class="grid">
+</div><div class="card"><h2>在线申请审批 / 归还</h2><p class="muted">家庭端提交后自动出现。批准时在 Firestore 事务中检查库存并扣减，防止多人同时申请造成超额出库。归还支持分批登记。</p><button onclick="loadOnlineRequests()">刷新在线申请</button><p class="warn" id="onlineRequestStatus">请先登录管理员账号。</p><div class="scroll ten-row-table" id="onlineRequestsScroll"><table><thead><tr><th>申请人 / 物品</th><th>申请</th><th>状态</th><th>操作</th></tr></thead><tbody id="onlineRequestRows"></tbody></table></div></div><div class="card"><h2>分类与位置管理</h2><div class="grid"><div><b>分类</b><div id="categoriesList"></div><input id="newCategory" placeholder="新分类名称"/><button onclick="addOption('categories','newCategory')">添加分类</button></div><div><b>存放位置</b><div id="locationsList"></div><input id="newLocation" placeholder="新位置名称"/><button onclick="addOption('locations','newLocation')">添加位置</button></div></div></div><input accept="image/*" id="itemPhotoPicker" onchange="savePhotoForItem(this.files[0]);this.value=''" style="display:none" type="file"/><div class="card" id="inboundEntryCard"><button type="button" id="openInboundButton" onclick="openInboundEntry()">📦 物品入库</button><p class="muted">新物品使用独立入库表单；即使曾编辑其他库存，也不会修改已有库存。</p>
+<div id="inboundEntryPanel" hidden><h2>物品入库</h2><form id="inboundForm" autocomplete="off"><div class="grid">
+<label>名称 *<input name="name" required maxlength="120"></label>
+<label>分类<select name="category" id="inboundCategory"></select></label>
+<label>存放位置<select name="location" id="inboundLocation"></select></label>
+<label>库存数量<input name="qty" type="number" min="0" step="1" value="1" required></label>
+<label>单位<input name="unit" value="个"></label>
+<label>照片<input id="inboundPhoto" type="file" accept="image/*"></label>
+<label>备注<input name="notes" maxlength="500"></label></div>
+<button type="submit" id="inboundSaveButton">物品入库</button><button class="alt" type="button" onclick="resetInboundEntry()">清空入库表单</button><button class="alt" type="button" onclick="closeInboundEntry()">关闭</button><p id="inboundSaveStatus" role="status" class="muted"></p></form></div></div>
+<div class="card" id="itemEditorSection" hidden><h2>编辑已有库存</h2><p class="muted">本表单仅修改当前选中的库存；无法从这里新建物品。</p><form id="form"><input name="id" type="hidden"/><div class="grid"><label>名称 *<input name="name" required=""/></label><label>分类<select id="categorySelect" name="category"></select></label><label>存放位置<select id="locationSelect" name="location"></select></label><label>库存数量<input min="0" name="qty" required="" step="1" type="number" value="1"/></label><label>单位<input name="unit" value="个"/></label><label>照片<input accept="image/*" id="photo" type="file"/></label><label>备注<input name="notes"/></label></div><button type="submit">保存改动</button><button class="alt" onclick="closeStockEditor()" type="button">取消编辑</button><button class="danger" id="editorDeleteButton" onclick="deleteEditingItem()" type="button">删除此物品</button><p id="stockEditStatus" class="muted" role="status"></p></form></div><div class="card"><h2>物品库存</h2><div class="grid">
 <label>搜索方式<select id="searchMode" onchange="updateSearchControls();render()"><option value="name">名称</option><option value="category">分类</option><option value="location">存放位置</option><option value="qty">数量</option></select></label>
 <label id="searchTextWrap">搜索内容<input id="search" oninput="render()" placeholder="输入物品名称"/></label>
 <label id="searchChoiceWrap" style="display:none">筛选选项<select id="searchChoice" onchange="render()"></select></label>
@@ -202,6 +212,46 @@ db.categories=Array.isArray(db.categories)?db.categories:['饰品','用品','礼
 db.locations=Array.isArray(db.locations)?db.locations:['A1','A2','A3','J1','P1','P2','S1'];
 db.items.forEach(i=>{if(i.category&&!db.categories.includes(i.category))db.categories.push(i.category);if(i.location&&!db.locations.includes(i.location))db.locations.push(i.location)});
 function optionUI(){for(let [field,selectId,listId] of [['categories','categorySelect','categoriesList'],['locations','locationSelect','locationsList']]){let sel=$(selectId),v=sel.value;sel.innerHTML=db[field].map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');if(db[field].includes(v))sel.value=v;$(listId).innerHTML=db[field].map((x,n)=>`<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;margin:3px;background:#e8f1e9;border-radius:6px">${esc(x)} <button class="danger" style="padding:3px 6px" onclick="deleteOption('${field}',${n})" aria-label="删除${esc(x)}">×</button></span>`).join('')}} 
+function updateInboundOptions(){
+ for(const [field,id] of [['categories','inboundCategory'],['locations','inboundLocation']]){
+  const select=$(id);if(!select)return;
+  const previous=select.value;
+  select.replaceChildren(...db[field].map(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;return o}));
+  if(db[field].includes(previous))select.value=previous;
+ }
+}
+function openInboundEntry(){closeStockEditor();$('inboundEntryPanel').hidden=false;updateInboundOptions();$('inboundForm').elements.name.focus()}
+function closeInboundEntry(){$('inboundEntryPanel').hidden=true}
+function resetInboundEntry(){const f=$('inboundForm');f.reset();f.elements.qty.value='1';f.elements.unit.value='个';$('inboundPhoto').value='';$('inboundSaveStatus').textContent=''}
+function closeStockEditor(){const f=$('form');f.reset();f.elements.id.value='';$('photo').value='';editPhoto='';$('itemEditorSection').hidden=true}
+async function submitInboundEntry(e){
+ e.preventDefault();
+ if(!fzhAdminReady){alert('请先登录管理员账号');return}
+ const form=e.currentTarget,button=$('inboundSaveButton');
+ if(button.disabled)return;
+ const values=Object.fromEntries(new FormData(form)),qty=Number(values.qty);
+ if(!values.name?.trim()||!Number.isSafeInteger(qty)||qty<0){alert('请输入名称和有效的库存数量');return}
+ // 新入库绝不读取编辑表单的隐藏 ID，每次都生成全新 ID。
+ const item={id:uuid(),name:uniqueName(values.name,db.items),category:values.category||'',location:values.location||'',qty,unit:(values.unit||'个').slice(0,20),notes:(values.notes||'').slice(0,500),photo:''};
+ const file=$('inboundPhoto').files[0];
+ button.disabled=true;
+ try{
+  // 先保存到本机持久队列，失败时回滚，避免界面显示了未保存的数据。
+  db.items.push(item);
+  touch('入库物品：'+item.name);
+  if(!ccgSaveInventoryOperations()){
+   db.items=db.items.filter(x=>x.id!==item.id);db.version--;db.history.shift();
+   throw Error('本机队列保存失败，请检查浏览器存储空间');
+  }
+  if(!saveLocal(KEY,db))throw Error('操作已记录，但本机库存快照写入失败，请不要清除浏览器数据');
+  render();updateConnectionIndicator();scheduleAutoSync();
+  if(file){try{await queueOfflinePhoto(item.id,await photoToData(file));if(ccgServerConnected)flushOfflinePhotos()}catch(err){alert('库存已记录，但照片未能保存：'+err.message)}}
+  $('inboundSaveStatus').textContent='已记录入库：'+item.name+'（'+item.id.slice(0,8)+'） · '+(ccgServerConnected?'正在等待服务器核对':'离线待上传');
+  resetInboundEntry();
+  $('inboundSaveStatus').textContent='已入库并记录到本机：'+item.name+'；'+(ccgServerConnected?'自动同步中':'联网后自动同步');
+ }catch(err){alert(err.message)}finally{button.disabled=false}
+}
+$('inboundForm').addEventListener('submit',submitInboundEntry);
 function addOption(field,inputId){if(!fzhAdminReady)return msg('请先登录管理员账号');let v=$(inputId).value.trim();if(!v||v.length>50)return msg('名称不能为空或超过50字');if(db[field].includes(v))return msg('已经存在');if(!confirmThree('增加',v))return;db[field].push(v);$(inputId).value='';persist();$(field==='categories'?'categorySelect':'locationSelect').value=v}
 
 function deleteOption(field,index){if(!fzhAdminReady)return msg('请先登录管理员账号');
@@ -313,7 +363,7 @@ function closePhotoLightbox(){
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closePhotoLightbox()});
 
 function render(){
- optionUI();updateSearchControls();
+ optionUI();updateInboundOptions();updateSearchControls();
  $('summary').textContent=`库存版本 V${db.version} · ${db.items.length} 种物品 · 总数量 ${db.items.reduce((s,i)=>s+i.qty,0)} · 待审批 ${db.requests.filter(r=>r.status==='待审批').length}`;
  let q=$('search').value.trim().toLowerCase(),mode=$('searchMode').value,choice=$('searchChoice').value;
  $('items').innerHTML=db.items.filter(i=>mode==='name'?i.name.toLowerCase().includes(q):mode==='category'?(!choice||i.category===choice):mode==='location'?(!choice||i.location===choice):q===''?true:(Number.isFinite(Number(q))&&( $('qtyMode').value==='eq'?i.qty===Number(q):$('qtyMode').value==='gte'?i.qty>=Number(q):i.qty<=Number(q)))).map(i=>`<tr><td>${imageFor(i)?`<button type="button" class="photo-open" data-photo-id="${esc(i.id)}" title="点击查看大图" aria-label="放大查看 ${esc(i.name)} 的图片"><img class="photo zoomable-photo" src="${imageFor(i)}" alt="${esc(i.name)}的照片"></button>`:'<span title="尚未添加照片">📦</span>'}</td><td><b>${esc(i.name)}</b><br><small>${esc(i.category)}</small></td><td>${esc(i.location)}</td><td class="item-notes">${i.notes?esc(i.notes):'<span class="muted">—</span>'}</td><td>${i.qty} ${esc(i.unit)}</td><td><button onclick="edit('${i.id}')">编辑</button><button type="button" onclick="openStockAction('${i.id}')">出库</button><button type="button" onclick="pickPhotoForItem('${i.id}')">${imageFor(i)?'更换照片':'添加照片'}</button></td></tr>`).join('');
@@ -321,18 +371,37 @@ function render(){
 
  renderHistory();
 }
-$('form').onsubmit=async e=>{e.preventDefault();try{if(!fzhAdminReady)throw Error('请先登录管理员账号；已登录后断网仍可连续录入库存');
- let d=Object.fromEntries(new FormData(e.target)),qty=Number(d.qty);
- if(!Number.isSafeInteger(qty)||qty<0)return msg('库存必须是非负整数');
- let existing=db.items.find(i=>i.id===d.id),file=$('photo').files[0],photo=existing?.photo||'';
- let item={id:existing?.id||uuid(),name:d.name.trim().slice(0,120),category:d.category.slice(0,50),location:d.location.slice(0,120),qty,unit:d.unit.slice(0,20),notes:d.notes.slice(0,500),photo};
- if(!item.name)return msg('请输入物品名称');
- if(!existing||item.name!==existing.name)item.name=uniqueName(item.name,db.items,existing?.id);
- if(!existing&&!confirmThree('增加物品',item.name))return;
- if(existing)Object.assign(existing,item);else db.items.push(item);
- touch((existing?'修改':'添加')+'物品：'+item.name);persist();if(file){try{await queueOfflinePhoto(item.id,await photoToData(file));if(navigator.onLine)flushOfflinePhotos()}catch(err){msg('物品已保存，但照片暂存失败：'+err.message)}}e.target.reset();e.target.elements.qty.value=1;e.target.elements.unit.value='个';editPhoto='';$('editorDeleteButton').style.display='none';
-}catch(err){msg(err.message)}};
-function edit(id){let i=db.items.find(x=>x.id===id);if(!i)return;$('editorDeleteButton').style.display='';$('photo').value='';for(let k of ['id','name','category','location','qty','unit','notes'])$('form').elements[k].value=i[k]||'';editPhoto=i.photo||'';document.getElementById('itemEditorSection').scrollIntoView({behavior:'smooth',block:'start'})}
+$('form').onsubmit=async e=>{
+ e.preventDefault();
+ try{
+  if(!fzhAdminReady)throw Error('请先登录管理员');
+  const d=Object.fromEntries(new FormData(e.currentTarget)),id=d.id;
+  if(!id)throw Error('未选择已有库存，请通过「物品库存 → 编辑」打开');
+  const existing=db.items.find(i=>i.id===id);
+  if(!existing)throw Error('当前物品不存在，请重新选择');
+  const qty=Number(d.qty);
+  if(!Number.isSafeInteger(qty)||qty<0)throw Error('数量必须为非负整数');
+  if(!d.name.trim())throw Error('请输入物品名称');
+  const file=$('photo').files[0];
+  const before={...existing};
+  const item={...existing,id,name:uniqueName(d.name,db.items,id),category:d.category,location:d.location,qty,unit:d.unit.slice(0,20),notes:d.notes.slice(0,500)};
+  Object.assign(existing,item);touch('修改物品：'+item.name);
+  if(!ccgSaveInventoryOperations()){
+   Object.assign(existing,before);db.version--;db.history.shift();throw Error('无法保存本机修改队列');
+  }
+  saveLocal(KEY,db);render();updateConnectionIndicator();scheduleAutoSync();
+  if(file){try{await queueOfflinePhoto(id,await photoToData(file));if(ccgServerConnected)flushOfflinePhotos()}catch(err){alert('改动已记录，照片保存失败：'+err.message)}}
+  $('stockEditStatus').textContent='保存改动已记录，'+(ccgServerConnected?'正在自动同步':'离线等待自动同步');
+  closeStockEditor();
+ }catch(err){alert(err.message)}
+};
+function edit(id){
+ const i=db.items.find(x=>x.id===id);if(!i)return;
+ closeInboundEntry();$('itemEditorSection').hidden=false;
+ $('photo').value='';for(const k of ['id','name','category','location','qty','unit','notes'])$('form').elements[k].value=i[k]??'';
+ editPhoto=i.photo||'';$('itemEditorSection').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
 let pendingPhotoItemId=null;
 function pickPhotoForItem(id){
  const item=db.items.find(i=>i.id===id);
@@ -349,7 +418,7 @@ async function savePhotoForItem(file){
  }catch(e){msg('照片上传失败：'+e.message)}
 }
 
-function deleteEditingItem(){const id=$('form').elements.id.value;if(!id)return;removeItem(id);if(!db.items.some(x=>x.id===id)){const form=$('form');form.reset();form.elements.id.value='';form.elements.unit.value='个';$('editorDeleteButton').style.display='none';}}
+function deleteEditingItem(){const id=$('form').elements.id.value;if(!id)return;removeItem(id);if(!db.items.some(x=>x.id===id)){const form=$('form');form.reset();form.elements.id.value='';form.elements.unit.value='个';closeStockEditor();}}
 function removeItem(id){let i=db.items.find(x=>x.id===id);if(i&&confirmThree('物品',i.name)){db.items=db.items.filter(x=>x.id!==id);touch('删除物品：'+i.name);persist()}}
 
 
