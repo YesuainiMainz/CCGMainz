@@ -163,6 +163,8 @@ html{scroll-padding-top:90px}body{padding-top:calc(56px + env(safe-area-inset-to
  </div>
  <div id="qrInfoBranch" hidden>
   <h3>二维码信息压缩</h3>
+  <label>Cloudflare Pages 公开分享网址（只需配置一次）<input id="qrPublicOrigin" type="url" placeholder="https://your-share.pages.dev" style="width:100%;max-width:540px" oninput="qrSavePublicOrigin()"></label>
+  <p class="muted">使用不包含教会名称的独立 Cloudflare Pages 域名。必须先部署本包的 Cloudflare 网站，才能发布二维码。网址仅保存于当前设备浏览器。</p>
   <p class="muted">二维码中存储的是分享页面链接，文字和图片保存在云端。修改内容不改变二维码，删除分享后扫码链接失效。</p>
   <button type="button" onclick="qrNewInfo()">＋ 新建压缩信息分享</button>
   <div id="qrInfoEditor" hidden style="margin:12px 0;padding:14px;border:1px solid #dce6dd;border-radius:12px">
@@ -2178,9 +2180,15 @@ function qrShowBranch(branch){
  const family=document.getElementById('qrFamilyBranch'),info=document.getElementById('qrInfoBranch');
  family.hidden=branch!=='family';info.hidden=branch!=='info';
  if(branch==='family')loadFamilyQrAdmin();
- if(branch==='info')qrLoadInfo();
+ if(branch==='info'){document.getElementById('qrPublicOrigin').value=localStorage.getItem('ccgQrPublicOrigin')||'';qrLoadInfo();}
 }
-function qrInfoLink(id){return new URL('./share.html?id='+encodeURIComponent(id),location.href).href}
+function qrPublicBase(){
+ const input=document.getElementById('qrPublicOrigin');const value=(input?.value||localStorage.getItem('ccgQrPublicOrigin')||'').trim();
+ try{const url=new URL(value);if(url.protocol!=='https:'||url.username||url.password||url.search||url.hash||url.pathname!=='/')return '';
+ if(url.hostname===location.hostname)return '';return url.origin;}catch(e){return ''}
+}
+function qrSavePublicOrigin(){const base=qrPublicBase();if(base)localStorage.setItem('ccgQrPublicOrigin',base);if(qrInfoLoaded)qrRenderInfoList()}
+function qrInfoLink(id){const base=qrPublicBase();return base?base+'/share.html?id='+encodeURIComponent(id):''}
 function qrInfoQrImage(id){return 'https://api.qrserver.com/v1/create-qr-code/?size=280x280&format=png&margin=12&data='+encodeURIComponent(qrInfoLink(id))}
 function qrInfoSetStatus(message){document.getElementById('qrInfoStatus').textContent=message}
 function qrInfoEscape(t){return String(t??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -2203,7 +2211,7 @@ function qrRenderInfoList(){
   card.style.cssText='padding:12px;border-bottom:1px solid #dce6dd;min-height:155px';
   const title=document.createElement('strong');title.textContent=r.title||'无标题';
   const meta=document.createElement('p');meta.className='muted';meta.textContent=(r.body||'').slice(0,90)+(r.body?.length>90?'…':'');
-  const link=document.createElement('a');link.href=qrInfoLink(r.id);link.target='_blank';link.rel='noopener';link.textContent='在线查看';
+  const link=document.createElement('a');const shareUrl=qrInfoLink(r.id);if(shareUrl){link.href=shareUrl;link.target='_blank';link.rel='noopener';link.textContent='在线查看'}else{link.textContent='请先设置 Cloudflare 公开分享网址'}
   const actions=document.createElement('div');actions.style.cssText='display:flex;gap:7px;flex-wrap:wrap;margin-top:8px';
   for(const [label,fn] of [
    ['查看二维码',()=>qrShowInfoCode(r.id)],
@@ -2218,6 +2226,7 @@ function qrRenderInfoList(){
 }
 function qrShowInfoCode(id){
  const wrap=document.getElementById('qrInfoCode_'+id);if(!wrap)return;
+ if(!qrInfoLink(id)){alert('请先填写 Cloudflare Pages 的 HTTPS 网址');return}
  if(wrap.childNodes.length){wrap.replaceChildren();return}
  const img=document.createElement('img');img.src=qrInfoQrImage(id);img.alt='此信息分享的二维码';
  img.width=180;img.height=180;img.style.cssText='display:block;max-width:100%;margin-top:8px';
@@ -2289,6 +2298,7 @@ async function qrPublishInfo(){
  const body=document.getElementById('qrInfoBody').value.trim();
  const status=document.getElementById('qrInfoEditStatus');
  if(!title||!body){status.textContent='请填写标题和正文';return}
+ if(!qrPublicBase()){status.textContent='请先填写独立的 Cloudflare Pages HTTPS 分享网址（不能是教会网站域名）';return}
  if(qrInfoImages.length>3||qrInfoImages.some(s=>s.length>=155000)){status.textContent='图片大小超出限制';return}
  qrInfoBusy=true;status.textContent='正在保存到服务器…';
  try{
