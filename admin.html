@@ -49,7 +49,7 @@ button{touch-action:manipulation}
 .management-nav{margin:14px 0;display:flex;flex-wrap:wrap;gap:10px}
 .management-nav-button{min-width:150px;min-height:52px;border-radius:12px;font-size:1.08rem;font-weight:700;padding:12px 22px}
 .management-nav-button{display:flex;align-items:center;justify-content:space-between;gap:14px}
-#churchAdminPanel[hidden],.management-view[hidden],#managementHome[hidden],#managementSubpageHeader[hidden]{display:none!important}
+#qrManagement[hidden],#churchAdminPanel[hidden],.management-view[hidden],#managementHome[hidden],#managementSubpageHeader[hidden]{display:none!important}
 .inventory-management{margin:12px 0;padding:10px;border:1px solid #d4e5d8;border-radius:14px;background:#f6faf7}
 .inventory-management>.card{margin:12px 0}
 
@@ -126,7 +126,7 @@ html{scroll-padding-top:90px}body{padding-top:calc(56px + env(safe-area-inset-to
  <button class="management-nav-button" type="button" onclick="showManagementView('qr')">▦ 二维码管理 →</button>
  <button type="button" id="churchAdminToggle" aria-expanded="false" aria-controls="churchAdminPanel" onclick="toggleChurchAdminPanel()" class="management-nav-button" style="margin:0">⛪ 教会生活 →</button>
 </nav>
-<section class="card" id="qrManagement" hidden><h2>▦ 幸福家人二维码管理</h2><p>扫描最新二维码进入幸福家人平台。更换后旧二维码失效，直接访问平台网址仍然有效。</p><p id="qrAdminStatus">登录后读取二维码</p><div id="qrAdminImage"></div><p><a id="qrShareLink" target="_blank" rel="noopener">在线打开扫码链接</a></p><button onclick="downloadFamilyQr()">下载二维码 PNG</button> <button onclick="rotateFamilyQr()">更新二维码</button><p class="muted">二维码由第三方图片服务生成，扫码链接将发送给该服务。</p></section><div class="card" id="churchAdminPanel" hidden><h2>⛪ 教会生活 · 发布帖子</h2><p class="muted">发布前勾选允许会员参与的互动方式（可多选）；帖子发布后可在下方随时查看、编辑、撤下或删除。</p>
+<div class="card" id="churchAdminPanel" hidden><h2>⛪ 教会生活 · 发布帖子</h2><p class="muted">发布前勾选允许会员参与的互动方式（可多选）；帖子发布后可在下方随时查看、编辑、撤下或删除。</p>
 <label>标题<input id="churchPostTitle" maxlength="100" style="width:100%" placeholder="例如：本周主日活动"></label>
 <label>正文<textarea id="churchPostBody" maxlength="4000" rows="4" style="width:100%"></textarea></label>
 <div style="display:flex;gap:16px;flex-wrap:wrap;margin:12px 0"><label><input type="checkbox" id="churchOptLike" checked> 点赞</label><label><input type="checkbox" id="churchOptVote"> 投票</label><label><input type="checkbox" id="churchOptPhoto"> 上传照片</label><label><input type="checkbox" id="churchOptChain"> 接龙</label></div>
@@ -146,6 +146,7 @@ html{scroll-padding-top:90px}body{padding-top:calc(56px + env(safe-area-inset-to
  <button class="alt back-button" type="button" onclick="showManagementView('home')">← 返回管理中心</button>
  <h2 id="managementPageTitle"></h2>
 </div>
+<section class="card" id="qrManagement" hidden><h2>▦ 幸福家人二维码管理</h2><p>扫描最新二维码进入幸福家人平台。更换后旧二维码失效，直接访问平台网址仍然有效。</p><p id="qrAdminStatus">登录后读取二维码</p><div id="qrAdminImage"></div><p><a id="qrShareLink" target="_blank" rel="noopener">在线打开扫码链接</a></p><button onclick="downloadFamilyQr()">下载二维码 PNG</button> <button onclick="rotateFamilyQr()">更新二维码</button><p class="muted">二维码由第三方图片服务生成，扫码链接将发送给该服务。</p></section>
 <section class="inventory-management management-view" hidden="" id="inventoryManagement"><div class="card"><h2>库存概况</h2><span id="summary"></span><p class="warn" id="ghPublishStatus">登录后自动同步云端库存</p><p class="warn">登录后自动同步云端库存。保存物品或恢复备份后将自动上传；建议定期导出完整备份。</p><button onclick="backup()">导出完整备份</button><label>恢复完整备份（不限制选择文件大小，云端仍有容量限制） <input accept=".json" onchange="restore(this.files[0]);this.value=''" type="file"/></label></div><div class="card"><h2>离线拍照入库</h2><p id="offlinePhotoStatus" class="muted">正在读取本机待上传照片…</p><p class="muted">离线时可拍照并新增库存，照片暂存在此设备。联网后自动尝试同步；请勿清除浏览器站点数据。</p></div><div class="card" id="inventoryReconcilePanel">
 <h2>云端与本机库存差异</h2>
 <p class="muted">红色：云端有、本机没有。绿色：本机有、云端没有。逐条选择保留或删除，每次操作确认一次。相同 ID 但内容不同的物品另行提示，避免误覆盖。</p>
