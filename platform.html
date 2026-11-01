@@ -36,7 +36,7 @@ a.tile:hover,a.tile:focus-visible{border-color:#3b805a;box-shadow:0 6px 18px #00
 <header><div><div class="mcg-language-row"><h1>CCGMainz幸福家人数字平台</h1><button id="mcgLanguageSwitch" type="button" data-no-translate>选择语言</button></div>
 <span id="mcgLanguageStatus" class="mcg-language-status" data-no-translate role="status"></span>
 <p>分享知识 · 传递爱心 · 彼此帮助</p></div></header>
-<main><section class="auth-card" id="memberAuth">
+<main><section class="auth-card" style="text-align:center"><h2>📱 分享幸福家人平台</h2><p>面对面分享，请扫描最新二维码</p><p id="familyQrStatus">正在读取最新二维码…</p><div id="familyQrDisplay"></div><p><a id="familyQrDirectLink" target="_blank" rel="noopener">打开扫码链接</a></p></section><section class="auth-card" id="memberAuth">
 <div id="loginPanel"><h2>会员登录</h2><p class="note">使用注册邮箱作为账号登录，浏览器密码管理器可保存登录信息。</p>
 <form id="memberForm"><label>账号<input id="memberEmail" type="email" required autocomplete="username" placeholder="请输入注册邮箱"></label><label>密码<input id="memberPassword" type="password" required autocomplete="current-password" placeholder="请输入密码"></label>
 <div class="auth-actions" style="justify-content:space-between;max-width:460px"><button id="login" type="submit">登录</button><button id="register" type="button" style="margin-left:auto;background:#f0f6f2;color:#246746;border:1px solid #246746">注册新账号 →</button></div></form>
@@ -71,4 +71,4 @@ a.tile:hover,a.tile:focus-visible{border-color:#3b805a;box-shadow:0 6px 18px #00
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="./firebase-config.js"></script><script src="./platform-auth.js"></script><script src="./member-inbox.js"></script><script src="./zh-toggle.js"></script><script src="./announcements.js" data-target="platform"></script></body></html>
+<script src="./firebase-config.js"></script><script src="./platform-auth.js"></script><script src="./member-inbox.js"></script><script src="./zh-toggle.js"></script><script src="./announcements.js" data-target="platform"></script><script src="./family-qr.js"></script></body></html>

@@ -123,9 +123,10 @@ html{scroll-padding-top:90px}body{padding-top:calc(56px + env(safe-area-inset-to
  <button class="management-nav-button" type="button" onclick="showManagementView('library')">📚 CCGMainz图书馆 <span aria-hidden="true">→</span></button>
  <button class="management-nav-button" type="button" onclick="showManagementView('care')">❤️ CCGMainz爱心站 <span aria-hidden="true">→</span></button>
  <button class="management-nav-button" type="button" onclick="showManagementView('privacy')">🔒 隐私管理 <span aria-hidden="true">→</span></button>
+ <button class="management-nav-button" type="button" onclick="showManagementView('qr')">▦ 二维码管理 →</button>
  <button type="button" id="churchAdminToggle" aria-expanded="false" aria-controls="churchAdminPanel" onclick="toggleChurchAdminPanel()" class="management-nav-button" style="margin:0">⛪ 教会生活 →</button>
 </nav>
-<div class="card" id="churchAdminPanel" hidden><h2>⛪ 教会生活 · 发布帖子</h2><p class="muted">发布前勾选允许会员参与的互动方式（可多选）；帖子发布后可在下方随时查看、编辑、撤下或删除。</p>
+<section class="card" id="qrManagement" hidden><h2>▦ 幸福家人二维码管理</h2><p>扫描最新二维码进入幸福家人平台。更换后旧二维码失效，直接访问平台网址仍然有效。</p><p id="qrAdminStatus">登录后读取二维码</p><div id="qrAdminImage"></div><p><a id="qrShareLink" target="_blank" rel="noopener">在线打开扫码链接</a></p><button onclick="downloadFamilyQr()">下载二维码 PNG</button> <button onclick="rotateFamilyQr()">更新二维码</button><p class="muted">二维码由第三方图片服务生成，扫码链接将发送给该服务。</p></section><div class="card" id="churchAdminPanel" hidden><h2>⛪ 教会生活 · 发布帖子</h2><p class="muted">发布前勾选允许会员参与的互动方式（可多选）；帖子发布后可在下方随时查看、编辑、撤下或删除。</p>
 <label>标题<input id="churchPostTitle" maxlength="100" style="width:100%" placeholder="例如：本周主日活动"></label>
 <label>正文<textarea id="churchPostBody" maxlength="4000" rows="4" style="width:100%"></textarea></label>
 <div style="display:flex;gap:16px;flex-wrap:wrap;margin:12px 0"><label><input type="checkbox" id="churchOptLike" checked> 点赞</label><label><input type="checkbox" id="churchOptVote"> 投票</label><label><input type="checkbox" id="churchOptPhoto"> 上传照片</label><label><input type="checkbox" id="churchOptChain"> 接龙</label></div>
@@ -1930,8 +1931,8 @@ function loadAdminSectionOnDemand(requestedView){
  if(view==='inventory'&&!ccgAdminLoaded.inventory){ccgAdminLoaded.inventory=true;loadOnlineRequests();}
 }
 function showManagementView(view,fromHash=false){
- if(!['home','inventory','library','privacy','care'].includes(view))view='home';
- $('managementHome').hidden=view!=='home';
+ if(!['home','inventory','library','privacy','care','qr'].includes(view))view='home';
+ $('managementHome').hidden=view!=='home';$('qrManagement').hidden=view!=='qr';if(view==='qr')loadFamilyQrAdmin();
  $('inventoryManagement').hidden=view!=='inventory';
  $('libraryManagement').hidden=view!=='library';
  $('privacyManagement').hidden=view!=='privacy';
@@ -1939,7 +1940,7 @@ function showManagementView(view,fromHash=false){
  $('managementSubpageHeader').hidden=view==='home';
  if(fzhAdminReady)loadAdminSectionOnDemand(view);
  if(view==='care')requestAnimationFrame(refreshCareView);
- if(view!=='home')$('managementPageTitle').textContent=view==='inventory'?'库存管理':view==='library'?'CCGMainz图书馆':view==='care'?'CCGMainz爱心站':'隐私管理';
+ if(view!=='home')$('managementPageTitle').textContent=view==='inventory'?'库存管理':view==='library'?'CCGMainz图书馆':view==='care'?'CCGMainz爱心站':view==='qr'?'二维码管理':'隐私管理';
  if(!fromHash){const hash=view==='home'?'':('#'+view);if(location.hash!==hash){
   if(view==='home')history.pushState(null,'',location.pathname+location.search);
   else history.pushState(null,'',hash);
@@ -1949,7 +1950,7 @@ function showManagementView(view,fromHash=false){
  if(view==='inventory')requestAnimationFrame(()=>{try{render()}catch(e){console.warn('库存布局刷新失败',e)}});
  if(view==='library'||view==='privacy')requestAnimationFrame(()=>{try{limitAdminFourLists()}catch(e){console.warn(e)}});
 }
-function syncManagementRoute(){showManagementView(location.hash==='#inventory'?'inventory':location.hash==='#library'?'library':location.hash==='#privacy'?'privacy':location.hash==='#care'?'care':'home',true)}
+function syncManagementRoute(){showManagementView(location.hash==='#inventory'?'inventory':location.hash==='#library'?'library':location.hash==='#privacy'?'privacy':location.hash==='#care'?'care':location.hash==='#qr'?'qr':'home',true)}
 window.addEventListener('popstate',syncManagementRoute);
 window.addEventListener('hashchange',syncManagementRoute);
 syncManagementRoute();loadOfflinePhotos();
@@ -2135,4 +2136,12 @@ async function publishChurchPost(){
  finally{btn.disabled=false}
 }
 
+
+let familyQrToken='',familyQrBusy=false;
+function familyQrUrl(token){return new URL('./join.html?t='+encodeURIComponent(token),location.href).href}
+function familyQrImage(token){return 'https://api.qrserver.com/v1/create-qr-code/?size=320x320&format=png&margin=12&data='+encodeURIComponent(familyQrUrl(token))}
+function renderFamilyQr(token){familyQrToken=token||'';const b=document.getElementById('qrAdminImage'),a=document.getElementById('qrShareLink');b.replaceChildren();if(!token){a.hidden=true;return}a.hidden=false;a.href=familyQrUrl(token);a.textContent=familyQrUrl(token);const img=document.createElement('img');img.src=familyQrImage(token);img.alt='幸福家人最新二维码';img.width=260;img.style.maxWidth='100%';b.append(img)}
+async function loadFamilyQrAdmin(){const s=document.getElementById('qrAdminStatus');if(!fzhAdminReady||!fzhAdminStore){s.textContent='请先登录管理员';return}try{const d=await fzhAdminStore.doc('publicConfig/familyQr').get({source:'server'});const token=d.exists?d.data().token:'';renderFamilyQr(token);s.textContent=token?'最新有效二维码':'尚未生成二维码，请点击更新二维码'}catch(e){s.textContent='读取失败：'+e.message}}
+async function rotateFamilyQr(){if(!fzhAdminReady||!fzhAdminStore)return alert('请先登录管理员');if(!confirm('确定生成新二维码并使旧二维码失效吗？'))return;if(familyQrBusy)return;familyQrBusy=true;const s=document.getElementById('qrAdminStatus');try{const bytes=new Uint8Array(24);crypto.getRandomValues(bytes);const token=Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');await fzhAdminStore.doc('publicConfig/familyQr').set({token,updatedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedBy:fzhAdminAuth.currentUser.uid});const d=await fzhAdminStore.doc('publicConfig/familyQr').get({source:'server'});if(!d.exists||d.data().token!==token)throw Error('服务器未确认更新');renderFamilyQr(token);s.textContent='新二维码已生效，旧二维码已失效'}catch(e){s.textContent='更新失败：'+e.message}finally{familyQrBusy=false}}
+async function downloadFamilyQr(){if(!familyQrToken)return alert('请先生成二维码');const url=familyQrImage(familyQrToken);try{const r=await fetch(url,{mode:'cors'});if(!r.ok)throw Error('图片服务不可用');const blob=await r.blob(),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='CCGMainz_幸福家人二维码.png';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)}catch(e){window.open(url,'_blank');alert('无法直接下载，请在新窗口右键图片另存为')}}
 </script></html>
