@@ -123,7 +123,7 @@ html{scroll-padding-top:90px}body{padding-top:calc(56px + env(safe-area-inset-to
  <button class="management-nav-button" type="button" onclick="showManagementView('library')">📚 CCGMainz图书馆 <span aria-hidden="true">→</span></button>
  <button class="management-nav-button" type="button" onclick="showManagementView('care')">❤️ CCGMainz爱心站 <span aria-hidden="true">→</span></button>
  <button class="management-nav-button" type="button" onclick="showManagementView('privacy')">🔒 隐私管理 <span aria-hidden="true">→</span></button>
- <button class="management-nav-button" type="button" onclick="showManagementView('qr')">▦ 二维码管理 →</button>
+ <button class="management-nav-button" type="button" onclick="showManagementView('qr')">▦ Q分享 <span aria-hidden="true">→</span></button>
  <button type="button" id="churchAdminToggle" aria-expanded="false" aria-controls="churchAdminPanel" onclick="toggleChurchAdminPanel()" class="management-nav-button" style="margin:0">⛪ 教会生活 →</button>
 </nav>
 <div class="card" id="churchAdminPanel" hidden><h2>⛪ 教会生活 · 发布帖子</h2><p class="muted">发布前勾选允许会员参与的互动方式（可多选）；帖子发布后可在下方随时查看、编辑、撤下或删除。</p>
@@ -146,7 +146,41 @@ html{scroll-padding-top:90px}body{padding-top:calc(56px + env(safe-area-inset-to
  <button class="alt back-button" type="button" onclick="showManagementView('home')">← 返回管理中心</button>
  <h2 id="managementPageTitle"></h2>
 </div>
-<section class="card" id="qrManagement" hidden><h2>▦ 幸福家人二维码管理</h2><p>扫描最新二维码进入幸福家人平台。更换后旧二维码失效，直接访问平台网址仍然有效。</p><p id="qrAdminStatus">登录后读取二维码</p><div id="qrAdminImage"></div><p><a id="qrShareLink" target="_blank" rel="noopener">在线打开扫码链接</a></p><button onclick="downloadFamilyQr()">下载二维码 PNG</button> <button onclick="rotateFamilyQr()">更新二维码</button><p class="muted">二维码由第三方图片服务生成，扫码链接将发送给该服务。</p></section>
+<section class="card" id="qrManagement" hidden>
+ <h2>▦ Q分享</h2>
+ <p>选择二维码分享类型：</p>
+ <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+  <button type="button" onclick="qrShowBranch('family')">📱 家人平台二维码</button>
+  <button type="button" onclick="qrShowBranch('info')">🗂 二维码信息压缩</button>
+ </div>
+ <div id="qrFamilyBranch" hidden>
+  <h3>幸福家人二维码管理</h3>
+  <p>扫描最新二维码进入幸福家人平台。更换后旧二维码失效，直接访问平台网址仍然有效。</p>
+  <p id="qrAdminStatus">登录后读取二维码</p><div id="qrAdminImage"></div>
+  <p><a id="qrShareLink" target="_blank" rel="noopener">在线打开扫码链接</a></p>
+  <button type="button" onclick="downloadFamilyQr()">下载二维码 PNG</button>
+  <button type="button" onclick="rotateFamilyQr()">更新二维码</button>
+ </div>
+ <div id="qrInfoBranch" hidden>
+  <h3>二维码信息压缩</h3>
+  <p class="muted">二维码中存储的是分享页面链接，文字和图片保存在云端。修改内容不改变二维码，删除分享后扫码链接失效。</p>
+  <button type="button" onclick="qrNewInfo()">＋ 新建压缩信息分享</button>
+  <div id="qrInfoEditor" hidden style="margin:12px 0;padding:14px;border:1px solid #dce6dd;border-radius:12px">
+   <h3 id="qrInfoEditorTitle">新建信息分享</h3>
+   <label>分享标题<input id="qrInfoTitle" maxlength="120" placeholder="例如：本周聚会安排"></label>
+   <label>分享文字<textarea id="qrInfoBody" maxlength="12000" rows="7" placeholder="填写需要分享的内容"></textarea></label>
+   <label>上传图片（可选，最多3张）<input type="file" id="qrInfoFiles" accept="image/*" multiple onchange="qrInfoChooseImages(this.files)"></label>
+   <div id="qrInfoImagePreviews" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+   <p class="muted">图片会压缩后保存到 Firestore；每张图片可单独移除。</p>
+   <button type="button" onclick="qrPublishInfo()">发布／保存修改</button>
+   <button type="button" class="alt" onclick="qrCloseEditor()">取消</button>
+   <p id="qrInfoEditStatus" role="status"></p>
+  </div>
+  <p id="qrInfoStatus" role="status">进入此分支后读取分享记录。</p>
+  <div id="qrInfoList" style="max-height:390px;overflow-y:auto;overscroll-behavior:contain;border:1px solid #dce6dd;border-radius:12px;padding:8px"></div>
+ </div>
+ <p class="muted">二维码图片由第三方服务绘制，生成时分享链接会发送给该服务。</p>
+</section>
 <section class="inventory-management management-view" hidden="" id="inventoryManagement"><div class="card"><h2>库存概况</h2><span id="summary"></span><p class="warn" id="ghPublishStatus">登录后自动同步云端库存</p><p class="warn">登录后自动同步云端库存。保存物品或恢复备份后将自动上传；建议定期导出完整备份。</p><button onclick="backup()">导出完整备份</button><label>恢复完整备份（不限制选择文件大小，云端仍有容量限制） <input accept=".json" onchange="restore(this.files[0]);this.value=''" type="file"/></label></div><div class="card"><h2>离线拍照入库</h2><p id="offlinePhotoStatus" class="muted">正在读取本机待上传照片…</p><p class="muted">离线时可拍照并新增库存，照片暂存在此设备。联网后自动尝试同步；请勿清除浏览器站点数据。</p></div><div class="card" id="inventoryReconcilePanel">
 <h2>云端与本机库存差异</h2>
 <p class="muted">红色：云端有、本机没有。绿色：本机有、云端没有。逐条选择保留或删除，每次操作确认一次。相同 ID 但内容不同的物品另行提示，避免误覆盖。</p>
@@ -1933,7 +1967,7 @@ function loadAdminSectionOnDemand(requestedView){
 }
 function showManagementView(view,fromHash=false){
  if(!['home','inventory','library','privacy','care','qr'].includes(view))view='home';
- $('managementHome').hidden=view!=='home';$('qrManagement').hidden=view!=='qr';if(view==='qr')loadFamilyQrAdmin();
+ $('managementHome').hidden=view!=='home';$('qrManagement').hidden=view!=='qr';if(view==='qr'){qrShowBranch('');}
  $('inventoryManagement').hidden=view!=='inventory';
  $('libraryManagement').hidden=view!=='library';
  $('privacyManagement').hidden=view!=='privacy';
@@ -1941,7 +1975,7 @@ function showManagementView(view,fromHash=false){
  $('managementSubpageHeader').hidden=view==='home';
  if(fzhAdminReady)loadAdminSectionOnDemand(view);
  if(view==='care')requestAnimationFrame(refreshCareView);
- if(view!=='home')$('managementPageTitle').textContent=view==='inventory'?'库存管理':view==='library'?'CCGMainz图书馆':view==='care'?'CCGMainz爱心站':view==='qr'?'二维码管理':'隐私管理';
+ if(view!=='home')$('managementPageTitle').textContent=view==='inventory'?'库存管理':view==='library'?'CCGMainz图书馆':view==='care'?'CCGMainz爱心站':view==='qr'?'Q分享':'隐私管理';
  if(!fromHash){const hash=view==='home'?'':('#'+view);if(location.hash!==hash){
   if(view==='home')history.pushState(null,'',location.pathname+location.search);
   else history.pushState(null,'',hash);
@@ -2138,6 +2172,144 @@ async function publishChurchPost(){
 }
 
 
+
+let qrInfoEditingId=null,qrInfoImages=[],qrInfoLoaded=false,qrInfoBusy=false,qrInfoUnsub=null,qrInfoRecords=[];
+function qrShowBranch(branch){
+ const family=document.getElementById('qrFamilyBranch'),info=document.getElementById('qrInfoBranch');
+ family.hidden=branch!=='family';info.hidden=branch!=='info';
+ if(branch==='family')loadFamilyQrAdmin();
+ if(branch==='info')qrLoadInfo();
+}
+function qrInfoLink(id){return new URL('./share.html?id='+encodeURIComponent(id),location.href).href}
+function qrInfoQrImage(id){return 'https://api.qrserver.com/v1/create-qr-code/?size=280x280&format=png&margin=12&data='+encodeURIComponent(qrInfoLink(id))}
+function qrInfoSetStatus(message){document.getElementById('qrInfoStatus').textContent=message}
+function qrInfoEscape(t){return String(t??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function qrLoadInfo(){
+ if(!fzhAdminReady||!fzhAdminStore){qrInfoSetStatus('请先登录管理员');return}
+ if(qrInfoUnsub)return;
+ qrInfoSetStatus('正在读取云端分享记录…');
+ qrInfoUnsub=fzhAdminStore.collection('qrInfoShares').onSnapshot(snap=>{
+  qrInfoRecords=snap.docs.map(doc=>({id:doc.id,...doc.data()}))
+    .sort((a,b)=>(b.createdAt?.toMillis?.()||0)-(a.createdAt?.toMillis?.()||0));
+  qrInfoLoaded=true;qrInfoSetStatus('共 '+qrInfoRecords.length+' 条分享；列表一次显示约2条，可向下滑动浏览。');
+  qrRenderInfoList();
+ },e=>qrInfoSetStatus('读取失败：'+e.message));
+}
+function qrRenderInfoList(){
+ const list=document.getElementById('qrInfoList');list.replaceChildren();
+ if(!qrInfoRecords.length){list.textContent='暂无分享记录';return}
+ for(const r of qrInfoRecords){
+  const card=document.createElement('div');
+  card.style.cssText='padding:12px;border-bottom:1px solid #dce6dd;min-height:155px';
+  const title=document.createElement('strong');title.textContent=r.title||'无标题';
+  const meta=document.createElement('p');meta.className='muted';meta.textContent=(r.body||'').slice(0,90)+(r.body?.length>90?'…':'');
+  const link=document.createElement('a');link.href=qrInfoLink(r.id);link.target='_blank';link.rel='noopener';link.textContent='在线查看';
+  const actions=document.createElement('div');actions.style.cssText='display:flex;gap:7px;flex-wrap:wrap;margin-top:8px';
+  for(const [label,fn] of [
+   ['查看二维码',()=>qrShowInfoCode(r.id)],
+   ['编辑',()=>qrEditInfo(r.id)],
+   ['删除',()=>qrDeleteInfo(r.id)]
+  ]){
+   const button=document.createElement('button');button.type='button';button.textContent=label;button.onclick=fn;actions.append(button);
+  }
+  const wrap=document.createElement('div');wrap.id='qrInfoCode_'+r.id;
+  card.append(title,meta,link,actions,wrap);list.append(card);
+ }
+}
+function qrShowInfoCode(id){
+ const wrap=document.getElementById('qrInfoCode_'+id);if(!wrap)return;
+ if(wrap.childNodes.length){wrap.replaceChildren();return}
+ const img=document.createElement('img');img.src=qrInfoQrImage(id);img.alt='此信息分享的二维码';
+ img.width=180;img.height=180;img.style.cssText='display:block;max-width:100%;margin-top:8px';
+ const a=document.createElement('a');a.href=qrInfoQrImage(id);a.target='_blank';a.rel='noopener';a.textContent='打开二维码图片（可保存分享）';
+ wrap.append(img,a);
+}
+function qrNewInfo(){
+ qrInfoEditingId=null;qrInfoImages=[];
+ document.getElementById('qrInfoTitle').value='';document.getElementById('qrInfoBody').value='';
+ document.getElementById('qrInfoFiles').value='';
+ document.getElementById('qrInfoEditorTitle').textContent='新建信息分享';
+ document.getElementById('qrInfoEditStatus').textContent='';
+ document.getElementById('qrInfoEditor').hidden=false;qrRenderImages();
+ document.getElementById('qrInfoEditor').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function qrEditInfo(id){
+ const r=qrInfoRecords.find(x=>x.id===id);if(!r)return;
+ qrInfoEditingId=id;qrInfoImages=[...(r.images||[])];
+ document.getElementById('qrInfoTitle').value=r.title||'';
+ document.getElementById('qrInfoBody').value=r.body||'';
+ document.getElementById('qrInfoFiles').value='';
+ document.getElementById('qrInfoEditorTitle').textContent='编辑已发布分享（二维码不变）';
+ document.getElementById('qrInfoEditStatus').textContent='';
+ document.getElementById('qrInfoEditor').hidden=false;qrRenderImages();
+ document.getElementById('qrInfoEditor').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function qrCloseEditor(){document.getElementById('qrInfoEditor').hidden=true;qrInfoEditingId=null;qrInfoImages=[]}
+function qrRenderImages(){
+ const box=document.getElementById('qrInfoImagePreviews');box.replaceChildren();
+ qrInfoImages.forEach((src,i)=>{
+  const wrapper=document.createElement('div');wrapper.style.cssText='display:flex;flex-direction:column;gap:4px';
+  const img=document.createElement('img');img.src=src;img.alt='分享图片 '+(i+1);img.style.cssText='width:110px;height:90px;object-fit:contain';
+  const del=document.createElement('button');del.type='button';del.textContent='移除';del.onclick=()=>{qrInfoImages.splice(i,1);qrRenderImages()};
+  wrapper.append(img,del);box.append(wrapper);
+ });
+}
+async function qrCompressImage(file){
+ if(!file.type.startsWith('image/'))throw Error('只支持图片文件');
+ const url=URL.createObjectURL(file);
+ try{
+  const img=new Image();img.src=url;await img.decode();
+  const scale=Math.min(1,950/Math.max(img.naturalWidth,img.naturalHeight));
+  const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
+  canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+  let result='';
+  for(const quality of [.7,.55,.4,.28]){
+   result=canvas.toDataURL('image/jpeg',quality);
+   if(result.length<155000)break;
+  }
+  if(result.length>=155000)throw Error('图片压缩后仍过大，请选择尺寸较小的图片');
+  return result;
+ }finally{URL.revokeObjectURL(url)}
+}
+async function qrInfoChooseImages(files){
+ const status=document.getElementById('qrInfoEditStatus');
+ try{
+  const selected=Array.from(files);
+  if(qrInfoImages.length+selected.length>3)throw Error('每条分享最多上传3张图片');
+  status.textContent='正在压缩图片…';
+  for(const f of selected)qrInfoImages.push(await qrCompressImage(f));
+  qrRenderImages();status.textContent='图片已准备好，点击发布后保存云端。';
+ }catch(e){status.textContent='图片处理失败：'+e.message}
+ finally{document.getElementById('qrInfoFiles').value=''}
+}
+async function qrPublishInfo(){
+ if(qrInfoBusy)return;
+ if(!fzhAdminReady||!fzhAdminStore)return alert('请先登录管理员');
+ const title=document.getElementById('qrInfoTitle').value.trim();
+ const body=document.getElementById('qrInfoBody').value.trim();
+ const status=document.getElementById('qrInfoEditStatus');
+ if(!title||!body){status.textContent='请填写标题和正文';return}
+ if(qrInfoImages.length>3||qrInfoImages.some(s=>s.length>=155000)){status.textContent='图片大小超出限制';return}
+ qrInfoBusy=true;status.textContent='正在保存到服务器…';
+ try{
+  const now=firebase.firestore.FieldValue.serverTimestamp();
+  const payload={title,body,images:[...qrInfoImages],updatedAt:now,updatedBy:fzhAdminAuth.currentUser.uid};
+  if(qrInfoEditingId){
+   await fzhAdminStore.collection('qrInfoShares').doc(qrInfoEditingId).update(payload);
+  }else{
+   const id=Array.from(crypto.getRandomValues(new Uint8Array(20)),b=>b.toString(16).padStart(2,'0')).join('');
+   await fzhAdminStore.collection('qrInfoShares').doc(id).set({...payload,createdAt:now,createdBy:fzhAdminAuth.currentUser.uid});
+  }
+  status.textContent='保存成功，二维码地址保持稳定。';qrCloseEditor();
+ }catch(e){status.textContent='发布失败：'+e.message}
+ finally{qrInfoBusy=false}
+}
+async function qrDeleteInfo(id){
+ if(!fzhAdminReady||!fzhAdminStore)return;
+ if(!confirm('确定永久删除此分享吗？删除后对应二维码立即失效，且无法恢复。'))return;
+ try{await fzhAdminStore.collection('qrInfoShares').doc(id).delete();if(qrInfoEditingId===id)qrCloseEditor()}
+ catch(e){alert('删除失败：'+e.message)}
+}
 let familyQrToken='',familyQrBusy=false;
 function familyQrUrl(token){return new URL('./join.html?t='+encodeURIComponent(token),location.href).href}
 function familyQrImage(token){return 'https://api.qrserver.com/v1/create-qr-code/?size=320x320&format=png&margin=12&data='+encodeURIComponent(familyQrUrl(token))}

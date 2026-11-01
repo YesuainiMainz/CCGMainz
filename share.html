@@ -1,0 +1,27 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CCGMainz · Q分享</title><style>
+*{box-sizing:border-box}body{font-family:system-ui,"Microsoft YaHei",sans-serif;background:#f2f6f3;color:#243b2f;margin:0;padding:18px}
+main{max-width:720px;margin:6vh auto;background:white;border-radius:16px;padding:clamp(18px,4vw,36px);box-shadow:0 4px 24px #0001}
+h1{color:#20533d;overflow-wrap:anywhere}#body{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.8}#images img{display:block;max-width:100%;height:auto;margin:14px auto;border-radius:8px}
+small{color:#66796e}a{color:#205b44}</style></head><body><main><small>CCGMainz · Q分享</small><h1 id="title">正在加载分享信息…</h1><div id="body" role="status">请保持网络连接。</div><div id="images"></div><p><a href="./platform.html">访问幸福家人数字平台</a></p></main>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="./firebase-config.js"></script>
+<script>
+(async()=>{
+ const title=document.getElementById('title'),body=document.getElementById('body'),images=document.getElementById('images');
+ const id=new URLSearchParams(location.search).get('id')||'';
+ if(!/^[0-9a-f]{40}$/.test(id)){title.textContent='分享链接无效';body.textContent='请扫描管理员提供的二维码。';return}
+ try{
+  if(!window.FZH_FIREBASE_CONFIG)throw Error('缺少 Firebase 配置');
+  const app=firebase.apps.find(a=>a.name==='q-share-public')||firebase.initializeApp(window.FZH_FIREBASE_CONFIG,'q-share-public');
+  const doc=await app.firestore().collection('qrInfoShares').doc(id).get({source:'server'});
+  if(!doc.exists){title.textContent='分享已失效';body.textContent='该分享已被管理员删除，或二维码已失效。';return}
+  const data=doc.data();title.textContent=data.title||'信息分享';body.textContent=data.body||'';
+  images.replaceChildren();
+  for(const src of data.images||[]){
+   if(typeof src!=='string'||!src.startsWith('data:image/jpeg;base64,'))continue;
+   const img=document.createElement('img');img.src=src;img.alt='分享图片';img.loading='lazy';images.append(img);
+  }
+ }catch(e){title.textContent='暂时无法查看分享';body.textContent='请检查网络连接后重试。'+e.message}
+})();
+</script></body></html>
