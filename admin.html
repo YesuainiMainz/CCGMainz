@@ -122,7 +122,8 @@ html{scroll-padding-top:90px}body{padding-top:calc(56px + env(safe-area-inset-to
  <button class="management-nav-button" type="button" onclick="showManagementView('inventory')">📦 库存 <span aria-hidden="true">→</span></button>
  <button class="management-nav-button" type="button" onclick="showManagementView('library')">📚 CCGMainz图书馆 <span aria-hidden="true">→</span></button>
  <button class="management-nav-button" type="button" onclick="showManagementView('care')">❤️ CCGMainz爱心站 <span aria-hidden="true">→</span></button>
- <button class="management-nav-button" type="button" onclick="showManagementView('privacy')">🔒 隐私管理 <span aria-hidden="true">→</span></button>
+ <button class="management-nav-button" type="button" onclick="showManagementView('music')">🎵 CCG Mainz音乐角 <span aria-hidden="true">→</span></button>
+  <button class="management-nav-button" type="button" onclick="showManagementView('privacy')">🔒 隐私管理 <span aria-hidden="true">→</span></button>
  <button class="management-nav-button" type="button" onclick="showManagementView('qr')">▦ Q分享 <span aria-hidden="true">→</span></button>
  <button type="button" id="churchAdminToggle" aria-expanded="false" aria-controls="churchAdminPanel" onclick="toggleChurchAdminPanel()" class="management-nav-button" style="margin:0">⛪ 教会生活 →</button>
 </nav>
@@ -237,6 +238,20 @@ html{scroll-padding-top:90px}body{padding-top:calc(56px + env(safe-area-inset-to
 <p id="announcementAdminStatus_posts" class="muted" role="status">登录管理员后可管理公告。</p></div>
  <div class="card"><p><a href="./posts.html" target="_blank" rel="noopener noreferrer">❤️ 打开公开爱心站 ↗</a></p><p class="muted">公开端按照当前会员登录账号决定权限；管理员账号也可登录会员平台进行发帖与需求测试。</p></div>
 <div class="card"><h2>CCGMainz爱心站 · 需求通知记录</h2><p class="muted">发布者姓名将在爱心站公开显示；需求者的姓名及需求详情仅管理员可见。申请发送后直接通知发布者，双方自行联系。管理员只查看发送记录和旧版匹配历史。</p><details class="care-accordion"><summary>帖子浏览与管理<span class="care-chevron" aria-hidden="true">⌄</span></summary><div class="care-accordion-body"><p class="muted">可直接删除任何帖子。展开后每屏最多显示2条，其余上下滑动。管理员删除帖子前自动云端留档；历史留档包含帖子文字及照片。</p><p id="carePostStatus" class="muted">登录后自动加载帖子。</p><button type="button" class="alt" id="careLoadMore" onclick="loadMoreCarePosts()" style="margin:0 0 10px;display:none">加载更多旧帖子（每次30条）</button><div id="carePostScroll"><div id="carePostList"></div></div> </div></details><details class="care-accordion"><summary>帖子及图片历史留档<span class="care-chevron" aria-hidden="true">⌄</span></summary><div class="care-accordion-body"><p class="muted">管理员专用云端留档。帖子删除后仍可查看文字、照片及保存图片。最多显示2条，其余上下滚动。</p><p id="careArchiveStatus" class="muted">等待云端加载…</p><button id="careArchiveLoadMore" type="button" class="alt" onclick="loadMoreCareArchives()" hidden>加载更多历史留档（每次50条）</button><div id="careArchiveScroll" style="overflow-y:auto;max-width:100%;border:1px solid #dce6dd;border-radius:12px"><div id="careArchiveList"></div></div></div></details><details class="care-accordion"><summary>需求申请发送记录<span class="care-chevron" aria-hidden="true">⌄</span></summary><div class="care-accordion-body"><p class="muted">每屏最多2条，其余上下滑动查看。即使帖子删除也保留发送记录；管理员不参与匹配。</p><p id="careAdminStatus" class="muted">请先登录管理员账号。</p><div id="careRequestScroll" style="overflow-y:auto;overscroll-behavior:contain;min-width:0;max-width:100%"><div id="careAdminList"></div></div> </div></details><details class="care-accordion"><summary>旧版匹配历史<span class="care-chevron" aria-hidden="true">⌄</span></summary><div class="care-accordion-body"><p class="muted">每屏最多2条，其余上下滑动；这是旧版历史数据；新版需求不再需要线上匹配。</p><p id="careMatchedStatus" class="muted"></p><div id="careMatchedScroll"><div id="careMatchedList"></div></div> </div></details></div></section>
+<section id="musicManagement" class="management-view" hidden>
+<div class="card"><h2>🎵 CCG Mainz音乐角 · 帖子管理</h2>
+<p class="muted">发布赞美诗、排练进度和花絮。支持文字、最多2张图片和一个链接；YouTube 链接自动显示封面。帖子随时可编辑、删除。</p>
+<label>标题<input id="musicTitle" maxlength="100" style="width:100%" placeholder="例如：本周敬拜赞美诗"></label>
+<label>文字备注<textarea id="musicBody" maxlength="4000" rows="5" style="width:100%"></textarea></label>
+<label>视频或网页链接（可选）<input id="musicLink" type="url" placeholder="https://www.youtube.com/watch?v=..." style="width:100%"></label>
+<label>上传图片（最多2张）<input id="musicFiles" type="file" accept="image/*" multiple></label>
+<div id="musicImagePreview"></div>
+<button type="button" id="musicSave" onclick="musicSavePost()">发布帖子</button>
+<button type="button" class="alt" onclick="musicResetEditor()">取消编辑／清空</button>
+<p id="musicAdminStatus" role="status"></p>
+<h3>已发布帖子</h3><p class="muted">每屏最多显示3条，其他上下滑动查看。</p>
+<div id="musicAdminList" style="max-height:690px;overflow-y:auto;overscroll-behavior:contain;border:1px solid #dce6dd;border-radius:12px"></div>
+</div></section>
 <section id="privacyManagement" class="management-view" hidden>
  <div class="card"><h2>平台会员账号（不显示密码）</h2><p class="muted">管理员可查看注册姓名和邮箱账号。密码由 Firebase Authentication 安全管理，管理员无法读取。</p><button type="button" onclick="loadPlatformAccounts()">刷新会员与找回请求</button><p id="platformAccountStatus" class="muted">登录后可查看。</p><div id="platformAccountList" class="admin-four-scroll" aria-label="平台会员账号列表"></div><h3>忘记账号密码 · 找回请求</h3><p class="muted">显示申请者提交的姓名和邮箱，便于人工核对。管理员不能查看或发送原密码。</p><div id="accountRecoveryList" class="admin-four-scroll" aria-label="忘记账号找回请求列表"></div></div><div class="card" id="memberApproval"><h2>家庭成员审批</h2><button onclick="loadMembers()" type="button">刷新申请列表</button><p class="muted" id="memberStatus">请先以管理员身份登录。</p><div id="memberList" class="admin-four-scroll" aria-label="家庭人员审批列表"></div></div>
 </section></main><div id="stockActionModal" class="stock-action-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="stockActionTitle"><div class="stock-action-box"><h2 id="stockActionTitle">库存出库 / 库位移动</h2><p id="stockActionItem"></p><label>操作类型<select id="stockActionType" onchange="updateStockActionFields()"><option value="move">库位移动（可移动部分数量）</option><option value="use">取用（扣减库存）</option><option value="destroy">销毁（扣减库存）</option></select></label><label id="stockActionLocationWrap">目标库位<select id="stockActionLocation"></select></label><label id="stockActionQtyWrap" hidden>数量<input id="stockActionQty" type="number" min="1" step="1" value="1"></label><label>操作备注<input id="stockActionNote" maxlength="200" placeholder="可选：操作原因、经手人"></label><p id="stockActionError" class="warn" aria-live="polite"></p><div><button type="button" id="stockActionSubmit" onclick="submitStockAction()">确认操作</button><button type="button" class="alt" onclick="closeStockAction()">取消</button></div></div></div><div id="photoLightbox" class="photo-lightbox" role="dialog" aria-modal="true" aria-label="物品照片放大查看" onclick="closePhotoLightbox()"><button type="button" class="lightbox-close" onclick="closePhotoLightbox()" aria-label="关闭大图">× 关闭</button><img id="lightboxImage" alt="物品大图" onclick="event.stopPropagation()"><div id="lightboxTitle" class="lightbox-title"></div></div><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script><script src="./firebase-config.js"></script><script>
@@ -1968,16 +1983,18 @@ function loadAdminSectionOnDemand(requestedView){
  if(view==='inventory'&&!ccgAdminLoaded.inventory){ccgAdminLoaded.inventory=true;loadOnlineRequests();}
 }
 function showManagementView(view,fromHash=false){
- if(!['home','inventory','library','privacy','care','qr'].includes(view))view='home';
+ if(!['home','inventory','library','privacy','care','qr','music'].includes(view))view='home';
  $('managementHome').hidden=view!=='home';$('qrManagement').hidden=view!=='qr';if(view==='qr'){qrShowBranch('');}
  $('inventoryManagement').hidden=view!=='inventory';
  $('libraryManagement').hidden=view!=='library';
  $('privacyManagement').hidden=view!=='privacy';
  $('careManagement').hidden=view!=='care';
+ $('musicManagement').hidden=view!=='music';
+ if(view==='music'&&fzhAdminReady)musicStartAdmin();
  $('managementSubpageHeader').hidden=view==='home';
  if(fzhAdminReady)loadAdminSectionOnDemand(view);
  if(view==='care')requestAnimationFrame(refreshCareView);
- if(view!=='home')$('managementPageTitle').textContent=view==='inventory'?'库存管理':view==='library'?'CCGMainz图书馆':view==='care'?'CCGMainz爱心站':view==='qr'?'Q分享':'隐私管理';
+ if(view!=='home')$('managementPageTitle').textContent=view==='inventory'?'库存管理':view==='library'?'CCGMainz图书馆':view==='care'?'CCGMainz爱心站':view==='qr'?'Q分享':view==='music'?'CCG Mainz音乐角':'隐私管理';
  if(!fromHash){const hash=view==='home'?'':('#'+view);if(location.hash!==hash){
   if(view==='home')history.pushState(null,'',location.pathname+location.search);
   else history.pushState(null,'',hash);
@@ -1987,7 +2004,7 @@ function showManagementView(view,fromHash=false){
  if(view==='inventory')requestAnimationFrame(()=>{try{render()}catch(e){console.warn('库存布局刷新失败',e)}});
  if(view==='library'||view==='privacy')requestAnimationFrame(()=>{try{limitAdminFourLists()}catch(e){console.warn(e)}});
 }
-function syncManagementRoute(){showManagementView(location.hash==='#inventory'?'inventory':location.hash==='#library'?'library':location.hash==='#privacy'?'privacy':location.hash==='#care'?'care':location.hash==='#qr'?'qr':'home',true)}
+function syncManagementRoute(){showManagementView(location.hash==='#inventory'?'inventory':location.hash==='#library'?'library':location.hash==='#privacy'?'privacy':location.hash==='#care'?'care':location.hash==='#qr'?'qr':location.hash==='#music'?'music':'home',true)}
 window.addEventListener('popstate',syncManagementRoute);
 window.addEventListener('hashchange',syncManagementRoute);
 syncManagementRoute();loadOfflinePhotos();
@@ -2327,4 +2344,4 @@ function renderFamilyQr(token){familyQrToken=token||'';const b=document.getEleme
 async function loadFamilyQrAdmin(){const s=document.getElementById('qrAdminStatus');if(!fzhAdminReady||!fzhAdminStore){s.textContent='请先登录管理员';return}try{const d=await fzhAdminStore.doc('publicConfig/familyQr').get({source:'server'});const token=d.exists?d.data().token:'';renderFamilyQr(token);s.textContent=token?'最新有效二维码':'尚未生成二维码，请点击更新二维码'}catch(e){s.textContent='读取失败：'+e.message}}
 async function rotateFamilyQr(){if(!fzhAdminReady||!fzhAdminStore)return alert('请先登录管理员');if(!confirm('确定生成新二维码并使旧二维码失效吗？'))return;if(familyQrBusy)return;familyQrBusy=true;const s=document.getElementById('qrAdminStatus');try{const bytes=new Uint8Array(24);crypto.getRandomValues(bytes);const token=Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');await fzhAdminStore.doc('publicConfig/familyQr').set({token,updatedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedBy:fzhAdminAuth.currentUser.uid});const d=await fzhAdminStore.doc('publicConfig/familyQr').get({source:'server'});if(!d.exists||d.data().token!==token)throw Error('服务器未确认更新');renderFamilyQr(token);s.textContent='新二维码已生效，旧二维码已失效'}catch(e){s.textContent='更新失败：'+e.message}finally{familyQrBusy=false}}
 async function downloadFamilyQr(){if(!familyQrToken)return alert('请先生成二维码');const url=familyQrImage(familyQrToken);try{const r=await fetch(url,{mode:'cors'});if(!r.ok)throw Error('图片服务不可用');const blob=await r.blob(),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='CCGMainz_幸福家人二维码.png';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)}catch(e){window.open(url,'_blank');alert('无法直接下载，请在新窗口右键图片另存为')}}
-</script></html>
+</script><script src="./music-admin.js"></script></html>
