@@ -2131,6 +2131,7 @@ function ccgActivityStart(){
   },err=>{console.warn('提醒监听失败 '+collection,err);document.getElementById('adminActivityStatus').textContent='部分提醒无法读取（请检查 Firebase Rules）：'+collection});ccgActivityUnsubs.push(unsubscribe)}catch(e){console.warn(e)}
  }
  ccgChurchAdminUnsub=fzhAdminStore.collection('churchPosts').orderBy('createdAt','desc').limit(200).onSnapshot(snap=>{
+  ccgChurchAdminPosts.clear();snap.docs.forEach(d=>ccgChurchAdminPosts.set(d.id,d.data()));ccgChurchStartStats();
   const list=document.getElementById('churchAdminList');list.replaceChildren();
   if(snap.empty){list.textContent='尚未发布帖子';return}
   snap.docs.forEach(doc=>{
@@ -2140,17 +2141,57 @@ function ccgActivityStart(){
    const details=document.createElement('details'),label=document.createElement('summary');label.textContent='查看完整帖子与互动设置';details.append(label);
    const body=document.createElement('p');body.style.whiteSpace='pre-wrap';body.textContent=data.body||'';details.append(body);
    const opts=document.createElement('p');opts.textContent='互动：'+Object.entries(data.options||{}).filter(([k,v])=>v).map(([k])=>({like:'点赞',vote:'投票',photo:'上传照片',chain:'接龙'}[k]||k)).join('、');details.append(opts);
-   if(data.voteOptions?.length){const votes=document.createElement('p');votes.textContent='投票选项：'+data.voteOptions.join(' / ');details.append(votes)}p.append(details);
+   if(data.voteOptions?.length){const votes=document.createElement('div');votes.className='ccg-church-votes';votes.dataset.postId=doc.id;details.append(votes)}
+   const photos=document.createElement('div');photos.className='ccg-church-photos';photos.dataset.postId=doc.id;details.append(photos);
+   p.append(details);
    const edit=document.createElement('button');edit.type='button';edit.textContent='编辑';edit.onclick=()=>editChurchPost(doc.id,data);p.append(edit);
    const toggle=document.createElement('button');toggle.type='button';toggle.textContent=data.active===false?'恢复发布':'撤下';toggle.onclick=async()=>{if(!confirm('确认'+toggle.textContent+'？'))return;try{await doc.ref.update({active:data.active===false})}catch(e){alert(e.message)}};p.append(toggle);
    const remove=document.createElement('button');remove.type='button';remove.textContent='永久删除';remove.style.background='#a83c37';remove.onclick=async()=>{
     if(!confirm('确定永久删除「'+(data.title||'帖子')+'」吗？'))return;
     if(!confirm('第二次确认：删除后会员无法继续浏览该帖子。'))return;
-    try{await doc.ref.delete();if(ccgChurchEditingId===doc.id)resetChurchPostEditor()}catch(e){alert('删除失败：'+e.message)}
+    try{
+     const interactions=await fzhAdminStore.collection('churchInteractions').where('postId','==',doc.id).get();
+     if(interactions.size>0 && !confirm('此帖子还有 '+interactions.size+' 条投票、照片或其他互动。永久删除会一并删除这些互动，建议先下载需要保留的照片。确定继续？'))return;
+     const refs=interactions.docs.map(d=>d.ref);
+     for(let i=0;i<refs.length;i+=350){const batch=fzhAdminStore.batch();refs.slice(i,i+350).forEach(ref=>batch.delete(ref));await batch.commit()}
+     await doc.ref.delete();if(ccgChurchEditingId===doc.id)resetChurchPostEditor()
+    }catch(e){alert('删除失败：'+e.message)}
    };p.append(remove);list.append(p);
   });
+  ccgChurchRenderStats();
  },e=>document.getElementById('churchAdminStatus').textContent='教会帖子读取失败：'+e.message);
 }
+let ccgChurchStatsUnsub=null,ccgChurchInteractionDocs=[];
+function ccgChurchStartStats(){
+ if(ccgChurchStatsUnsub||!fzhAdminReady||!fzhAdminStore)return;
+ ccgChurchStatsUnsub=fzhAdminStore.collection('churchInteractions').onSnapshot(s=>{
+  ccgChurchInteractionDocs=s.docs.map(d=>({id:d.id,...d.data()}));ccgChurchRenderStats();
+ },e=>{const el=document.getElementById('churchAdminStatus');if(el)el.textContent='投票与照片统计读取失败：'+e.message});
+}
+function ccgChurchDownloadPhoto(data,filename){
+ if(typeof data!=='string'||!/^data:image\/(jpeg|png|webp);base64,/.test(data))return alert('照片格式不支持');
+ const a=document.createElement('a');a.href=data;a.download=filename;a.style.display='none';document.body.append(a);a.click();a.remove();
+}
+function ccgChurchRenderStats(){
+ const list=document.getElementById('churchAdminList');if(!list)return;
+ for(const area of list.querySelectorAll('.ccg-church-votes')){
+  const postId=area.dataset.postId;const post=ccgChurchAdminPosts.get(postId);if(!post)continue;
+  const votes=ccgChurchInteractionDocs.filter(x=>x.postId===postId&&x.type==='vote');
+  area.replaceChildren();const h=document.createElement('h4');h.textContent='实时投票结果（总计 '+votes.length+' 票）';area.append(h);
+  for(const option of post.voteOptions||[]){const count=votes.filter(x=>x.value===option).length;const line=document.createElement('p');line.textContent=option+'：'+count+' 票'+(votes.length?'（'+Math.round(count/votes.length*100)+'%）':'');area.append(line)}
+ }
+ for(const area of list.querySelectorAll('.ccg-church-photos')){
+  const photos=ccgChurchInteractionDocs.filter(x=>x.postId===area.dataset.postId&&x.type==='photo'&&typeof x.photo==='string'&&x.photo.startsWith('data:image/'));
+  area.replaceChildren();if(!photos.length)continue;
+  const h=document.createElement('h4');h.textContent='会员上传的照片（'+photos.length+' 张）';area.append(h);
+  photos.forEach((item,i)=>{const wrap=document.createElement('div');wrap.style.cssText='display:inline-flex;flex-direction:column;gap:6px;margin:8px;padding:8px;border:1px solid #ddd;border-radius:8px;max-width:180px';
+   const img=document.createElement('img');img.src=item.photo;img.alt='会员上传的照片';img.style.cssText='width:150px;height:115px;object-fit:contain';wrap.append(img);
+   const name=document.createElement('small');name.textContent=item.author||'会员';wrap.append(name);
+   const download=document.createElement('button');download.type='button';download.textContent='下载照片';download.onclick=()=>ccgChurchDownloadPhoto(item.photo,'教会生活_'+area.dataset.postId+'_'+(i+1)+'.jpg');wrap.append(download);area.append(wrap)
+  });
+ }
+}
+const ccgChurchAdminPosts=new Map();
 let ccgChurchEditingId=null;
 function resetChurchPostEditor(){
  ccgChurchEditingId=null;
