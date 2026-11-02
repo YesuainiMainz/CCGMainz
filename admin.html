@@ -241,7 +241,7 @@ html{scroll-padding-top:90px}body{padding-top:calc(56px + env(safe-area-inset-to
 <section id="musicManagement" class="management-view" hidden>
 <div class="card"><h2>🎵 CCG Mainz音乐角 · 帖子管理</h2>
 <p class="muted">发布赞美诗、排练进度和花絮。支持文字、最多2张图片和一个链接；YouTube 链接自动显示封面。帖子随时可编辑、删除。</p>
-<label>标题<input id="musicTitle" maxlength="100" style="width:100%" placeholder="例如：本周敬拜赞美诗"></label>
+<label>发布到模块<select id="musicCategory" style="display:block;width:100%;padding:10px;margin:8px 0"><option value="recent">近期音乐分享</option><option value="hymns">常见赞美诗学习</option></select></label><label>标题<input id="musicTitle" maxlength="100" style="width:100%" placeholder="例如：本周敬拜赞美诗"></label>
 <label>文字备注<textarea id="musicBody" maxlength="4000" rows="5" style="width:100%"></textarea></label>
 <label>视频或网页链接（可选）<input id="musicLink" type="url" placeholder="https://www.youtube.com/watch?v=..." style="width:100%"></label>
 <label>上传图片（最多2张）<input id="musicFiles" type="file" accept="image/*" multiple></label>
@@ -249,8 +249,8 @@ html{scroll-padding-top:90px}body{padding-top:calc(56px + env(safe-area-inset-to
 <button type="button" id="musicSave" onclick="musicSavePost()">发布帖子</button>
 <button type="button" class="alt" onclick="musicResetEditor()">取消编辑／清空</button>
 <p id="musicAdminStatus" role="status"></p>
-<h3>已发布帖子</h3><p class="muted">每屏最多显示3条，其他上下滑动查看。</p>
-<div id="musicAdminList" style="max-height:690px;overflow-y:auto;overscroll-behavior:contain;border:1px solid #dce6dd;border-radius:12px"></div>
+<h3>已发布帖子 · 3滑</h3><div style="display:flex;flex-wrap:wrap;gap:10px;margin:10px 0"><label>模块<select id="musicAdminCategory" onchange="musicRenderAdmin()"><option value="recent">近期音乐分享</option><option value="hymns">常见赞美诗学习</option></select></label><label>搜索名称或日期<input id="musicAdminSearch" type="search" oninput="musicRenderAdmin()" placeholder="例如：奇异恩典 / 2026-11-02"></label></div><p class="muted">每个模块最多显示3条，其他上下滑动查看。</p>
+<div id="musicAdminList" style="max-height:744px;overflow-y:auto;overscroll-behavior:contain;border:1px solid #dce6dd;border-radius:12px"></div>
 </div></section>
 <section id="privacyManagement" class="management-view" hidden>
  <div class="card"><h2>平台会员账号（不显示密码）</h2><p class="muted">管理员可查看注册姓名和邮箱账号。密码由 Firebase Authentication 安全管理，管理员无法读取。</p><button type="button" onclick="loadPlatformAccounts()">刷新会员与找回请求</button><p id="platformAccountStatus" class="muted">登录后可查看。</p><div id="platformAccountList" class="admin-four-scroll" aria-label="平台会员账号列表"></div><h3>忘记账号密码 · 找回请求</h3><p class="muted">显示申请者提交的姓名和邮箱，便于人工核对。管理员不能查看或发送原密码。</p><div id="accountRecoveryList" class="admin-four-scroll" aria-label="忘记账号找回请求列表"></div></div><div class="card" id="memberApproval"><h2>家庭成员审批</h2><button onclick="loadMembers()" type="button">刷新申请列表</button><p class="muted" id="memberStatus">请先以管理员身份登录。</p><div id="memberList" class="admin-four-scroll" aria-label="家庭人员审批列表"></div></div>
