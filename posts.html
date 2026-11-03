@@ -33,12 +33,22 @@ a{color:inherit}.post-actions{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0
 #mcgLanguageSwitch:disabled{opacity:.6;cursor:wait}
 .mcg-language-status{display:block;color:#ffe7bf;font-size:13px;margin-top:5px}
 @media(max-width:560px){.mcg-language-row{align-items:stretch}.mcg-language-row h1{flex:1 1 100%}#mcgLanguageSwitch{width:100%}}
+
+#chatDialog[hidden]{display:none}#chatDialog{position:fixed;inset:0;z-index:30;background:#0009;display:flex;align-items:center;justify-content:center;padding:10px}
+.chat-panel{width:min(100%,650px);max-height:94vh;display:flex;flex-direction:column;gap:10px}
+#chatMessages{min-height:150px;max-height:55vh;overflow-y:auto;display:flex;flex-direction:column;gap:8px;background:#f3f6f4;padding:12px;border-radius:10px}
+.chat-bubble{max-width:85%;padding:10px 12px;border-radius:12px;background:white;white-space:pre-wrap;overflow-wrap:anywhere}
+.chat-bubble.mine{align-self:flex-end;background:#d8eee1}.chat-bubble.other{align-self:flex-start}
+.chat-bubble small{display:block;color:#617567;margin-top:4px;font-size:11px}
+#chatList{display:grid;gap:8px;max-height:260px;overflow-y:auto}#chatList button{text-align:left;background:#e7f0e9;color:#20392b}
+#chatForm{display:flex;gap:8px;align-items:end}#chatInput{min-height:55px;flex:1}
 </style></head><body>
-<header><div><div class="mcg-language-row"><h1>CCGMainz爱心站</h1><button id="mcgLanguageSwitch" type="button" data-no-translate>选择语言</button></div><span id="mcgLanguageStatus" class="mcg-language-status" role="status" data-no-translate></span><span>分享闲置物品或发布个人需求 · 可通过文字与图片联系发布者</span></div></header>
+<header><div><div class="mcg-language-row"><h1>CCGMainz爱心站</h1><button id="mcgLanguageSwitch" type="button" data-no-translate>选择语言</button></div><span id="mcgLanguageStatus" class="mcg-language-status" role="status" data-no-translate></span><span>分享闲置物品、寻求生活帮助 · 邻里互助，彼此关怀</span></div></header>
 <main><p><a href="./platform.html" style="color:#22583d">← 返回 CCGMainz幸福家人数字平台</a></p>
 <nav class="post-actions" aria-label="爱心站操作">
  <button id="goPublish" type="button">发布帖子</button>
- <button id="goMyPosts" type="button" class="secondary">访问我发布的帖子</button>
+ <button id="goChats" type="button" class="secondary">💬 我的私信</button>
+  <button id="goMyPosts" type="button" class="secondary">访问我发布的帖子</button>
 </nav>
 <section class="card" id="publishSection"><h2>发布帖子</h2>
 <div class="actions" id="postKindButtons"><button type="button" id="kindOffer">发布闲置物品</button><button type="button" id="kindRequest" class="secondary">发布需求</button></div><p class="muted" id="kindHint">请选择发布类型。</p>
@@ -69,7 +79,15 @@ a{color:inherit}.post-actions{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0
   <p id="crossStatus" class="muted"></p>
  </div>
 </div>
-<div id="needDialog" hidden role="dialog" aria-modal="true" aria-labelledby="needTitle"><form id="needForm" class="card"><h2 id="needTitle">我有需要</h2><p id="needItem"></p><label for="requester">您的真实姓名（由账号自动填写） *</label><input id="requester" type="text" maxlength="40" readonly required><label for="needDetails">大致需要的物品及数量 *</label><textarea id="needDetails" maxlength="500" required placeholder="例如：儿童外套2件、书包1个"></textarea><div id="needPhotoTools" hidden><label for="needPhotoSelect">选择要圈出的帖子图片（可选）</label><select id="needPhotoSelect"></select><p class="muted">用鼠标或手指在图片上拖动，圈出需要的物品。圈出的图片只随本次需求发送，不修改发布者的原图。</p><canvas id="needMarkCanvas" style="width:100%;max-height:350px;object-fit:contain;border:1px solid #dce6dd;border-radius:8px;touch-action:none"></canvas><div class="actions"><button type="button" class="secondary" id="needUndoCircle">撤销上一个圈</button><button type="button" class="secondary" id="needResetCircle">清除所有圈</button></div></div><label for="needOwnImage">附上您自己的图片（可选）</label><input id="needOwnImage" type="file" accept="image/*"><p class="muted">消息和图片仅发送双方及管理员可见。请勿上传个人证件等敏感信息。</p><button id="sendNeed" type="submit">发送给发布者</button><button id="cancelNeed" type="button" class="secondary">取消</button><p id="needStatus" role="status"></p></form></div><div id="viewer" hidden role="dialog" aria-modal="true" aria-label="查看图片"><button id="closeViewer" type="button">关闭 ×</button><img id="largeImage" alt="物品图片"></div>
+
+<div id="chatDialog" hidden role="dialog" aria-modal="true" aria-labelledby="chatTitle">
+ <div class="card chat-panel"><div class="my-posts-header"><h2 id="chatTitle">爱心站私信</h2><button type="button" id="closeChat" class="secondary">关闭 ×</button></div>
+ <p class="muted" id="chatContext">仅与爱心站帖子相关的双方聊天，其他会员无法查看。</p>
+ <div id="chatList"></div><div id="chatMessages" aria-live="polite"></div>
+ <form id="chatForm" hidden><textarea id="chatInput" maxlength="2000" placeholder="输入回复（最多2000字）" required></textarea><button id="chatSend" type="submit">发送</button></form>
+ <p id="chatStatus" class="muted" role="status"></p></div>
+</div>
+<div id="needDialog" hidden role="dialog" aria-modal="true" aria-labelledby="needTitle"><form id="needForm" class="card"><h2 id="needTitle">我有需要</h2><p id="needItem"></p><label for="requester">您的真实姓名（由账号自动填写） *</label><input id="requester" type="text" maxlength="40" readonly required><label for="needDetails">您的留言或可以提供的帮助 *</label><textarea id="needDetails" maxlength="500" required placeholder="例如：我可以帮忙照看孩子，请私下确认时间和安全安排"></textarea><div id="needPhotoTools" hidden><label for="needPhotoSelect">选择要圈出的帖子图片（可选）</label><select id="needPhotoSelect"></select><p class="muted">用鼠标或手指在图片上拖动，圈出需要的物品。圈出的图片只随本次需求发送，不修改发布者的原图。</p><canvas id="needMarkCanvas" style="width:100%;max-height:350px;object-fit:contain;border:1px solid #dce6dd;border-radius:8px;touch-action:none"></canvas><div class="actions"><button type="button" class="secondary" id="needUndoCircle">撤销上一个圈</button><button type="button" class="secondary" id="needResetCircle">清除所有圈</button></div></div><label for="needOwnImage">附上您自己的图片（可选）</label><input id="needOwnImage" type="file" accept="image/*"><p class="muted">消息和图片仅发送双方及管理员可见。涉及儿童照看时请先由监护人确认身份、时间和安全安排，勿公开儿童个人信息。</p><button id="sendNeed" type="submit">发送给发布者</button><button id="cancelNeed" type="button" class="secondary">取消</button><p id="needStatus" role="status"></p></form></div><div id="viewer" hidden role="dialog" aria-modal="true" aria-label="查看图片"><button id="closeViewer" type="button">关闭 ×</button><img id="largeImage" alt="物品图片"></div>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="./firebase-config.js"></script><script src="./member-session.js"></script>
@@ -87,9 +105,9 @@ let memberReady=false;
 let postKind='offer';let selectedPhotos=[];let needMarkedPhoto="";let needSourcePhoto="";let needCircles=[];let needStart=null;let needBaseImage=null;let editingPostId=null;let myPosts=[];let db=null,posts=[],nextPage=null,loading=false,hasMore=true,selectedPhoto='',chosenPost=null,needBusy=false;
 function setPostKind(kind){postKind=kind==='request'?'request':'offer';
  $('kindOffer').className=postKind==='offer'?'':'secondary';$('kindRequest').className=postKind==='request'?'':'secondary';
- $('kindHint').textContent=postKind==='request'?'发布您正在寻找的物品，可添加最多4张参考图片。':'发布闲置物品，供其他会员联系领取。';
- $('postBodyLabel').textContent=postKind==='request'?'需求说明（可选）':'闲置物品说明（可选）';
- $('body').placeholder=postKind==='request'?'例如：需要儿童冬衣，尺码140（最多1500字）':'请描述闲置或多余的物品（最多1500字）';
+ $('kindHint').textContent=postKind==='request'?'可寻找物品，也可请求临时照看孩子、搬家协助、接送等生活帮助。请勿公开儿童姓名、地址或联系方式。':'发布闲置物品，供其他会员联系领取。';
+ $('postBodyLabel').textContent=postKind==='request'?'需求或生活求助说明（可选）':'闲置物品说明（可选）';
+ $('body').placeholder=postKind==='request'?'例如：周六下午需要临时帮忙照看孩子2小时，或寻找儿童冬衣（最多1500字）':'请描述闲置或多余的物品（最多1500字）';
  $('publish').textContent=editingPostId?'保存修改':postKind==='request'?'发布需求':'发布物品';
 }
 $('kindOffer').onclick=()=>setPostKind('offer');$('kindRequest').onclick=()=>setPostKind('request');
@@ -153,14 +171,15 @@ function renderCards(feed,items){
  for(const p of items.filter(x=>x.author&&x.uid)){
   const card=make('article',undefined,'post'),head=make('div',undefined,'post-head');
   head.append(make('strong',p.author||'历史匿名发布'));
-  const t=make('time',p.createdAt?.toDate?.()?.toLocaleString('zh-CN')||'刚刚');head.append(t);head.append(make('span',(p.kind==='request'?'【个人需求】':'【闲置物品】')));card.append(head);
+  const t=make('time',p.createdAt?.toDate?.()?.toLocaleString('zh-CN')||'刚刚');head.append(t);head.append(make('span',(p.kind==='request'?'【物品／生活求助】':'【闲置物品】')));card.append(head);
   if(p.text)card.append(make('p',p.text));
   if(p.photo?.startsWith('data:image/jpeg;base64,') && !(p.photos?.length)){
    const img=document.createElement('img');img.src=p.photo;img.alt='物品图片';img.loading='lazy';
    img.addEventListener('click',()=>openPhoto(p.photo));card.append(img);
   }
   if(Array.isArray(p.photos)&&p.photos.length){const gallery=make('div',undefined,'post-gallery');for(const src of p.photos){if(typeof src!=='string'||!src.startsWith('data:image/jpeg;base64,'))continue;const img=document.createElement('img');img.src=src;img.alt='物品图片';img.loading='lazy';img.onclick=()=>openPhoto(src);gallery.append(img)}card.append(gallery)}
-  if(memberReady&&p.uid!==window.CCGMember?.user?.uid){const need=make('button',p.kind==='request'?'💬 联系需求发布者':'❤️ 我有需要','need');need.type='button';need.addEventListener('click',()=>{chosenPost=p;$('needItem').textContent=(p.kind==='request'?'您正在联系需求发布者：':'您正在申请这条闲置物品：')+(p.text||'图片所示物品');$('needTitle').textContent=p.kind==='request'?'联系需求发布者':'我有需要';$('needDetails').placeholder=p.kind==='request'?'例如：我有您需要的物品，想进一步了解…':'例如：儿童外套2件、书包1个';$('needOwnImage').value='';$('requester').value=window.CCGMember?.profile?.name||'';$('needDetails').value='';$('needStatus').textContent='';$('needDialog').hidden=false;openNeedPhotoTools(p);$('requester').focus()});card.append(need);}
+  if(memberReady&&p.uid!==window.CCGMember?.user?.uid){const need=make('button',p.kind==='request'?'🤝 我可以帮忙':'❤️ 我有需要','need');need.type='button';need.addEventListener('click',()=>{chosenPost=p;$('needItem').textContent=(p.kind==='request'?'您正在联系求助者：':'您正在申请这条闲置物品：')+(p.text||'图片所示物品');$('needTitle').textContent=p.kind==='request'?'联系求助者':'我有需要';$('needDetails').placeholder=p.kind==='request'?'例如：我可以帮忙，请问具体时间和要求？':'例如：我可以帮忙照看孩子，请私下确认时间和安全安排';$('needOwnImage').value='';$('requester').value=window.CCGMember?.profile?.name||'';$('needDetails').value='';$('needStatus').textContent='';$('needDialog').hidden=false;openNeedPhotoTools(p);$('requester').focus()});card.append(need);}
+  if(memberReady&&p.uid!==window.CCGMember?.user?.uid){const talk=make('button','💬 站内私信');talk.type='button';talk.className='secondary';talk.onclick=()=>ccgStartChat(p);card.append(talk);}
   if(memberReady&&p.uid===window.CCGMember?.user?.uid){
    const edit=make('button','编辑我的帖子');edit.type='button';edit.style.marginRight='8px';
    edit.onclick=()=>{editingPostId=p.id;setPostKind(p.kind||'offer');$('body').value=p.text||'';selectedPhotos=Array.isArray(p.photos)&&p.photos.length?[...p.photos]:(p.photo?[p.photo]:[]);selectedPhoto=selectedPhotos[0]||'';renderPreviews();
@@ -299,7 +318,7 @@ $('needDialog').addEventListener('click',e=>{if(e.target===$('needDialog'))$('ca
 $('needForm').addEventListener('submit',async e=>{
  e.preventDefault();if(!memberReady||!db||!chosenPost||needBusy||!window.CCGMember?.user)return;
  const requester=$('requester').value.trim(),details=$('needDetails').value.trim();
- if(!requester||requester.length>40||!details||details.length>500){$('needStatus').textContent='请填写称呼及需要的物品、数量';return}
+ if(!requester||requester.length>40||!details||details.length>500){$('needStatus').textContent='请填写真实姓名和留言内容';return}
  let annotatedPhoto='',ownPhoto='';try{annotatedPhoto=createNeedMarkedPhoto();if($('needOwnImage').files[0])ownPhoto=await compressImage($('needOwnImage').files[0]);}catch(err){$('needStatus').textContent=err.message;return}
  if(!confirm('确定将您的称呼、所需物品及数量'+(annotatedPhoto?'、圈选图片':'')+(ownPhoto?'、您上传的图片':'')+'发送给发布者吗？仅发布者和管理员可见。'))return;
  needBusy=true;$('sendNeed').disabled=true;$('needStatus').textContent='正在发送…';
@@ -321,7 +340,7 @@ $('postForm').addEventListener('submit',async e=>{
  const author=window.CCGMember?.profile?.name||'',text=$('body').value.trim();
  if(!author||author.length>40){$('publishStatus').textContent='请填写不超过40字的称呼';return}
  if(!text&&!selectedPhotos.length){$('publishStatus').textContent='请填写文字或上传图片';return}
- if(!confirm(editingPostId?'确定保存对这条帖子的修改吗？':'确定发布这条'+(postKind==='request'?'个人需求':'闲置物品')+'吗？文字、照片和您的真实姓名会公开。'))return;
+ if(!confirm(editingPostId?'确定保存对这条帖子的修改吗？':'确定发布这条'+(postKind==='request'?'物品或生活求助':'闲置物品')+'吗？文字、照片和您的真实姓名会公开。'))return;
  const btn=$('publish');btn.disabled=true;$('publishStatus').textContent=editingPostId?'正在保存修改…':'正在发布…';
  try{
   if(editingPostId){await db.collection('carePosts').doc(editingPostId).update({text,photo:selectedPhotos[0]||'',photos:selectedPhotos,kind:postKind});editingPostId=null;setPostKind('offer');}
@@ -340,7 +359,34 @@ try{
  $('postForm').hidden=false;
  $('postForm').querySelectorAll('textarea,input,button').forEach(el=>el.disabled=false);
  $('postingIdentity').textContent='实名发布：'+m.profile.name;
- loadMore(true);
+ loadMore(true);ccgListenChatList();
 });
 }catch(err){$('feedStatus').textContent='初始化失败：'+err.message}
+
+// v12.0 爱心站帖子关联双向私信（独立于旧 careMessages / careNeeds）。
+let ccgChatUnsub=null,ccgChatListUnsub=null,ccgActiveChat=null,ccgChatItems=[];
+function ccgChatId(postId,requesterUid){return postId+'_'+requesterUid}
+function ccgCloseChat(){if(ccgChatUnsub){ccgChatUnsub();ccgChatUnsub=null}ccgActiveChat=null;$('chatDialog').hidden=true;$('chatForm').hidden=true}
+$('closeChat').onclick=ccgCloseChat;
+$('chatDialog').addEventListener('click',e=>{if(e.target===$('chatDialog'))ccgCloseChat()});
+function ccgChatDate(t){return t?.toDate?.()?.toLocaleString('zh-CN')||'刚刚'}
+function ccgShowMessages(snap){const root=$('chatMessages');root.replaceChildren();if(snap.empty){root.append(make('p','暂无消息，发送第一条私信吧。','muted'));return}
+ snap.docs.forEach(d=>{const m=d.data(),el=make('div',m.text||'', 'chat-bubble '+(m.senderUid===window.CCGMember?.user?.uid?'mine':'other'));el.append(make('small',ccgChatDate(m.createdAt)));root.append(el)});root.scrollTop=root.scrollHeight}
+async function ccgOpenChat(id){if(!memberReady||!db)return;ccgCloseChat();$('chatDialog').hidden=false;$('chatStatus').textContent='正在加载聊天…';$('chatMessages').replaceChildren();$('chatForm').hidden=true;
+ try{const snap=await db.collection('careChats').doc(id).get();if(!snap.exists)throw Error('会话不存在');const c=snap.data(),uid=window.CCGMember.user.uid;if(c.ownerUid!==uid&&c.requesterUid!==uid)throw Error('无权访问此会话');
+ ccgActiveChat=id;$('chatContext').textContent='帖子：'+(c.postText||'图片帖子')+' · 与 '+(uid===c.ownerUid?c.requesterName:c.ownerName)+' 的私信';$('chatForm').hidden=false;$('chatStatus').textContent='仅双方可见，消息保存在云端。';
+ ccgChatUnsub=db.collection('careChats').doc(id).collection('messages').orderBy('createdAt','asc').limit(200).onSnapshot(ccgShowMessages,e=>{$('chatStatus').textContent='读取消息失败：'+e.message});
+ }catch(e){$('chatStatus').textContent='打开失败：'+e.message}}
+async function ccgStartChat(p){const uid=window.CCGMember?.user?.uid;if(!uid||!memberReady)return alert('请先登录会员平台');if(p.uid===uid)return alert('不能给自己发私信');
+ const id=ccgChatId(p.id,uid),ref=db.collection('careChats').doc(id);$('chatDialog').hidden=false;$('chatStatus').textContent='正在建立帖子私信…';
+ try{if(!(await ref.get()).exists)await ref.set({postId:p.id,ownerUid:p.uid,requesterUid:uid,participants:[p.uid,uid],ownerName:p.author||'发布者',requesterName:window.CCGMember.profile.name,postText:(p.text||'图片帖子').slice(0,150),createdAt:firebase.firestore.FieldValue.serverTimestamp()});await ccgOpenChat(id)}
+ catch(e){$('chatStatus').textContent='无法建立会话：'+e.message}}
+$('chatForm').addEventListener('submit',async e=>{e.preventDefault();if(!ccgActiveChat)return;const text=$('chatInput').value.trim();if(!text||text.length>2000)return;
+ const id=ccgActiveChat,btn=$('chatSend');btn.disabled=true;$('chatStatus').textContent='正在发送…';try{await db.collection('careChats').doc(id).collection('messages').add({senderUid:window.CCGMember.user.uid,text,createdAt:firebase.firestore.FieldValue.serverTimestamp()});$('chatInput').value='';$('chatStatus').textContent='发送成功'}catch(err){$('chatStatus').textContent='发送失败：'+err.message}finally{btn.disabled=false}});
+$('goChats').onclick=()=>{if(!memberReady)return alert('请先登录会员平台');$('chatDialog').hidden=false;$('chatForm').hidden=true;$('chatContext').textContent='选择一条与爱心站帖子相关的私信';$('chatStatus').textContent='正在加载会话…';$('chatMessages').replaceChildren();ccgRenderChatList()};
+function ccgRenderChatList(){const root=$('chatList');root.replaceChildren();if(!ccgChatItems.length){root.append(make('p','暂无私信。可在他人的帖子下点击「站内私信」开始交流。','muted'));$('chatStatus').textContent='';return}
+ for(const c of ccgChatItems){const other=c.ownerUid===window.CCGMember?.user?.uid?c.requesterName:c.ownerName;const btn=make('button','💬 '+other+' · '+(c.postText||'图片帖子').slice(0,55));btn.type='button';btn.onclick=()=>ccgOpenChat(c.id);root.append(btn)}$('chatStatus').textContent='共 '+ccgChatItems.length+' 个会话'}
+function ccgListenChatList(){if(ccgChatListUnsub)ccgChatListUnsub();const uid=window.CCGMember?.user?.uid;if(!uid)return;
+ ccgChatListUnsub=db.collection('careChats').where('participants','array-contains',uid).limit(100).onSnapshot(s=>{ccgChatItems=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));$('goChats').textContent='💬 我的私信'+(ccgChatItems.length?' ('+ccgChatItems.length+')':'');if(!$('chatDialog').hidden&&!ccgActiveChat)ccgRenderChatList()},e=>{$('chatStatus').textContent='私信列表读取失败：'+e.message})}
+
 </script><script src="./zh-toggle.js"></script><script src="./announcements.js" data-target="posts"></script></body></html>
