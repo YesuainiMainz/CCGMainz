@@ -68,7 +68,7 @@ a{color:inherit}.post-actions{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0
 </form></section>
 <section class="card" id="myChatSection" hidden aria-label="我的聊天管理">
  <h2>💬 我的聊天</h2>
- <p class="muted">仅显示您已提交兴趣申请，或其他会员向您的帖子提交申请后建立的会话。点击任意聊天直接查看记录并回复。</p>
+ <p class="muted">显示您参与的全部历史会话（包括旧版聊天）。新会话仍须先提交兴趣申请；原帖删除后只能查看记录。</p>
  <input type="text" id="myChatSearch" placeholder="搜索聊天对象或帖子内容" aria-label="搜索我的聊天">
  <p id="myChatStatus" class="muted" role="status">正在加载聊天…</p>
  <div id="myChatList"></div>
@@ -405,7 +405,7 @@ $('myChatSearch').addEventListener('input',ccgRenderMyChatList);
 function ccgRenderMyChatList(){
  const root=$('myChatList');root.replaceChildren();
  const uid=window.CCGMember?.user?.uid,term=$('myChatSearch').value.trim().toLocaleLowerCase();
- const eligible=ccgChatItems.filter(c=>c.applicationText&&Array.isArray(c.participants)&&c.participants.includes(uid));
+ const eligible=ccgChatItems.filter(c=>Array.isArray(c.participants)&&c.participants.includes(uid));
  const filtered=eligible.filter(c=>[c.ownerName,c.requesterName,c.postText,c.applicationText,c.lastText].some(v=>String(v||'').toLocaleLowerCase().includes(term)));
  $('myChatStatus').textContent='共 '+eligible.length+' 个已保存的聊天（关闭窗口不会删除；原帖删除后只读）'+(term?'，匹配 '+filtered.length+' 个':'')+'；点击即可回复。';
  if(!filtered.length){root.append(make('p',term?'没有找到匹配的聊天。':'暂无聊天。请先通过帖子提交兴趣申请，或等待他人申请您的帖子。','muted'));return}
