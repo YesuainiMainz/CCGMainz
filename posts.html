@@ -322,13 +322,13 @@ $('postForm').addEventListener('submit',async e=>{
  if(!author||author.length>40){$('publishStatus').textContent='请填写不超过40字的称呼';return}
  if(!text&&!selectedPhotos.length){$('publishStatus').textContent='请填写文字或上传图片';return}
  if(!confirm(editingPostId?'确定保存对这条帖子的修改吗？':'确定发布这条'+(postKind==='request'?'个人需求':'闲置物品')+'吗？文字、照片和您的真实姓名会公开。'))return;
- const btn=$('publish');btn.disabled=true;$('publishStatus').textContent='正在发布…';
+ const btn=$('publish');btn.disabled=true;$('publishStatus').textContent=editingPostId?'正在保存修改…':'正在发布…';
  try{
   if(editingPostId){await db.collection('carePosts').doc(editingPostId).update({text,photo:selectedPhotos[0]||'',photos:selectedPhotos,kind:postKind});editingPostId=null;setPostKind('offer');}
   else{const id=db.collection('carePosts').doc().id;await db.collection('carePosts').doc(id).set({text,photo:selectedPhotos[0]||'',photos:selectedPhotos,kind:postKind,author,uid:window.CCGMember.user.uid,createdAt:firebase.firestore.FieldValue.serverTimestamp()});}
   $('body').value='';$('image').value='';$('preview').hidden=true;selectedPhoto='';selectedPhotos=[];renderPreviews();
   $('publishStatus').textContent='保存成功！';nextPage=null;await loadMore(true);
- }catch(err){$('publishStatus').textContent='发布失败：'+err.message}
+ }catch(err){$('publishStatus').textContent=(editingPostId?'保存修改失败：':'发布失败：')+(err.code==='permission-denied'?'Firebase 权限拒绝，请检查 Cloud Firestore 是否已发布 v11.8 规则。':err.message)}
  finally{btn.disabled=false}
 });
 try{
