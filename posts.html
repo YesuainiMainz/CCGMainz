@@ -376,9 +376,9 @@ try{
 }catch(err){$('feedStatus').textContent='初始化失败：'+err.message}
 
 // v12.0 爱心站帖子关联双向私信（独立于旧 careMessages / careNeeds）。
-let ccgChatUnsub=null,ccgChatListUnsub=null,ccgActiveChat=null,ccgChatItems=[];
+let ccgChatUnsub=null,ccgChatListUnsub=null,ccgPostUnsub=null,ccgActiveChat=null,ccgChatItems=[];
 function ccgChatId(postId,requesterUid){return postId+'_'+requesterUid}
-function ccgCloseChat(){if(ccgChatUnsub){ccgChatUnsub();ccgChatUnsub=null}ccgActiveChat=null;$('chatDialog').hidden=true;$('chatForm').hidden=true}
+function ccgCloseChat(){if(ccgChatUnsub){ccgChatUnsub();ccgChatUnsub=null}if(ccgPostUnsub){ccgPostUnsub();ccgPostUnsub=null}ccgActiveChat=null;$('chatDialog').hidden=true;$('chatForm').hidden=true}
 $('closeChat').onclick=ccgCloseChat;
 $('chatDialog').addEventListener('click',e=>{if(e.target===$('chatDialog'))ccgCloseChat()});
 function ccgChatDate(t){return t?.toDate?.()?.toLocaleString('zh-CN')||'刚刚'}
@@ -386,12 +386,12 @@ function ccgShowMessages(snap){const root=$('chatMessages');root.replaceChildren
  snap.docs.forEach(d=>{const m=d.data(),el=make('div',m.text||'', 'chat-bubble '+(m.senderUid===window.CCGMember?.user?.uid?'mine':'other'));el.append(make('small',ccgChatDate(m.createdAt)));root.append(el)});root.scrollTop=root.scrollHeight}
 async function ccgOpenChat(id){if(!memberReady||!db)return;ccgCloseChat();$('chatDialog').hidden=false;$('chatStatus').textContent='正在加载聊天…';$('chatMessages').replaceChildren();$('chatForm').hidden=true;
  try{const snap=await db.collection('careChats').doc(id).get();if(!snap.exists)throw Error('会话不存在');const c=snap.data(),uid=window.CCGMember.user.uid;if(c.ownerUid!==uid&&c.requesterUid!==uid)throw Error('无权访问此会话');
- ccgActiveChat=id;$('chatContext').textContent='帖子：'+(c.postText||'图片帖子')+' · 与 '+(uid===c.ownerUid?c.requesterName:c.ownerName)+' 的私信';$('chatList').replaceChildren();$('chatForm').hidden=false;$('chatStatus').textContent='仅双方可见，消息保存在云端。';
+ ccgActiveChat=id;ccgPostUnsub=db.collection('carePosts').doc(c.postId).onSnapshot(postSnap=>{const active=postSnap.exists;$('chatInput').disabled=!active;$('chatSend').disabled=!active;$('chatForm').hidden=false;$('chatStatus').textContent=active?'仅双方可见，消息保存在云端。':'原帖子已删除：聊天记录永久保留供双方查看，但不能继续发送消息。';},err=>{$('chatInput').disabled=true;$('chatSend').disabled=true;$('chatStatus').textContent='无法确认帖子状态，暂时禁止发送：'+err.message});$('chatContext').textContent='帖子：'+(c.postText||'图片帖子')+' · 与 '+(uid===c.ownerUid?c.requesterName:c.ownerName)+' 的私信';$('chatList').replaceChildren();$('chatForm').hidden=false;
  ccgChatUnsub=db.collection('careChats').doc(id).collection('messages').orderBy('createdAt','asc').limit(200).onSnapshot(ccgShowMessages,e=>{$('chatStatus').textContent='读取消息失败：'+e.message});
  }catch(e){$('chatStatus').textContent='打开失败：'+e.message}}
 $('chatForm').addEventListener('submit',async e=>{e.preventDefault();if(!ccgActiveChat)return;
  const message=$('chatInput').value.trim();if(!message||message.length>2000)return;
- const id=ccgActiveChat,btn=$('chatSend');btn.disabled=true;$('chatStatus').textContent='正在发送…';
+ const id=ccgActiveChat,btn=$('chatSend');if($('chatInput').disabled)return;btn.disabled=true;$('chatStatus').textContent='正在发送…';
  try{const ref=db.collection('careChats').doc(id),msgRef=ref.collection('messages').doc(),stamp=firebase.firestore.FieldValue.serverTimestamp(),batch=db.batch();
  batch.set(msgRef,{senderUid:window.CCGMember.user.uid,text:message,createdAt:stamp});
  batch.update(ref,{lastText:message,lastSenderUid:window.CCGMember.user.uid,lastMessageId:msgRef.id,updatedAt:stamp});
@@ -407,7 +407,7 @@ function ccgRenderMyChatList(){
  const uid=window.CCGMember?.user?.uid,term=$('myChatSearch').value.trim().toLocaleLowerCase();
  const eligible=ccgChatItems.filter(c=>c.applicationText&&Array.isArray(c.participants)&&c.participants.includes(uid));
  const filtered=eligible.filter(c=>[c.ownerName,c.requesterName,c.postText,c.applicationText,c.lastText].some(v=>String(v||'').toLocaleLowerCase().includes(term)));
- $('myChatStatus').textContent='共 '+eligible.length+' 个已建立的聊天'+(term?'，匹配 '+filtered.length+' 个':'')+'；点击即可回复。';
+ $('myChatStatus').textContent='共 '+eligible.length+' 个已保存的聊天（关闭窗口不会删除；原帖删除后只读）'+(term?'，匹配 '+filtered.length+' 个':'')+'；点击即可回复。';
  if(!filtered.length){root.append(make('p',term?'没有找到匹配的聊天。':'暂无聊天。请先通过帖子提交兴趣申请，或等待他人申请您的帖子。','muted'));return}
  for(const c of filtered){
   const other=c.ownerUid===uid?c.requesterName:c.ownerName;
@@ -422,6 +422,6 @@ function ccgRenderMyChatList(){
 function ccgRenderChatList(){const root=$('chatList');root.replaceChildren();if(!ccgChatItems.length){root.append(make('p','暂无私信。请在感兴趣的帖子下提交申请后开始交流。','muted'));$('chatStatus').textContent='';return}
  for(const c of ccgChatItems){const other=c.ownerUid===window.CCGMember?.user?.uid?c.requesterName:c.ownerName;const btn=make('button','💬 '+other+' · '+(c.lastText||c.postText||'图片帖子').slice(0,55));btn.type='button';btn.onclick=()=>ccgOpenChat(c.id);root.append(btn)}$('chatStatus').textContent='共 '+ccgChatItems.length+' 个会话'}
 function ccgListenChatList(){if(ccgChatListUnsub)ccgChatListUnsub();const uid=window.CCGMember?.user?.uid;if(!uid)return;
- ccgChatListUnsub=db.collection('careChats').where('participants','array-contains',uid).limit(100).onSnapshot(s=>{ccgChatItems=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>((b.updatedAt?.seconds||b.createdAt?.seconds||0)-(a.updatedAt?.seconds||a.createdAt?.seconds||0)));$('myChatSection').hidden=false;ccgRenderMyChatList();},e=>{$('myChatSection').hidden=false;$('myChatStatus').textContent='聊天列表读取失败：'+e.message})}
+ $('myChatSection').hidden=false;$('myChatStatus').textContent='正在同步云端聊天…';ccgChatListUnsub=db.collection('careChats').where('participants','array-contains',uid).limit(100).onSnapshot(s=>{ccgChatItems=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>((b.updatedAt?.seconds||b.createdAt?.seconds||0)-(a.updatedAt?.seconds||a.createdAt?.seconds||0)));$('myChatSection').hidden=false;ccgRenderMyChatList();},e=>{$('myChatSection').hidden=false;$('myChatStatus').textContent='聊天列表读取失败：'+e.message})}
 
 </script><script src="./zh-toggle.js"></script><script src="./announcements.js" data-target="posts"></script></body></html>
