@@ -42,6 +42,12 @@ a{color:inherit}.post-actions{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0
 .chat-bubble small{display:block;color:#617567;margin-top:4px;font-size:11px}
 #chatList{display:grid;gap:8px;max-height:260px;overflow-y:auto}#chatList button{text-align:left;background:#e7f0e9;color:#20392b}
 #chatForm{display:flex;gap:8px;align-items:end}#chatInput{min-height:55px;flex:1}
+
+#myChatSection{scroll-margin-top:16px}#myChatList{display:grid;gap:9px;max-height:380px;overflow-y:auto;overscroll-behavior:contain}
+.chat-list-item{width:100%;text-align:left;background:#f1f7f2;color:#20392b;border:1px solid #d7e5d9;padding:12px;border-radius:10px}
+.chat-list-item strong,.chat-list-item span,.chat-list-item small{display:block;overflow-wrap:anywhere}
+.chat-list-item span{margin-top:5px;font-size:14px}.chat-list-item small{margin-top:5px;color:#617567}
+#myChatSearch{margin:8px 0 12px}#myChatSection[hidden]{display:none}
 </style></head><body>
 <header><div><div class="mcg-language-row"><h1>CCGMainz爱心站</h1><button id="mcgLanguageSwitch" type="button" data-no-translate>选择语言</button></div><span id="mcgLanguageStatus" class="mcg-language-status" role="status" data-no-translate></span><span>分享闲置物品、寻求生活帮助 · 邻里互助，彼此关怀</span></div></header>
 <main><p><a href="./platform.html" style="color:#22583d">← 返回 CCGMainz幸福家人数字平台</a></p>
@@ -60,7 +66,14 @@ a{color:inherit}.post-actions{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0
 <p class="muted">文字和图片至少填写一项。发布帖子将公开显示您注册的真实姓名。请勿在公开文字或图片中写入电话、地址等隐私。</p>
 <button id="publish" type="submit">发布物品</button><p id="publishStatus" class="muted" role="status"></p>
 </form></section>
-<section><h2>爱心站最新帖子</h2><p class="muted" id="feedStatus">正在加载…</p><div id="feed"></div><button id="more" type="button" hidden>加载更多</button></section>
+<section class="card" id="myChatSection" hidden aria-label="我的聊天管理">
+ <h2>💬 我的聊天</h2>
+ <p class="muted">仅显示您已提交兴趣申请，或其他会员向您的帖子提交申请后建立的会话。点击任意聊天直接查看记录并回复。</p>
+ <input type="text" id="myChatSearch" placeholder="搜索聊天对象或帖子内容" aria-label="搜索我的聊天">
+ <p id="myChatStatus" class="muted" role="status">正在加载聊天…</p>
+ <div id="myChatList"></div>
+ </section>
+ <section><h2>爱心站最新帖子</h2><p class="muted" id="feedStatus">正在加载…</p><div id="feed"></div><button id="more" type="button" hidden>加载更多</button></section>
 </main>
 <div id="myPostsDialog" hidden role="dialog" aria-modal="true" aria-labelledby="myPostsTitle">
  <div class="card my-posts-panel">
@@ -388,9 +401,27 @@ $('chatForm').addEventListener('submit',async e=>{e.preventDefault();if(!ccgActi
 /* 隐藏独立私信入口，聊天仅通过申请或我的消息进入。
 $('goChats').onclick=()=>{if(!memberReady)return alert('请先登录会员平台');$('chatDialog').hidden=false;$('chatForm').hidden=true;$('chatContext').textContent='选择一条已提交兴趣申请的私信';$('chatStatus').textContent='正在加载会话…';$('chatMessages').replaceChildren();ccgRenderChatList()};
 */
+$('myChatSearch').addEventListener('input',ccgRenderMyChatList);
+function ccgRenderMyChatList(){
+ const root=$('myChatList');root.replaceChildren();
+ const uid=window.CCGMember?.user?.uid,term=$('myChatSearch').value.trim().toLocaleLowerCase();
+ const eligible=ccgChatItems.filter(c=>c.applicationText&&Array.isArray(c.participants)&&c.participants.includes(uid));
+ const filtered=eligible.filter(c=>[c.ownerName,c.requesterName,c.postText,c.applicationText,c.lastText].some(v=>String(v||'').toLocaleLowerCase().includes(term)));
+ $('myChatStatus').textContent='共 '+eligible.length+' 个已建立的聊天'+(term?'，匹配 '+filtered.length+' 个':'')+'；点击即可回复。';
+ if(!filtered.length){root.append(make('p',term?'没有找到匹配的聊天。':'暂无聊天。请先通过帖子提交兴趣申请，或等待他人申请您的帖子。','muted'));return}
+ for(const c of filtered){
+  const other=c.ownerUid===uid?c.requesterName:c.ownerName;
+  const btn=make('button',undefined,'chat-list-item');btn.type='button';
+  btn.append(make('strong','💬 '+(other||'会员')));
+  btn.append(make('span','帖子：'+(c.postText||'图片帖子').slice(0,100)));
+  btn.append(make('small','最近消息：'+(c.lastText||c.applicationText||'已提交兴趣申请').slice(0,110)));
+  const date=c.updatedAt||c.createdAt;if(date?.toDate)btn.append(make('small','更新：'+date.toDate().toLocaleString('zh-CN')));
+  btn.onclick=()=>ccgOpenChat(c.id);root.append(btn);
+ }
+}
 function ccgRenderChatList(){const root=$('chatList');root.replaceChildren();if(!ccgChatItems.length){root.append(make('p','暂无私信。请在感兴趣的帖子下提交申请后开始交流。','muted'));$('chatStatus').textContent='';return}
  for(const c of ccgChatItems){const other=c.ownerUid===window.CCGMember?.user?.uid?c.requesterName:c.ownerName;const btn=make('button','💬 '+other+' · '+(c.lastText||c.postText||'图片帖子').slice(0,55));btn.type='button';btn.onclick=()=>ccgOpenChat(c.id);root.append(btn)}$('chatStatus').textContent='共 '+ccgChatItems.length+' 个会话'}
 function ccgListenChatList(){if(ccgChatListUnsub)ccgChatListUnsub();const uid=window.CCGMember?.user?.uid;if(!uid)return;
- ccgChatListUnsub=db.collection('careChats').where('participants','array-contains',uid).limit(100).onSnapshot(s=>{ccgChatItems=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));},e=>{$('chatStatus').textContent='私信列表读取失败：'+e.message})}
+ ccgChatListUnsub=db.collection('careChats').where('participants','array-contains',uid).limit(100).onSnapshot(s=>{ccgChatItems=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>((b.updatedAt?.seconds||b.createdAt?.seconds||0)-(a.updatedAt?.seconds||a.createdAt?.seconds||0)));$('myChatSection').hidden=false;ccgRenderMyChatList();},e=>{$('myChatSection').hidden=false;$('myChatStatus').textContent='聊天列表读取失败：'+e.message})}
 
 </script><script src="./zh-toggle.js"></script><script src="./announcements.js" data-target="posts"></script></body></html>
