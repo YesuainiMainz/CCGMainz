@@ -70,8 +70,8 @@
 #mcgLanguageSwitch:disabled{opacity:.6}
 .mcg-language-status{display:block;font-size:13px;color:#ffe5b8}
 @media(max-width:560px){.mcg-language-row{align-items:stretch}.mcg-language-row h1{flex:1 1 100%}#mcgLanguageSwitch{width:100%}}
-</style><header><div class="mcg-language-row"><h1>CCGMainz Lager · 私密家庭端</h1><button id="mcgLanguageSwitch" type="button" data-no-translate>切換為繁體中文</button></div><span id="mcgLanguageStatus" class="mcg-language-status" data-no-translate role="status"></span><div>仅授权成员可查看库存</div><div style="margin-top:8px"><a href="./platform.html" style="color:#fff">前往 CCGMainz幸福家人数字平台 →</a></div></header><main><section class="card" id="authPanel"><h2>📦 CCG Lager · 访问权限</h2><p>请先在 <a href="./platform.html">幸福家人数字平台</a> 登录并通过会员审批。Lager 库存需要单独授权。</p><p id="authStatus" class="warn" aria-live="polite">正在核验会员及 Lager 权限…</p><div id="lagerAccessActions" hidden><button id="lagerApply" type="button" onclick="lagerApplyAccess()">申请 Lager 访问权限</button></div><p id="lagerAccessStatus" class="muted"></p></section><div id="privateContent" hidden>
-<div class="card"><h2>家庭资料</h2><label>会员名称 <input id="familyName" readonly></label><label>申请人姓名 <input id="memberName" readonly></label><p class="muted">仅批准的家庭成员可以查看云端库存，并在线提交借用或领取申请。</p></div>
+</style><header><div class="mcg-language-row"><h1>CCG Lager · 库存平台</h1><button id="mcgLanguageSwitch" type="button" data-no-translate>切換為繁體中文</button></div><span id="mcgLanguageStatus" class="mcg-language-status" data-no-translate role="status"></span><div>使用幸福家人平台账号 · 仅获授权会员可查看库存</div><div style="margin-top:8px"><a href="./platform.html" style="color:#fff">前往 CCGMainz幸福家人数字平台 →</a></div></header><main><section class="card" id="authPanel"><h2>📦 CCG Lager · 访问权限</h2><p>请先在 <a href="./platform.html">幸福家人数字平台</a> 登录并通过会员审批。Lager 库存需要单独授权。</p><p id="authStatus" class="warn" aria-live="polite">正在核验会员及 Lager 权限…</p><div id="lagerAccessActions" hidden><button id="lagerApply" type="button" onclick="lagerApplyAccess()">申请 Lager 访问权限</button></div><p id="lagerAccessStatus" class="muted"></p></section><div id="privateContent" hidden>
+
 <div class="card"><h2>在线库存自动更新</h2><p>仅获批准的成员可以实时读取云端库存；无需导入更新包。</p>
 <p id="lastInventoryChange" class="muted">上次更改时间：正在读取…</p>
 <p id="syncStatus" class="warn" aria-live="polite">正在准备同步…</p></div>
@@ -129,8 +129,7 @@ async function confirmThree(action,detail){
 
 let onlineRequests=[];const KEY='fzh_family_v2';let db=loadLocal(KEY,{version:-1,items:[],requests:[],family:'',member:'',categories:[],locations:[]});
 function persist(){saveLocal(KEY,db);render()}
-function savePrefs(){db.family=$('familyName').value;db.member=$('memberName').value;saveLocal(KEY,db)}
-$('familyName').value=db.family;$('memberName').value=db.member;
+
 function updateSearchControls(){
  const mode=$('searchMode').value,choice=$('searchChoice');
  const useChoice=mode==='category'||mode==='location';
@@ -244,15 +243,15 @@ function lagerStop(){
  for(const k of ['fzhUnsub','fzhRequestsUnsub','fzhPhotoUnsub']){if(k==='fzhUnsub'&&fzhUnsub){fzhUnsub();fzhUnsub=null}if(k==='fzhRequestsUnsub'&&fzhRequestsUnsub){fzhRequestsUnsub();fzhRequestsUnsub=null}if(k==='fzhPhotoUnsub'&&fzhPhotoUnsub){fzhPhotoUnsub();fzhPhotoUnsub=null}}
  familyPhotos.clear();onlineRequests=[];window.fzhApproved=false;
  document.getElementById('privateContent').hidden=true;
+ document.getElementById('authPanel').hidden=false;
  db.items=[];db.version=-1;db.categories=[];db.locations=[];render();
 }
 function lagerStartInventory(user,profile){
  if(window.fzhApproved)return;
  window.fzhApproved=true;
  document.getElementById('privateContent').hidden=false;
+ document.getElementById('authPanel').hidden=true;
  db.family=profile.name||'';db.member=profile.name||'';
- document.getElementById('familyName').value=db.family;
- document.getElementById('memberName').value=db.member;
  fzhSetStatus('已授权：'+(profile.name||user.email||'会员')+'，库存自动同步中。');
  fzhRequestsUnsub=fzhStore.collection('onlineRequests').where('uid','==',user.uid).onSnapshot(s=>{
   onlineRequests=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));render();
