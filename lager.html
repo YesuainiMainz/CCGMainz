@@ -1,0 +1,312 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CCGMainz Lager · 家庭版</title><style>
+*{box-sizing:border-box}body{font-family:system-ui,"Microsoft YaHei",sans-serif;background:#f3f6f3;color:#24362b;margin:0}header{background:#24533f;color:white;padding:20px}main{max-width:1050px;margin:auto;padding:18px}.card{background:white;border-radius:14px;padding:18px;margin:14px 0;box-shadow:0 2px 8px #0001}button,.btn{border:0;border-radius:8px;background:#286c51;color:white;padding:9px 12px;cursor:pointer;margin:3px}button.alt{background:#64766a}button.danger{background:#ae4b44}input,select,textarea{padding:9px;border:1px solid #cbd7cf;border-radius:7px;max-width:100%;margin:3px}table{border-collapse:collapse;width:100%}td,th{padding:10px;text-align:left;border-bottom:1px solid #e4ebe6}small{color:#64746a}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}.muted{color:#6b776f}.photo{width:55px;height:55px;object-fit:cover;border-radius:6px}.scroll{overflow:auto}label{display:block;margin:5px 0}.warn{background:#fff2df;padding:10px;border-radius:8px}h2{margin-top:0}@media(max-width:600px){main{padding:10px}td,th{padding:6px;font-size:13px}}.inventory-scroll{overflow-y:auto;overflow-x:auto;overscroll-behavior:contain}.inventory-scroll thead th{position:sticky;top:0;background:white;z-index:2}.item-notes{min-width:120px;max-width:280px;white-space:normal;overflow-wrap:anywhere;line-height:1.45}
+.zoomable-photo{cursor:zoom-in}.photo-lightbox{position:fixed;inset:0;background:rgba(0,0,0,.86);z-index:9999;display:none;align-items:center;justify-content:center;flex-direction:column;padding:24px;gap:12px}.photo-lightbox.open{display:flex}.photo-lightbox img{display:block;max-width:95vw;max-height:78vh;object-fit:contain;border-radius:6px}.photo-lightbox .lightbox-title{color:white;font-size:16px;text-align:center;overflow-wrap:anywhere}.photo-lightbox .lightbox-close{position:absolute;right:16px;top:12px;font-size:22px;background:#fff;color:#222;border-radius:8px;padding:6px 12px;cursor:pointer}
+.photo-open{display:inline-flex;align-items:center;justify-content:center;padding:0;margin:0;border:2px solid transparent;background:transparent;border-radius:8px;cursor:zoom-in;vertical-align:middle}
+.photo-open:hover,.photo-open:focus-visible{border-color:#286c51;outline:2px solid #b5d4c1}
+.photo-open .photo{display:block;pointer-events:none}
+.photo-lightbox{z-index:2147483647!important}
+
+/* 手机端：库存由横向表格改为纵向卡片，触屏可直接滚动 */
+@media (max-width: 680px){
+ html{-webkit-text-size-adjust:100%}
+ body{overflow-x:hidden}
+ header{padding:16px max(14px,env(safe-area-inset-right)) 16px max(14px,env(safe-area-inset-left))}
+ header h1{font-size:1.35rem;margin:0 0 5px}
+ main{padding:8px 10px calc(22px + env(safe-area-inset-bottom))}
+ .card{padding:13px 12px;margin:10px 0;border-radius:12px}
+ .grid{grid-template-columns:minmax(0,1fr)}
+ label,input,select{width:100%}
+ input,select,textarea{font-size:16px;min-height:44px}
+ input[type=file]{font-size:14px;height:auto;padding:12px 6px}
+ button{min-height:44px;touch-action:manipulation}
+ #inventoryScroll{overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+ #inventoryScroll table,#inventoryScroll tbody,#inventoryScroll tr,#inventoryScroll td{display:block;width:100%}
+ #inventoryScroll thead{display:none}
+ #inventoryScroll tr{position:relative;border:1px solid #dce7df;border-radius:12px;margin:8px 2px;padding:12px;box-shadow:0 1px 3px #0001;background:#fff}
+ #inventoryScroll td{border:0;padding:3px 0;text-align:left;font-size:14px;min-width:0;max-width:none}
+ #inventoryScroll td:nth-child(1){float:left;width:74px;margin-right:12px;min-height:75px}
+ #inventoryScroll td:nth-child(2){min-height:32px;font-size:16px}
+ #inventoryScroll td:nth-child(3)::before{content:'位置：';font-weight:600}
+ #inventoryScroll td:nth-child(4)::before{content:'备注：';font-weight:600}
+ #inventoryScroll td:nth-child(5)::before{content:'库存：';font-weight:600}
+ #inventoryScroll td:nth-child(6){clear:both;padding-top:8px}
+ #inventoryScroll td:nth-child(6) button{width:100%;margin:0}
+ #inventoryScroll .photo{width:66px;height:66px}
+ #inventoryScroll .item-notes{overflow-wrap:anywhere;white-space:normal}
+ #photoLightbox{padding:16px}
+ #photoLightbox img{max-width:95vw;max-height:72dvh}
+ #photoLightbox .lightbox-close{top:max(10px,env(safe-area-inset-top));right:12px}
+ #requests button{display:block;width:100%;margin:8px 0}
+}
+
+.app-modal[hidden],.download-notice[hidden]{display:none!important}
+.app-modal{position:fixed;inset:0;z-index:2147483646;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:16px}
+.app-modal-box{background:white;border-radius:16px;padding:20px;width:min(100%,440px);max-height:90dvh;overflow-y:auto;box-shadow:0 12px 40px #0004}
+.app-modal-box h3{margin:0 0 12px}.app-modal-box p{white-space:pre-wrap;overflow-wrap:anywhere}
+.app-modal-box label{display:block;margin:12px 0}.app-modal-box select,.app-modal-box input{width:100%;font-size:16px;min-height:44px}
+.app-modal-actions{display:flex;gap:12px;margin-top:20px}.app-modal-actions button{flex:1;min-height:48px}
+.modal-error{color:#ad302a}.download-notice{position:fixed;bottom:10px;left:10px;right:10px;z-index:2147483645;border:2px solid #286c51;max-width:500px;margin:auto}
+.download-notice a{display:inline-block;padding:12px;margin:8px 0;color:#126348;font-weight:700;text-decoration:underline}
+
+@media(min-width:681px) and (max-width:1024px){
+ main{padding:14px}.card{padding:15px}
+ .grid{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+ .inventory-scroll{overflow-x:auto}
+ .inventory-scroll table{min-width:660px}
+}
+@media(max-width:680px){
+ #inventoryScroll td:nth-child(6) button{width:100%}
+ #inventoryScroll tr{margin:7px 2px}
+}
+
+/* 家庭端申请记录最多显示三行，更多记录在容器内上下滚动 */
+#requests.request-history-scroll{overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+#requests.request-history-scroll .request-history-row{margin:0;padding:10px 6px;border-bottom:1px solid #e4ebe6;line-height:1.5;overflow-wrap:anywhere}
+#requests.request-history-scroll .request-history-row:last-child{border-bottom:0}
+
+.mcg-language-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.mcg-language-row h1{margin:0}
+#mcgLanguageSwitch{border:1px solid #fff;background:white;color:#24583e;padding:10px 15px;border-radius:9px;min-height:42px;cursor:pointer;font-size:15px}
+#mcgLanguageSwitch:disabled{opacity:.6}
+.mcg-language-status{display:block;font-size:13px;color:#ffe5b8}
+@media(max-width:560px){.mcg-language-row{align-items:stretch}.mcg-language-row h1{flex:1 1 100%}#mcgLanguageSwitch{width:100%}}
+</style><header><div class="mcg-language-row"><h1>CCGMainz Lager · 私密家庭端</h1><button id="mcgLanguageSwitch" type="button" data-no-translate>切換為繁體中文</button></div><span id="mcgLanguageStatus" class="mcg-language-status" data-no-translate role="status"></span><div>仅授权成员可查看库存</div><div style="margin-top:8px"><a href="./platform.html" style="color:#fff">前往 CCGMainz幸福家人数字平台 →</a></div></header><main><section class="card" id="authPanel"><h2>📦 CCG Lager · 访问权限</h2><p>请先在 <a href="./platform.html">幸福家人数字平台</a> 登录并通过会员审批。Lager 库存需要单独授权。</p><p id="authStatus" class="warn" aria-live="polite">正在核验会员及 Lager 权限…</p><div id="lagerAccessActions" hidden><button id="lagerApply" type="button" onclick="lagerApplyAccess()">申请 Lager 访问权限</button></div><p id="lagerAccessStatus" class="muted"></p></section><div id="privateContent" hidden>
+<div class="card"><h2>家庭资料</h2><label>会员名称 <input id="familyName" readonly></label><label>申请人姓名 <input id="memberName" readonly></label><p class="muted">仅批准的家庭成员可以查看云端库存，并在线提交借用或领取申请。</p></div>
+<div class="card"><h2>在线库存自动更新</h2><p>仅获批准的成员可以实时读取云端库存；无需导入更新包。</p>
+<p id="lastInventoryChange" class="muted">上次更改时间：正在读取…</p>
+<p id="syncStatus" class="warn" aria-live="polite">正在准备同步…</p></div>
+<div class="card"><p id="status" class="warn">登录并获批准后加载私密库存。</p></div>
+<div class="card"><h2>物品目录</h2><div class="grid">
+<label>搜索方式<select id="searchMode" onchange="updateSearchControls();render()"><option value="name">名称</option><option value="category">分类</option><option value="location">存放位置</option><option value="qty">数量</option></select></label>
+<label id="searchTextWrap">搜索内容<input id="search" placeholder="输入物品名称" oninput="render()"></label>
+<label id="searchChoiceWrap" style="display:none">筛选选项<select id="searchChoice" onchange="render()"></select></label>
+<label id="qtyModeWrap" style="display:none">数量比较<select id="qtyMode" onchange="render()"><option value="eq">等于</option><option value="gte">大于或等于</option><option value="lte">小于或等于</option></select></label>
+</div><div class="scroll inventory-scroll" id="inventoryScroll"><table><thead><tr><th>照片</th><th>名称</th><th>位置</th><th>备注</th><th>库存</th><th>申请</th></tr></thead><tbody id="items"></tbody></table></div></div>
+<div class="card"><h2>在线申请记录</h2><p class="muted">在线申请自动发送管理员审批，状态实时更新。</p><div id="requests" class="request-history-scroll" aria-label="家庭申请记录，可上下滑动"></div></div>
+</div></main><div id="appModal" class="app-modal" hidden role="dialog" aria-modal="true" aria-labelledby="appModalTitle">
+ <div class="app-modal-box"><h3 id="appModalTitle">确认操作</h3><p id="appModalMessage"></p>
+ <div id="appModalFields" hidden>
+  <label>申请类型<select id="modalKind"><option value="借用">借用</option><option value="领取">领取</option></select></label>
+  <label id="modalQtyLabel">申请数量<input id="modalQty" type="number" inputmode="numeric" step="1" min="1" value="1"></label>
+  <p id="modalError" class="modal-error" aria-live="polite"></p>
+ </div>
+ <div class="app-modal-actions"><button type="button" class="alt" id="appModalCancel">取消</button><button type="button" id="appModalOK">确定</button></div></div>
+</div>
+
+<div id="photoLightbox" class="photo-lightbox" role="dialog" aria-modal="true" aria-label="物品照片放大查看" onclick="closePhotoLightbox()"><button type="button" class="lightbox-close" onclick="closePhotoLightbox()" aria-label="关闭大图">× 关闭</button><img id="lightboxImage" alt="物品大图" onclick="event.stopPropagation()"><div id="lightboxTitle" class="lightbox-title"></div></div><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script><script src="./firebase-config.js"></script><script>
+const $=id=>document.getElementById(id);
+const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+const uuid=()=>typeof crypto!=='undefined'&&typeof crypto.randomUUID==='function'?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);
+
+function readJSON(file){return new Promise((resolve,reject)=>{if(!file||file.size>15000000)return reject(Error('文件过大或未选择'));let r=new FileReader();r.onload=()=>{try{resolve(JSON.parse(r.result))}catch{reject(Error('不是有效的 JSON 文件'))}};r.onerror=()=>reject(Error('无法读取文件'));r.readAsText(file)})}
+function msg(t){const el=$('status');if(el){el.textContent=t;el.scrollIntoView({block:'nearest',behavior:'smooth'})}else console.warn(t)}
+function saveLocal(k,v){if(k==='fzh_family_v2')return true;try{localStorage.setItem(k,JSON.stringify(v));return true}catch{msg('保存失败：可能是浏览器存储已满，请先保存申请文件。');return false}}
+function loadLocal(k,fallback){if(k==='fzh_family_v2')return fallback;try{return JSON.parse(localStorage.getItem(k))||fallback}catch{return fallback}}
+
+function validSnapshot(x){return x&&x.type==='fzh-stock-snapshot'&&x.schema===1&&Number.isSafeInteger(x.version)&&x.version>=0&&Array.isArray(x.items)&&x.items.length<=5000&&x.items.every(i=>typeof i.id==='string'&&typeof i.name==='string'&&Number.isFinite(i.qty)&&i.qty>=0)}
+
+function showAppModal(title,message,fields=false,maxQty=1){
+ return new Promise(resolve=>{
+  const modal=$('appModal'),ok=$('appModalOK'),cancel=$('appModalCancel');
+  $('appModalTitle').textContent=title;$('appModalMessage').textContent=message;
+  $('appModalFields').hidden=!fields;$('modalError').textContent='';
+  if(fields){$('modalQty').max=String(maxQty);$('modalQty').value='1';$('modalQtyLabel').firstChild.textContent='申请数量（1—'+maxQty+'）';$('modalKind').value='借用'}
+  modal.hidden=false;
+  const finish=value=>{modal.hidden=true;ok.removeEventListener('click',accept);cancel.removeEventListener('click',reject);resolve(value)};
+  const reject=()=>finish(null);
+  const accept=()=>{
+   if(!fields)return finish(true);
+   const n=Number($('modalQty').value);
+   if(!$('modalQty').value.trim()||!Number.isSafeInteger(n)||n<1||n>maxQty){$('modalError').textContent='请输入1至'+maxQty+'之间的整数';return}
+   finish({kind:$('modalKind').value,qty:n});
+  };
+  ok.addEventListener('click',accept);cancel.addEventListener('click',reject);
+ });
+}
+async function confirmThree(action,detail){
+ return await showAppModal('确认操作','确定'+action+'「'+detail+'」吗？');
+}
+
+let onlineRequests=[];const KEY='fzh_family_v2';let db=loadLocal(KEY,{version:-1,items:[],requests:[],family:'',member:'',categories:[],locations:[]});
+function persist(){saveLocal(KEY,db);render()}
+function savePrefs(){db.family=$('familyName').value;db.member=$('memberName').value;saveLocal(KEY,db)}
+$('familyName').value=db.family;$('memberName').value=db.member;
+function updateSearchControls(){
+ const mode=$('searchMode').value,choice=$('searchChoice');
+ const useChoice=mode==='category'||mode==='location';
+ $('searchTextWrap').style.display=useChoice?'none':'';
+ $('searchChoiceWrap').style.display=useChoice?'':'none';
+ $('qtyModeWrap').style.display=mode==='qty'?'':'none';
+ $('search').placeholder=mode==='qty'?'输入整数数量':'输入物品名称';
+ if(useChoice){
+  const key=mode==='category'?'categories':'locations';
+  const field=mode==='category'?'category':'location';
+  const values=Array.isArray(db[key])&&db[key].length?db[key]:[...new Set(db.items.map(i=>i[field]).filter(Boolean))];
+  const signature=mode+'|'+JSON.stringify(values);
+  if(choice.dataset.signature!==signature){const previous=choice.value;
+   choice.innerHTML='<option value="">全部</option>'+values.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+   choice.dataset.signature=signature;
+   if(values.includes(previous))choice.value=previous;
+  }
+ }
+}
+function limitInventoryToTenRows(){
+ const panel=document.getElementById('inventoryScroll');
+ const table=panel.querySelector('table');
+ const rows=Array.from(table.tBodies[0].rows);
+ const headerHeight=table.tHead.getBoundingClientRect().height;
+ const visibleHeight=rows.slice(0,5).reduce((total,row)=>{
+  const style=getComputedStyle(row);
+  return total+row.getBoundingClientRect().height+parseFloat(style.marginTop||0)+parseFloat(style.marginBottom||0);
+ },0);
+ panel.style.maxHeight=Math.ceil(headerHeight+visibleHeight+4)+'px';
+}
+
+
+document.getElementById('items').addEventListener('click',function(event){
+ const button=event.target.closest('button[data-photo-id]');
+ if(!button||!this.contains(button))return;
+ event.preventDefault();
+ showPhotoById(button.getAttribute('data-photo-id'));
+});
+function showPhotoById(id){
+ const item=db.items.find(i=>i.id===id);
+ if(!item||!familyPhoto(item))return;
+ const viewer=document.getElementById('photoLightbox');
+ document.getElementById('lightboxImage').src=familyPhoto(item);
+ document.getElementById('lightboxTitle').textContent=item.name;
+ viewer.classList.add('open');
+ viewer.style.display='flex';
+ document.body.style.overflow='hidden';
+}
+function closePhotoLightbox(){
+ const viewer=document.getElementById('photoLightbox');
+ viewer.classList.remove('open');
+ viewer.style.display='none';
+ document.body.style.overflow='';
+ document.getElementById('lightboxImage').removeAttribute('src');
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closePhotoLightbox()});
+
+const familyPhotos=new Map();
+function familyPhoto(i){return familyPhotos.get(i.id)||i.photo||'';}
+function render(){
+ updateSearchControls();
+ $('status').textContent=db.version<0?'尚未收到云端库存。':`云端库存版本 V${db.version} · ${db.items.length} 种物品（实时同步）`;
+ let q=$('search').value.trim().toLowerCase(),mode=$('searchMode').value,choice=$('searchChoice').value;
+ $('items').innerHTML=db.items.filter(i=>mode==='name'?i.name.toLowerCase().includes(q):mode==='category'?(!choice||i.category===choice):mode==='location'?(!choice||i.location===choice):q===''?true:(Number.isFinite(Number(q))&&($('qtyMode').value==='eq'?i.qty===Number(q):$('qtyMode').value==='gte'?i.qty>=Number(q):i.qty<=Number(q)))).map(i=>`<tr><td>${familyPhoto(i)?`<button type="button" class="photo-open" data-photo-id="${esc(i.id)}" title="点击查看大图" aria-label="放大查看 ${esc(i.name)} 的图片"><img class="photo zoomable-photo" src="${familyPhoto(i)}" alt="${esc(i.name)}的照片"></button>`:'📦'}</td><td><b>${esc(i.name)}</b><br><small>${esc(i.category)}</small></td><td>${esc(i.location)}</td><td class="item-notes">${i.notes?esc(i.notes):'<span class="muted">—</span>'}</td><td>${i.qty} ${esc(i.unit)}</td><td><button onclick="requestItem('${i.id}')">申请</button></td></tr>`).join('');
+ limitInventoryToTenRows();
+ $('requests').innerHTML=onlineRequests.map(r=>`<div class="request-history-row">📄 ${esc(r.itemName)} × ${r.qty}（${esc(r.kind)}） · <b>${esc(r.status)}</b>${r.kind==='借用'?' · 已归还 '+(r.returnedQty||0)+'/'+r.qty:''}</div>`).join('')||'<p class="muted">暂无在线申请</p>';
+ requestAnimationFrame(limitFamilyRequestRows);
+}
+function limitFamilyRequestRows(){
+ const panel=$('requests');if(!panel)return;
+ const rows=Array.from(panel.querySelectorAll('.request-history-row')).slice(0,3);
+ if(!rows.length){panel.style.maxHeight='';return;}
+ const height=rows.reduce((sum,row)=>{
+  const style=getComputedStyle(row);
+  return sum+row.getBoundingClientRect().height+parseFloat(style.marginTop||0)+parseFloat(style.marginBottom||0);
+ },0);
+ panel.style.maxHeight=Math.ceil(height+2)+'px';
+}
+window.addEventListener('resize',()=>requestAnimationFrame(limitFamilyRequestRows));
+// Firestore 实时同步仅在通过服务端授权后启用。
+let syncingInventory=false;
+
+
+async function requestItem(id){
+ const i=db.items.find(x=>x.id===id);
+ if(!i||!window.fzhUser||!window.fzhApproved)return msg('请先登录并通过管理员审批');
+ if(!Number.isSafeInteger(i.qty)||i.qty<1)return msg('库存不足');
+ const selected=await showAppModal('在线申请物品',i.name+'｜当前库存：'+i.qty+' '+(i.unit||'件'),true,i.qty);
+ if(!selected)return;
+ if(!await confirmThree('提交在线申请',i.name+' × '+selected.qty))return;
+ const button=document.activeElement;if(button?.tagName==='BUTTON')button.disabled=true;
+ try{
+  const uid=window.fzhUser.uid,requestId=uuid();
+  await fzhStore.collection('onlineRequests').doc(requestId).set({
+   uid,memberEmail:window.fzhUser.email||'',family:db.family,member:db.member,
+   itemId:i.id,itemName:i.name,kind:selected.kind,qty:selected.qty,
+   status:'pending',returnedQty:0,createdAt:firebase.firestore.FieldValue.serverTimestamp()
+  });
+  document.getElementById('syncStatus').textContent='在线申请已提交，等待管理员审批（不需发送文件）。';
+ }catch(e){msg('在线申请提交失败：'+e.message)}finally{if(button?.tagName==='BUTTON')button.disabled=false}
+}
+
+
+window.addEventListener('resize',()=>{limitInventoryToTenRows()});
+render();
+</script><script>
+let fzhAuth, fzhStore, fzhUnsub=null, fzhRequestsUnsub=null, fzhPhotoUnsub=null, lagerGrantUnsub=null;
+window.fzhUser=null;window.fzhApproved=false;
+function fzhSetStatus(t){document.getElementById('authStatus').textContent=t;}
+function lagerStop(){
+ for(const k of ['fzhUnsub','fzhRequestsUnsub','fzhPhotoUnsub']){if(k==='fzhUnsub'&&fzhUnsub){fzhUnsub();fzhUnsub=null}if(k==='fzhRequestsUnsub'&&fzhRequestsUnsub){fzhRequestsUnsub();fzhRequestsUnsub=null}if(k==='fzhPhotoUnsub'&&fzhPhotoUnsub){fzhPhotoUnsub();fzhPhotoUnsub=null}}
+ familyPhotos.clear();onlineRequests=[];window.fzhApproved=false;
+ document.getElementById('privateContent').hidden=true;
+ db.items=[];db.version=-1;db.categories=[];db.locations=[];render();
+}
+function lagerStartInventory(user,profile){
+ if(window.fzhApproved)return;
+ window.fzhApproved=true;
+ document.getElementById('privateContent').hidden=false;
+ db.family=profile.name||'';db.member=profile.name||'';
+ document.getElementById('familyName').value=db.family;
+ document.getElementById('memberName').value=db.member;
+ fzhSetStatus('已授权：'+(profile.name||user.email||'会员')+'，库存自动同步中。');
+ fzhRequestsUnsub=fzhStore.collection('onlineRequests').where('uid','==',user.uid).onSnapshot(s=>{
+  onlineRequests=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));render();
+ },e=>{document.getElementById('syncStatus').textContent='申请记录读取失败：'+e.message});
+ fzhUnsub=fzhStore.doc('private/inventory').onSnapshot(s=>{
+  if(!s.exists){document.getElementById('syncStatus').textContent='管理员尚未发布库存';return}
+  const data=s.data().snapshot;if(!validSnapshot(data)){document.getElementById('syncStatus').textContent='云端库存格式错误';return}
+  db.version=data.version;db.items=data.items;db.categories=data.categories||[];db.locations=data.locations||[];
+  delete document.getElementById('searchChoice').dataset.signature;render();
+  if(!fzhPhotoUnsub)fzhPhotoUnsub=fzhStore.collection('itemPhotos').onSnapshot(s=>{
+   familyPhotos.clear();s.forEach(d=>{if(typeof d.data().data==='string')familyPhotos.set(d.id,d.data().data)});render();
+  },e=>console.warn('照片同步失败',e));
+  document.getElementById('syncStatus').textContent='库存已自动同步 · V'+db.version;
+  const stamp=s.data().updatedAt;
+  document.getElementById('lastInventoryChange').textContent='上次更改时间：'+(stamp?.toDate?stamp.toDate().toLocaleString('zh-CN'):'暂无记录');
+ },e=>{document.getElementById('syncStatus').textContent='库存读取失败：'+e.message;lagerStop()});
+}
+async function lagerApplyAccess(){
+ const u=fzhAuth?.currentUser;if(!u)return fzhSetStatus('请先登录幸福家人平台');
+ const b=document.getElementById('lagerApply');b.disabled=true;
+ try{
+  const ref=fzhStore.collection('lagerAccess').doc(u.uid);
+  await fzhStore.runTransaction(async tx=>{
+   const d=await tx.get(ref);
+   if(d.exists&&d.data().status==='approved')throw Error('已获得授权，请刷新页面');
+   if(d.exists&&d.data().status==='pending')throw Error('申请已提交，请等待管理员审批');
+   if(d.exists)tx.update(ref,{status:'pending',requestedAt:firebase.firestore.FieldValue.serverTimestamp()});
+   else tx.set(ref,{uid:u.uid,status:'pending',requestedAt:firebase.firestore.FieldValue.serverTimestamp()});
+  });
+  document.getElementById('lagerAccessStatus').textContent='申请已发送，请等待管理员批准。';
+ }catch(e){document.getElementById('lagerAccessStatus').textContent='申请未提交：'+e.message}
+ finally{b.disabled=false}
+}
+function fzhInit(){
+ const c=window.FZH_FIREBASE_CONFIG;
+ if(!c||!c.apiKey||c.apiKey.startsWith('REPLACE'))return fzhSetStatus('缺少 Firebase 配置');
+ const app=firebase.apps.find(a=>a.name==='[DEFAULT]')||firebase.initializeApp(c);
+ fzhAuth=app.auth();fzhStore=app.firestore();
+ fzhAuth.onAuthStateChanged(async u=>{
+  if(lagerGrantUnsub){lagerGrantUnsub();lagerGrantUnsub=null}lagerStop();window.fzhUser=u;
+  document.getElementById('lagerAccessActions').hidden=true;
+  if(!u)return fzhSetStatus('尚未登录，请先前往幸福家人平台登录。');
+  try{
+   const p=await fzhStore.doc('platformMembers/'+u.uid).get();
+   if(!p.exists||!['approved',undefined].includes(p.data().status))return fzhSetStatus('平台会员尚未批准，无法申请 Lager 权限。');
+   lagerGrantUnsub=fzhStore.doc('lagerAccess/'+u.uid).onSnapshot(d=>{
+    const state=d.exists?d.data().status:'none';
+    if(state==='approved'){document.getElementById('lagerAccessActions').hidden=true;lagerStartInventory(u,p.data());return}
+    if(window.fzhApproved)lagerStop();
+    document.getElementById('lagerAccessActions').hidden=state==='pending';
+    fzhSetStatus(state==='pending'?'Lager 访问申请正在等待管理员审批。':state==='rejected'?'Lager 访问申请已被拒绝，可以重新申请。':state==='revoked'?'Lager 访问权限已撤销，可以重新申请。':'平台会员已验证，尚未获得 Lager 库存访问权限。');
+   },e=>fzhSetStatus('权限检查失败：'+e.message));
+  }catch(e){fzhSetStatus('会员身份检查失败：'+e.message)}
+ });
+}
+try{fzhInit()}catch(e){fzhSetStatus('Firebase 初始化失败：'+e.message)}
+</script><script src="./zh-toggle.js"></script></html>

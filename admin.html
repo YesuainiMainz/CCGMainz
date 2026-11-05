@@ -253,7 +253,7 @@ html{scroll-padding-top:90px}body{padding-top:calc(56px + env(safe-area-inset-to
 <div id="musicAdminList" style="max-height:744px;overflow-y:auto;overscroll-behavior:contain;border:1px solid #dce6dd;border-radius:12px"></div>
 </div></section>
 <section id="privacyManagement" class="management-view" hidden>
- <div class="card"><h2>平台会员账号（不显示密码）</h2><p class="muted">管理员可查看注册姓名和邮箱账号。密码由 Firebase Authentication 安全管理，管理员无法读取。</p><button type="button" onclick="loadPlatformAccounts()">刷新会员与找回请求</button><p id="platformAccountStatus" class="muted">登录后可查看。</p><div id="platformAccountList" class="admin-four-scroll" aria-label="平台会员账号列表"></div><h3>忘记账号密码 · 找回请求</h3><p class="muted">显示申请者提交的姓名和邮箱，便于人工核对。管理员不能查看或发送原密码。</p><div id="accountRecoveryList" class="admin-four-scroll" aria-label="忘记账号找回请求列表"></div></div><div class="card" id="memberApproval"><h2>家庭成员审批</h2><button onclick="loadMembers()" type="button">刷新申请列表</button><p class="muted" id="memberStatus">请先以管理员身份登录。</p><div id="memberList" class="admin-four-scroll" aria-label="家庭人员审批列表"></div></div>
+ <div class="card"><h2>平台会员账号（不显示密码）</h2><p class="muted">管理员可查看注册姓名和邮箱账号。密码由 Firebase Authentication 安全管理，管理员无法读取。</p><button type="button" onclick="loadPlatformAccounts()">刷新会员与找回请求</button><p id="platformAccountStatus" class="muted">登录后可查看。</p><div id="platformAccountList" class="admin-four-scroll" aria-label="平台会员账号列表"></div><h3>忘记账号密码 · 找回请求</h3><p class="muted">显示申请者提交的姓名和邮箱，便于人工核对。管理员不能查看或发送原密码。</p><div id="accountRecoveryList" class="admin-four-scroll" aria-label="忘记账号找回请求列表"></div></div><div class="card" id="lagerAccessManagement"><h2>📦 CCG Lager 访问权限管理</h2><p class="muted">仅已批准的幸福家人平台会员可申请或获得库存权限；批准、直接授权和撤销均独立于平台会员身份。</p><button type="button" onclick="lagerAdminLoad()">刷新 Lager 权限</button><p id="lagerAdminStatus" class="muted">进入隐私管理后读取。</p><div id="lagerAdminList" class="admin-four-scroll" style="overflow-y:auto" aria-label="Lager 权限申请及授权列表"></div></div><div class="card" id="memberApproval"><h2>家庭成员审批</h2><button onclick="loadMembers()" type="button">刷新申请列表</button><p class="muted" id="memberStatus">请先以管理员身份登录。</p><div id="memberList" class="admin-four-scroll" aria-label="家庭人员审批列表"></div></div>
 </section></main><div id="stockActionModal" class="stock-action-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="stockActionTitle"><div class="stock-action-box"><h2 id="stockActionTitle">库存出库 / 库位移动</h2><p id="stockActionItem"></p><label>操作类型<select id="stockActionType" onchange="updateStockActionFields()"><option value="move">库位移动（可移动部分数量）</option><option value="use">取用（扣减库存）</option><option value="destroy">销毁（扣减库存）</option></select></label><label id="stockActionLocationWrap">目标库位<select id="stockActionLocation"></select></label><label id="stockActionQtyWrap" hidden>数量<input id="stockActionQty" type="number" min="1" step="1" value="1"></label><label>操作备注<input id="stockActionNote" maxlength="200" placeholder="可选：操作原因、经手人"></label><p id="stockActionError" class="warn" aria-live="polite"></p><div><button type="button" id="stockActionSubmit" onclick="submitStockAction()">确认操作</button><button type="button" class="alt" onclick="closeStockAction()">取消</button></div></div></div><div id="photoLightbox" class="photo-lightbox" role="dialog" aria-modal="true" aria-label="物品照片放大查看" onclick="closePhotoLightbox()"><button type="button" class="lightbox-close" onclick="closePhotoLightbox()" aria-label="关闭大图">× 关闭</button><img id="lightboxImage" alt="物品大图" onclick="event.stopPropagation()"><div id="lightboxTitle" class="lightbox-title"></div></div><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script><script src="./firebase-config.js"></script><script>
 const $=id=>document.getElementById(id);
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
@@ -1973,13 +1973,56 @@ function updateLatestStockTime(){
  })+(ccgQueue.length?'（另有 '+ccgQueue.length+' 项待上传）':'（已核对）');
 }
 
+
+async function lagerAdminLoad(){
+ if(!fzhAdminReady)return;
+ const root=document.getElementById('lagerAdminList'),status=document.getElementById('lagerAdminStatus');
+ root.replaceChildren();status.textContent='正在读取会员与 Lager 授权…';
+ try{
+  const [members,access]=await Promise.all([fzhAdminStore.collection('platformMembers').limit(500).get(),fzhAdminStore.collection('lagerAccess').limit(500).get()]);
+  const grants=new Map(access.docs.map(d=>[d.id,d.data()]));
+  const approved=members.docs.filter(d=>d.data().status==='approved'||!('status' in d.data()));
+  approved.sort((a,b)=>{const sa=grants.get(a.id)?.status||'',sb=grants.get(b.id)?.status||'';return Number(sb==='pending')-Number(sa==='pending')});
+  status.textContent='平台已批准会员 '+approved.length+' 人；Lager 待审批 '+approved.filter(d=>grants.get(d.id)?.status==='pending').length+' 人。';
+  for(const d of approved){
+   const v=d.data(),g=grants.get(d.id),state=g?.status||'none';
+   const row=document.createElement('div');row.style.cssText='padding:12px 6px;border-bottom:1px solid #e2e9e3;overflow-wrap:anywhere';
+   const info=document.createElement('div');info.textContent=(v.name||'未命名')+' · '+(v.email||'')+' · '+({approved:'已授权',pending:'待审批',rejected:'已拒绝',revoked:'已撤销',none:'未申请'}[state]||state);row.append(info);
+   const button=(label,next)=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=()=>lagerAdminSet(d.id,next,v.name||v.email||d.id);row.append(b)};
+   if(state!=='approved')button(state==='pending'?'批准申请':'直接授权','approved');
+   if(state==='pending')button('拒绝申请','rejected');
+   if(state==='approved')button('撤销权限','revoked');
+   root.append(row);
+  }
+  if(!approved.length)root.textContent='暂无已批准的平台会员';
+  const rows=[...root.children].slice(0,4);
+  requestAnimationFrame(()=>{root.style.maxHeight=rows.length?Math.ceil(rows.reduce((s,r)=>s+r.getBoundingClientRect().height,0)+2)+'px':''});
+ }catch(e){status.textContent='读取失败：'+e.message}
+}
+async function lagerAdminSet(uid,state,name){
+ if(!fzhAdminReady)return;
+ const verb=state==='approved'?'授权':state==='revoked'?'撤销权限':'拒绝申请';
+ if(!confirm('确定'+verb+'「'+name+'」的 Lager 库存访问权限吗？'))return;
+ try{
+  const ref=fzhAdminStore.collection('lagerAccess').doc(uid);
+  await fzhAdminStore.runTransaction(async tx=>{
+   const m=await tx.get(fzhAdminStore.collection('platformMembers').doc(uid));
+   if(!m.exists||!['approved',undefined].includes(m.data().status))throw Error('该账号不是已批准的平台会员');
+   const current=await tx.get(ref);
+   const fields={status:state,decidedAt:firebase.firestore.FieldValue.serverTimestamp(),decidedBy:fzhAdminAuth.currentUser.uid};
+   if(current.exists)tx.update(ref,fields);
+   else tx.set(ref,{uid,status:state,requestedAt:firebase.firestore.FieldValue.serverTimestamp(),...fields});
+  });
+  await lagerAdminLoad();
+ }catch(e){alert('操作失败：'+e.message)}
+}
 let ccgAdminLoaded={library:false,care:false,privacy:false,inventory:false};
 function loadAdminSectionOnDemand(requestedView){
  if(!fzhAdminReady)return;
  const view=requestedView||location.hash.replace('#','')||'home';
  if(view==='library'&&!ccgAdminLoaded.library){ccgAdminLoaded.library=true;listenLibraryRequestNotifications();}
  if(view==='care'&&!ccgAdminLoaded.care){ccgAdminLoaded.care=true;listenCareAdmin();}
- if(view==='privacy'&&!ccgAdminLoaded.privacy){ccgAdminLoaded.privacy=true;loadMembers();loadPlatformAccounts();}
+ if(view==='privacy'&&!ccgAdminLoaded.privacy){ccgAdminLoaded.privacy=true;loadMembers();loadPlatformAccounts();lagerAdminLoad();}
  if(view==='inventory'&&!ccgAdminLoaded.inventory){ccgAdminLoaded.inventory=true;loadOnlineRequests();}
 }
 function showManagementView(view,fromHash=false){
