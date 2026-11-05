@@ -371,7 +371,7 @@ try{
  $('postForm').hidden=false;
  $('postForm').querySelectorAll('textarea,input,button').forEach(el=>el.disabled=false);
  $('postingIdentity').textContent='实名发布：'+m.profile.name;
- loadMore(true);ccgListenChatList();const requestedChat=new URLSearchParams(location.search).get('chat');if(requestedChat&&requestedChat.length<300)ccgOpenChat(requestedChat);
+ loadMore(true);ccgListenChatList();const requestedChat=new URLSearchParams(location.search).get('chat');if(requestedChat&&requestedChat.length<300)ccgNavigateToChat(requestedChat);
 });
 }catch(err){$('feedStatus').textContent='初始化失败：'+err.message}
 
@@ -384,6 +384,40 @@ $('chatDialog').addEventListener('click',e=>{if(e.target===$('chatDialog'))ccgCl
 function ccgChatDate(t){return t?.toDate?.()?.toLocaleString('zh-CN')||'刚刚'}
 function ccgShowMessages(snap){const root=$('chatMessages');root.replaceChildren();if(snap.empty){root.append(make('p','暂无消息，发送第一条私信吧。','muted'));return}
  snap.docs.forEach(d=>{const m=d.data(),el=make('div',m.text||'', 'chat-bubble '+(m.senderUid===window.CCGMember?.user?.uid?'mine':'other'));el.append(make('small',ccgChatDate(m.createdAt)));root.append(el)});root.scrollTop=root.scrollHeight}
+// 从“我的消息”或“我的聊天”进入：先展示对应帖子，再打开聊天。
+// 直接按 postId 查询，不依赖最新帖子列表的分页。
+let ccgNavigationSerial=0;
+async function ccgNavigateToChat(id){
+ if(!memberReady||!db)return;
+ const serial=++ccgNavigationSerial;
+ try{
+  const chatSnap=await db.collection('careChats').doc(id).get();
+  if(!chatSnap.exists)throw Error('会话不存在');
+  const chat=chatSnap.data(),uid=window.CCGMember?.user?.uid;
+  if(chat.ownerUid!==uid&&chat.requesterUid!==uid)throw Error('无权访问该会话');
+  const postSnap=await db.collection('carePosts').doc(chat.postId).get();
+  if(serial!==ccgNavigationSerial)return;
+  if(postSnap.exists){
+   const post={id:postSnap.id,...postSnap.data()};
+   // 专门展示目标帖子，避免目标不在当前已加载的前10条中。
+   let target=document.getElementById('ccgChatTargetPost');
+   if(!target){target=document.createElement('section');target.id='ccgChatTargetPost';target.style.cssText='margin:18px 0;padding:14px;border:2px solid #2b7952;border-radius:14px;background:#f1faf4';
+    const feed=$('feed');feed.parentNode.insertBefore(target,feed);}
+   target.replaceChildren();
+   target.append(make('h2','📍 当前聊天对应的爱心站帖子'));
+   const holder=make('div');renderCards(holder,[post]);target.append(holder);
+   target.scrollIntoView({behavior:'smooth',block:'start'});
+   // 等待滚动启动，让用户先看到对应帖子。
+   await new Promise(resolve=>setTimeout(resolve,650));
+  }else{
+   // 原帖删除：仅保留只读聊天历史，不重新创建帖子。
+   $('myChatSection').scrollIntoView({behavior:'smooth',block:'start'});
+   await new Promise(resolve=>setTimeout(resolve,350));
+  }
+  if(serial!==ccgNavigationSerial)return;
+  await ccgOpenChat(id);
+ }catch(e){$('myChatStatus').textContent='定位聊天失败：'+e.message;}
+}
 async function ccgOpenChat(id){if(!memberReady||!db)return;ccgCloseChat();$('chatDialog').hidden=false;$('chatStatus').textContent='正在加载聊天…';$('chatMessages').replaceChildren();$('chatForm').hidden=true;
  try{const snap=await db.collection('careChats').doc(id).get();if(!snap.exists)throw Error('会话不存在');const c=snap.data(),uid=window.CCGMember.user.uid;if(c.ownerUid!==uid&&c.requesterUid!==uid)throw Error('无权访问此会话');
  ccgActiveChat=id;ccgPostUnsub=db.collection('carePosts').doc(c.postId).onSnapshot(postSnap=>{const active=postSnap.exists;$('chatInput').disabled=!active;$('chatSend').disabled=!active;$('chatForm').hidden=false;$('chatStatus').textContent=active?'仅双方可见，消息保存在云端。':'原帖子已删除：聊天记录永久保留供双方查看，但不能继续发送消息。';},err=>{$('chatInput').disabled=true;$('chatSend').disabled=true;$('chatStatus').textContent='无法确认帖子状态，暂时禁止发送：'+err.message});$('chatContext').textContent='帖子：'+(c.postText||'图片帖子')+' · 与 '+(uid===c.ownerUid?c.requesterName:c.ownerName)+' 的私信';$('chatList').replaceChildren();$('chatForm').hidden=false;
@@ -416,7 +450,7 @@ function ccgRenderMyChatList(){
   btn.append(make('span','帖子：'+(c.postText||'图片帖子').slice(0,100)));
   btn.append(make('small','最近消息：'+(c.lastText||c.applicationText||'已提交兴趣申请').slice(0,110)));
   const date=c.updatedAt||c.createdAt;if(date?.toDate)btn.append(make('small','更新：'+date.toDate().toLocaleString('zh-CN')));
-  btn.onclick=()=>ccgOpenChat(c.id);root.append(btn);
+  btn.onclick=()=>ccgNavigateToChat(c.id);root.append(btn);
  }
 }
 function ccgRenderChatList(){const root=$('chatList');root.replaceChildren();if(!ccgChatItems.length){root.append(make('p','暂无私信。请在感兴趣的帖子下提交申请后开始交流。','muted'));$('chatStatus').textContent='';return}

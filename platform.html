@@ -79,7 +79,7 @@ function render(s){const root=document.getElementById('careChatInbox');if(!root)
 const uid=firebase.auth().currentUser?.uid;if(!uid)return;
 const chats=s.docs.map(d=>({id:d.id,...d.data()})).filter(c=>Array.isArray(c.participants)&&c.participants.includes(uid)).sort((a,b)=>(b.updatedAt?.seconds||b.createdAt?.seconds||0)-(a.updatedAt?.seconds||a.createdAt?.seconds||0));
 if(!chats.length){const empty=document.createElement('p');empty.className='note';empty.textContent='💬 暂无爱心站私信会话';root.append(empty);return;}
-const label=document.createElement('p');label.textContent='💬 爱心站私信（'+chats.length+'个会话）· 点击直接回复';label.style.fontWeight='bold';root.append(label);
+const label=document.createElement('p');label.textContent='💬 爱心站私信（'+chats.length+'个会话）· 点击先查看对应帖子，再进入聊天';label.style.fontWeight='bold';root.append(label);
 for(const c of chats.slice(0,20)){const link=document.createElement('a');link.href='./posts.html?chat='+encodeURIComponent(c.id);link.style.cssText='display:block;padding:12px;border:1px solid #d9e6dd;border-radius:12px;text-decoration:none;color:inherit;background:#f5faf6';
 const other=uid===c.ownerUid?c.requesterName:c.ownerName;const title=document.createElement('strong');title.textContent='💬 '+other+' · '+(c.postText||'爱心站帖子').slice(0,45);link.append(title);
 const preview=document.createElement('div');preview.textContent=(c.lastSenderUid===uid?'我：':'对方：')+(c.lastText||c.applicationText||'').slice(0,90);preview.style.marginTop='6px';link.append(preview);root.append(link)}
