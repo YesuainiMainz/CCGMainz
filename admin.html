@@ -980,7 +980,7 @@ async function setCloudPhoto(itemId,data){
 function listenAdminPhotos(){
  if(photoUnsub){photoUnsub();photoUnsub=null;}
  photoUnsub=fzhAdminStore.collection('itemPhotos').onSnapshot(s=>{
-  photoCache.clear();s.forEach(d=>{if(typeof d.data().data==='string')photoCache.set(d.id,d.data().data)});render();scheduleLibraryMirror();flushOfflinePhotos();
+  photoCache.clear();s.forEach(d=>{if(typeof d.data().data==='string')photoCache.set(d.id,d.data().data)});console.info('CCG Lager 云端照片同步：',photoCache.size,'张；库存物品：',db.items.length,'种');render();scheduleLibraryMirror();flushOfflinePhotos();
  },e=>{$('ghPublishStatus').textContent='照片读取失败：'+e.message});
 }
 async function deletePhotoForItem(id){
@@ -2066,6 +2066,8 @@ function toggleChurchAdminPanel(){
 function ccgActivityProcessed(collection,data){
  const status=String(data.status||data.state||'').toLowerCase();
  if(collection==='platformMembers')return status==='approved'||status==='rejected'||status==='disabled';
+ if(collection==='lagerAccess')return status==='approved'||status==='rejected'||status==='revoked';
+ if(collection==='onlineRequests')return ['approved','rejected','returned','completed','closed'].includes(status);
  if(collection==='libraryRequests'||collection==='libraryBorrowRequests')return ['approved','returned','rejected','completed','closed'].includes(status);
  if(collection==='carePosts')return true; // 帖子已成功发布即为已处理；需求和消息仍可待处理
  if(collection==='careNeeds'||collection==='careMessages')return ['fulfilled','resolved','completed','done','closed','replied','approved','rejected'].includes(status);
@@ -2073,7 +2075,8 @@ function ccgActivityProcessed(collection,data){
  return false;
 }
 function ccgActivityDestination(collection){
- if(collection==='platformMembers')return 'privacy';
+ if(collection==='platformMembers'||collection==='lagerAccess')return 'privacy';
+ if(collection==='onlineRequests')return 'inventory';
  if(collection==='libraryRequests'||collection==='libraryBorrowRequests')return 'library';
  if(collection==='carePosts'||collection==='careNeeds'||collection==='careMessages')return 'care';
  if(collection==='churchInteractions')return 'church';
@@ -2120,7 +2123,7 @@ function ccgActivityGo(item){
   panel.scrollIntoView({behavior:'smooth',block:'start'});
  }else{
   showManagementView(destination);
-  const section=destination==='privacy'?'platformAccountList':destination==='library'?'libraryRequestScroll':destination==='care'?'careManagement':null;
+  const section=item.collection==='lagerAccess'?'lagerAdminList':item.collection==='onlineRequests'?'onlineRequestsScroll':destination==='privacy'?'platformAccountList':destination==='library'?'libraryRequestScroll':destination==='care'?'careManagement':null;
   if(section)requestAnimationFrame(()=>document.getElementById(section)?.scrollIntoView({behavior:'smooth',block:'start'}));
  }
  ccgActivityMarkVisited(item);
@@ -2155,6 +2158,8 @@ function ccgActivityStart(){
  });}
  const streams=[
   ['platformMembers','会员注册',d=>'会员注册：'+(d.name||'未填写姓名')],
+  ['lagerAccess','库存访问',d=>'库存访问申请：'+(d.status==='pending'?'等待审批':d.status||'待处理')+' · '+(d.uid||'会员')],
+  ['onlineRequests','物品申请',d=>'库存物品申请：'+(d.itemName||'物品')+' × '+(d.qty||'?')+'（'+(d.kind||'申请')+'） · '+(d.status||'待审批')],
   ['libraryBorrowRequests','图书借阅',d=>'图书借阅请求：'+(d.bookTitle||d.title||d.bookId||'待查看')],
   ['libraryRequests','图书借阅',d=>'图书馆请求：'+(d.bookTitle||d.title||'待查看')],
   ['carePosts','爱心站',d=>'新帖子：'+(d.text||'图片帖子').slice(0,55)],

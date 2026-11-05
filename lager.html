@@ -264,7 +264,8 @@ function lagerStartInventory(user,profile){
   delete document.getElementById('searchChoice').dataset.signature;render();
   if(!fzhPhotoUnsub)fzhPhotoUnsub=fzhStore.collection('itemPhotos').onSnapshot(s=>{
    familyPhotos.clear();s.forEach(d=>{if(typeof d.data().data==='string')familyPhotos.set(d.id,d.data().data)});render();
-  },e=>console.warn('照片同步失败',e));
+   document.getElementById('syncStatus').textContent='库存已同步 · V'+db.version+'；云端照片 '+familyPhotos.size+' 张（如原有照片仍未显示，请告知此数量）';
+  },e=>{console.warn('照片同步失败',e);document.getElementById('syncStatus').textContent='库存已同步，但照片读取失败：'+e.message});
   document.getElementById('syncStatus').textContent='库存已自动同步 · V'+db.version;
   const stamp=s.data().updatedAt;
   document.getElementById('lastInventoryChange').textContent='上次更改时间：'+(stamp?.toDate?stamp.toDate().toLocaleString('zh-CN'):'暂无记录');
