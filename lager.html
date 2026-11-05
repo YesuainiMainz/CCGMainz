@@ -74,7 +74,8 @@
 
 <div class="card"><h2>在线库存自动更新</h2><p>仅获批准的成员可以实时读取云端库存；无需导入更新包。</p>
 <p id="lastInventoryChange" class="muted">上次更改时间：正在读取…</p>
-<p id="syncStatus" class="warn" aria-live="polite">正在准备同步…</p></div>
+<p id="syncStatus" class="warn" aria-live="polite">正在准备同步…</p>
+<p id="photoLoadStatus" class="warn" role="status" aria-live="polite">📷 图片状态：等待库存加载…</p></div>
 <div class="card"><p id="status" class="warn">登录并获批准后加载私密库存。</p></div>
 <div class="card"><h2>物品目录</h2><div class="grid">
 <label>搜索方式<select id="searchMode" onchange="updateSearchControls();render()"><option value="name">名称</option><option value="category">分类</option><option value="location">存放位置</option><option value="qty">数量</option></select></label>
@@ -188,6 +189,20 @@ function closePhotoLightbox(){
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closePhotoLightbox()});
 
 const familyPhotos=new Map();
+let photoSnapshotReady=false;
+function setPhotoStatus(message){const el=document.getElementById('photoLoadStatus');if(el)el.textContent=message;}
+function updatePhotoLoadStatus(){
+ if(!photoSnapshotReady){setPhotoStatus('📷 图片加载中：正在读取云端照片…');return;}
+ const imgs=Array.from(document.querySelectorAll('#items img.photo'));
+ const loaded=imgs.filter(i=>i.complete&&i.naturalWidth>0).length;
+ const failed=imgs.filter(i=>i.complete&&i.naturalWidth===0).length;
+ const pending=imgs.length-loaded-failed;
+ if(pending>0)setPhotoStatus(`📷 图片加载中：已显示 ${loaded}/${imgs.length} 张，仍有 ${pending} 张正在加载（云端照片记录 ${familyPhotos.size} 条）`);
+ else if(failed>0)setPhotoStatus(`⚠️ 图片加载结束：成功 ${loaded} 张，失败 ${failed} 张（云端照片记录 ${familyPhotos.size} 条）`);
+ else setPhotoStatus(`✅ 图片加载完成：当前列表 ${loaded} 张，云端照片记录 ${familyPhotos.size} 条。`);
+}
+document.getElementById('items').addEventListener('load',e=>{if(e.target.matches('img.photo'))updatePhotoLoadStatus()},true);
+document.getElementById('items').addEventListener('error',e=>{if(e.target.matches('img.photo'))updatePhotoLoadStatus()},true);
 function familyPhoto(i){return familyPhotos.get(i.id)||i.photo||'';}
 function render(){
  updateSearchControls();
@@ -241,7 +256,7 @@ window.fzhUser=null;window.fzhApproved=false;
 function fzhSetStatus(t){document.getElementById('authStatus').textContent=t;}
 function lagerStop(){
  for(const k of ['fzhUnsub','fzhRequestsUnsub','fzhPhotoUnsub']){if(k==='fzhUnsub'&&fzhUnsub){fzhUnsub();fzhUnsub=null}if(k==='fzhRequestsUnsub'&&fzhRequestsUnsub){fzhRequestsUnsub();fzhRequestsUnsub=null}if(k==='fzhPhotoUnsub'&&fzhPhotoUnsub){fzhPhotoUnsub();fzhPhotoUnsub=null}}
- familyPhotos.clear();onlineRequests=[];window.fzhApproved=false;
+ familyPhotos.clear();photoSnapshotReady=false;setPhotoStatus('📷 图片状态：等待库存加载…');onlineRequests=[];window.fzhApproved=false;
  document.getElementById('privateContent').hidden=true;
  document.getElementById('authPanel').hidden=false;
  db.items=[];db.version=-1;db.categories=[];db.locations=[];render();
@@ -253,6 +268,7 @@ function lagerStartInventory(user,profile){
  document.getElementById('authPanel').hidden=true;
  db.family=profile.name||'';db.member=profile.name||'';
  fzhSetStatus('已授权：'+(profile.name||user.email||'会员')+'，库存自动同步中。');
+ setPhotoStatus('📷 图片加载中：正在读取云端照片…');
  fzhRequestsUnsub=fzhStore.collection('onlineRequests').where('uid','==',user.uid).onSnapshot(s=>{
   onlineRequests=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));render();
  },e=>{document.getElementById('syncStatus').textContent='申请记录读取失败：'+e.message});
@@ -262,9 +278,9 @@ function lagerStartInventory(user,profile){
   db.version=data.version;db.items=data.items;db.categories=data.categories||[];db.locations=data.locations||[];
   delete document.getElementById('searchChoice').dataset.signature;render();
   if(!fzhPhotoUnsub)fzhPhotoUnsub=fzhStore.collection('itemPhotos').onSnapshot(s=>{
-   familyPhotos.clear();s.forEach(d=>{if(typeof d.data().data==='string')familyPhotos.set(d.id,d.data().data)});render();
+   photoSnapshotReady=true;familyPhotos.clear();s.forEach(d=>{if(typeof d.data().data==='string')familyPhotos.set(d.id,d.data().data)});render();
    document.getElementById('syncStatus').textContent='库存已同步 · V'+db.version+'；云端照片 '+familyPhotos.size+' 张（如原有照片仍未显示，请告知此数量）';
-  },e=>{console.warn('照片同步失败',e);document.getElementById('syncStatus').textContent='库存已同步，但照片读取失败：'+e.message});
+  },e=>{console.warn('照片同步失败',e);photoSnapshotReady=false;setPhotoStatus('❌ 图片读取失败：'+e.message);document.getElementById('syncStatus').textContent='库存已同步，但照片读取失败：'+e.message});
   document.getElementById('syncStatus').textContent='库存已自动同步 · V'+db.version;
   const stamp=s.data().updatedAt;
   document.getElementById('lastInventoryChange').textContent='上次更改时间：'+(stamp?.toDate?stamp.toDate().toLocaleString('zh-CN'):'暂无记录');
