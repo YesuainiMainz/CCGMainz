@@ -255,15 +255,12 @@ html{scroll-padding-top:90px}body{padding-top:calc(56px + env(safe-area-inset-to
 <div id="musicAdminList" style="max-height:744px;overflow-y:auto;overscroll-behavior:contain;border:1px solid #dce6dd;border-radius:12px"></div>
 </div></section>
 <section id="lineManagement" class="management-view" hidden>
- <div class="card"><h2>💬 LINE 分享中心</h2><p class="muted">管理员手动分享：选择各端信息 → 预览 → 在 LINE 中选择好友或群组并确认发送。不会自动发送。</p>
+ <div class="card"><h2>💬 LINE 分享中心</h2><p class="muted">选择各端信息并预览，点击「前往 LINE 分享」，然后在 LINE 中选择好友或群组并确认发送。</p>
  <div class="grid"><label>信息来源<select id="lineSource" onchange="lineLoad()"><option value="announcements">📢 各端公告</option><option value="churchPosts">⛪ 教会生活</option><option value="musicPosts">🎵 音乐角</option><option value="carePosts">❤️ 爱心站</option><option value="qrInfoShares">▦ Q分享</option><option value="inventory">📦 库存（仅登录入口）</option><option value="library">📚 图书馆（仅入口）</option><option value="privacy">🔒 会员及审批（仅登录入口）</option></select></label><label>搜索信息<input id="lineSearch" type="search" oninput="lineRender()" placeholder="搜索标题、正文或日期"></label></div>
  <p id="lineLoadStatus" role="status" class="muted">选择信息来源后读取。</p><div id="lineEntries" class="line-entries" aria-label="可分享信息（3滑）"></div>
  <h3>分享内容预览</h3><label>消息文字（可编辑）<textarea id="lineText" rows="7" maxlength="8000" style="width:100%" placeholder="选择上方信息后自动填入"></textarea></label><label>分享链接（可编辑）<input id="lineUrl" type="url" style="width:100%" placeholder="https://..."></label>
- <h3>常用分享对象</h3><p class="muted">名称只用于本机分类与提示；LINE 普通网页无法凭名称直接打开指定聊天。LINE 邀请链接通常也不能直达现有聊天。最终接收对象必须在 LINE 内确认。</p>
- <div class="grid"><label>常用对象<select id="lineRecipient" onchange="lineRecipientChanged()"><option value="">在 LINE 中自行选择好友／群组</option></select></label><label>新增对象名称<input id="lineContactName" maxlength="70" placeholder="例如：诗班群"></label><label>类型<select id="lineContactType"><option value="group">群组</option><option value="person">个人</option></select></label><label>可选：LINE 链接<input id="lineContactUrl" type="url" placeholder="https://line.me/...（不保证直达聊天）"></label></div>
- <button type="button" onclick="lineAddContact()">＋ 保存常用对象</button><button class="alt" type="button" onclick="lineDeleteContact()">删除当前对象</button>
- <div style="margin-top:14px"><button type="button" onclick="lineShare()">🟢 分享到 LINE</button><button class="alt" type="button" onclick="lineCopy()">复制消息与链接</button><button class="alt" type="button" onclick="lineOpenContact()">打开已保存的 LINE 链接</button></div>
- <p id="lineShareStatus" role="status" class="muted"></p><h3>本机分享操作记录 · 3滑</h3><div id="lineHistory" class="line-entries"></div>
+ <div style="margin-top:14px"><button type="button" onclick="lineShare()" style="background:#06a74f;font-weight:700;font-size:17px;padding:13px 20px">🟢 前往 LINE 分享</button></div>
+ <p id="lineShareStatus" role="status" class="muted">点击后在 LINE 中选择好友或群组，并确认发送。</p>
  </div></section>
 <section id="privacyManagement" class="management-view" hidden>
  <div class="card"><h2>平台会员账号（不显示密码）</h2><p class="muted">管理员可查看注册姓名和邮箱账号。密码由 Firebase Authentication 安全管理，管理员无法读取。</p><button type="button" onclick="loadPlatformAccounts()">刷新会员与找回请求</button><p id="platformAccountStatus" class="muted">登录后可查看。</p><div id="platformAccountList" class="admin-four-scroll" aria-label="平台会员账号列表"></div><h3>忘记账号密码 · 找回请求</h3><p class="muted">显示申请者提交的姓名和邮箱，便于人工核对。管理员不能查看或发送原密码。</p><div id="accountRecoveryList" class="admin-four-scroll" aria-label="忘记账号找回请求列表"></div></div><div class="card" id="lagerAccessManagement"><h2>📦 CCG Lager 访问权限管理</h2><p class="muted">仅已批准的幸福家人平台会员可申请或获得库存权限；批准、直接授权和撤销均独立于平台会员身份。</p><button type="button" onclick="lagerAdminLoad()">刷新 Lager 权限</button><p id="lagerAdminStatus" class="muted">进入隐私管理后读取。</p><div id="lagerAdminList" class="admin-four-scroll" style="overflow-y:auto" aria-label="Lager 权限申请及授权列表"></div></div><div class="card" id="memberApproval"><h2>家庭成员审批</h2><button onclick="loadMembers()" type="button">刷新申请列表</button><p class="muted" id="memberStatus">请先以管理员身份登录。</p><div id="memberList" class="admin-four-scroll" aria-label="家庭人员审批列表"></div></div>
@@ -453,7 +450,7 @@ function render(){
  renderHistory();
 }
 
-// v10.4: 版本档案独立 IndexedDB，包含每次编辑前后快照及当时的图片。
+// v10.5: 版本档案独立 IndexedDB，包含每次编辑前后快照及当时的图片。
 // Firestore 上传使用相同记录 ID，重试不会创建重复版本。
 const REV_DB_NAME='ccg-inventory-revisions-v104';
 let revisionArchiveCache=[],revisionArchiveBusy=false,revisionArchiveReady=false;
@@ -2450,22 +2447,15 @@ async function rotateFamilyQr(){if(!fzhAdminReady||!fzhAdminStore)return alert('
 async function downloadFamilyQr(){if(!familyQrToken)return alert('请先生成二维码');const url=familyQrImage(familyQrToken);try{const r=await fetch(url,{mode:'cors'});if(!r.ok)throw Error('图片服务不可用');const blob=await r.blob(),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='CCGMainz_幸福家人二维码.png';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)}catch(e){window.open(url,'_blank');alert('无法直接下载，请在新窗口右键图片另存为')}}
 
 // LINE 手动分享中心：不使用机器人令牌，不自动发送，不暴露私有数据。
-const LINE_CONTACT_KEY='ccg_line_contacts_v1',LINE_HISTORY_KEY='ccg_line_history_v1';
+
 let lineRecords=[],lineRequestSeq=0;
 const lineRoutes={announcements:'platform.html',churchPosts:'church.html',musicPosts:'music.html',carePosts:'posts.html',qrInfoShares:'platform.html',inventory:'lager.html',library:'library.html',privacy:'platform.html'};
 function linePage(path){return new URL('./'+path,location.href).href}
-function lineContacts(){try{const x=JSON.parse(localStorage.getItem(LINE_CONTACT_KEY)||'[]');return Array.isArray(x)?x:[]}catch{return []}}
-function lineHistory(){try{const x=JSON.parse(localStorage.getItem(LINE_HISTORY_KEY)||'[]');return Array.isArray(x)?x:[]}catch{return []}}
 function lineStatus(msg){$('lineLoadStatus').textContent=msg}
-function lineRefreshContacts(){const el=$('lineRecipient'),old=el.value;el.replaceChildren(new Option('在 LINE 中自行选择好友／群组',''));lineContacts().forEach(c=>el.add(new Option((c.type==='group'?'👥 ':'👤 ')+c.name,c.id)));el.value=old;lineRenderHistory()}
-function lineRecipientChanged(){const c=lineContacts().find(x=>x.id===$('lineRecipient').value);$('lineShareStatus').textContent=c?'已选「'+c.name+'」。分享时仍需在 LINE 内选择并核对接收人。':'请在 LINE 中选择接收人。'}
-function lineAddContact(){const name=$('lineContactName').value.trim(),type=$('lineContactType').value,url=$('lineContactUrl').value.trim();if(!name)return alert('请输入对象名称');if(url&&!/^https:\/\//i.test(url))return alert('只支持 HTTPS 链接');const cs=lineContacts();const id=crypto.randomUUID?crypto.randomUUID():String(Date.now());cs.push({id,name,type,url});try{localStorage.setItem(LINE_CONTACT_KEY,JSON.stringify(cs))}catch{return alert('本机保存失败')}lineRefreshContacts();$('lineRecipient').value=id;$('lineContactName').value='';$('lineContactUrl').value='';lineRecipientChanged()}
-function lineDeleteContact(){const id=$('lineRecipient').value;if(!id)return;const c=lineContacts().find(x=>x.id===id);if(!c||!confirm('删除常用对象「'+c.name+'」？'))return;localStorage.setItem(LINE_CONTACT_KEY,JSON.stringify(lineContacts().filter(x=>x.id!==id)));lineRefreshContacts()}
-function lineOpenContact(){const c=lineContacts().find(x=>x.id===$('lineRecipient').value);if(!c?.url)return alert('该对象没有保存 LINE 链接');if(!/^https:\/\//i.test(c.url))return alert('链接格式不正确');window.open(c.url,'_blank','noopener,noreferrer');$('lineShareStatus').textContent='已打开保存的链接；它不一定是聊天窗口，也不会自动附带消息。'}
 function lineSelect(i){const r=lineRecords[i];if(!r)return;$('lineText').value='⛪ CCG Mainz 幸福家人数字平台\n'+r.label+'\n'+(r.body||'').slice(0,4500);$('lineUrl').value=r.url; $('lineShareStatus').textContent='已选择「'+r.title+'」，请核对内容和链接。'}
 function lineRender(){const q=$('lineSearch').value.trim().toLowerCase(),box=$('lineEntries');box.replaceChildren();const arr=lineRecords.map((r,i)=>({r,i})).filter(({r})=>!q||(r.title+' '+r.body+' '+r.date).toLowerCase().includes(q));for(const {r,i} of arr){const d=document.createElement('div');d.className='line-entry';const b=document.createElement('b');b.textContent=r.label;const small=document.createElement('div');small.className='muted';small.textContent=(r.body||'').slice(0,130)+(r.date?' · '+r.date:'');const btn=document.createElement('button');btn.type='button';btn.textContent='选择此信息';btn.onclick=()=>lineSelect(i);d.append(b,small,btn);box.append(d)}if(!arr.length)box.textContent='暂无符合条件的信息';}
 function lineDate(v){try{return v?.toDate?v.toDate().toLocaleString('zh-CN'):v?new Date(v).toLocaleString('zh-CN'):''}catch{return ''}}
-async function lineLoad(){if(!$('lineManagement')||!fzhAdminReady||!fzhAdminStore){lineStatus('请先登录管理员账号');return}lineRefreshContacts();const source=$('lineSource').value,seq=++lineRequestSeq;lineRecords=[];lineRender();lineStatus('正在读取 '+$('lineSource').selectedOptions[0].text+'…');try{
+async function lineLoad(){if(!$('lineManagement')||!fzhAdminReady||!fzhAdminStore){lineStatus('请先登录管理员账号');return}const source=$('lineSource').value,seq=++lineRequestSeq;lineRecords=[];lineRender();lineStatus('正在读取 '+$('lineSource').selectedOptions[0].text+'…');try{
  const base=linePage(lineRoutes[source]);let records=[];
  if(source==='announcements'){const snap=await fzhAdminStore.collection('siteAnnouncements').get();records=snap.docs.filter(d=>['platform','library','posts','music','church'].includes(d.id)).map(d=>{const x=d.data();return {title:x.title||'公告',label:'📢 '+({platform:'平台',library:'图书馆',posts:'爱心站',music:'音乐角',church:'教会生活'}[d.id]||d.id)+'公告：'+(x.title||'未命名'),body:x.body||'',url:linePage(({platform:'platform.html',library:'library.html',posts:'posts.html',music:'music.html',church:'church.html'})[d.id]||'platform.html'),date:lineDate(x.updatedAt)}})}
  else if(source==='inventory'||source==='library'||source==='privacy'){records=[{title:'平台入口',label:source==='inventory'?'📦 CCG Lager 入口':source==='library'?'📚 图书馆入口':'🔒 平台会员登录入口',body:'请登录平台并确认访问权限后查看具体内容。',url:base,date:''}]}
@@ -2475,8 +2465,5 @@ async function lineLoad(){if(!$('lineManagement')||!fzhAdminReady||!fzhAdminStor
  if(seq!==lineRequestSeq)return;lineRecords=records;lineRender();lineStatus('已读取 '+records.length+' 条。列表最多显示3条，其余滑动。音乐角、教会生活及爱心站支持单条帖子定位链接；接收人仍需有对应平台权限。');
  }catch(e){if(seq!==lineRequestSeq)return;lineStatus('读取失败：'+e.message+'。请确认该模块集合名称及 Firestore 权限。')}}
 function lineMessage(){const t=$('lineText').value.trim(),url=$('lineUrl').value.trim();if(!t&&!url){alert('请先选择信息或填写分享文字');return null}if(url&&!/^https:\/\//i.test(url)){alert('分享链接必须是 HTTPS 地址');return null}return t+(url?'\n\n🔗 '+url:'')}
-function lineRecordAction(){const c=lineContacts().find(x=>x.id===$('lineRecipient').value);const hist=lineHistory();hist.unshift({time:new Date().toLocaleString('zh-CN'),recipient:c?.name||'未预选',text:$('lineText').value.slice(0,100)});try{localStorage.setItem(LINE_HISTORY_KEY,JSON.stringify(hist.slice(0,50)))}catch{}lineRenderHistory()}
-function lineRenderHistory(){const box=$('lineHistory');if(!box)return;box.replaceChildren();const list=lineHistory();for(const h of list){const div=document.createElement('div');div.className='line-entry';div.textContent=h.time+' · '+h.recipient+' · '+h.text;box.append(div)}if(!list.length)box.textContent='暂无分享操作记录'}
-function lineShare(){const msg=lineMessage();if(!msg)return;lineRecordAction();$('lineShareStatus').textContent='已打开 LINE 分享页面；请在 LINE 内选择好友或群组并点击发送。此记录不代表发送成功。';const target='https://line.me/R/msg/text/?'+encodeURIComponent(msg);const w=window.open(target,'_blank','noopener,noreferrer');if(!w)location.href=target}
-async function lineCopy(){const msg=lineMessage();if(!msg)return;try{await navigator.clipboard.writeText(msg);$('lineShareStatus').textContent='已复制消息和链接，可粘贴到指定 LINE 聊天。'}catch(e){$('lineShareStatus').textContent='自动复制失败，请手动选择上方文字复制。'}}
+function lineShare(){const msg=lineMessage();if(!msg)return;$('lineShareStatus').textContent='请在 LINE 中选择好友或群组，并确认发送。';const target='https://line.me/R/msg/text/?'+encodeURIComponent(msg);const w=window.open(target,'_blank','noopener,noreferrer');if(!w)location.href=target}
 </script><script src="./music-admin.js"></script></html>
