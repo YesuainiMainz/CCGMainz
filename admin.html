@@ -256,7 +256,7 @@ html{scroll-padding-top:90px}body{padding-top:calc(56px + env(safe-area-inset-to
 </div></section>
 <section id="lineManagement" class="management-view" hidden>
  <div class="card"><h2>💬 LINE 分享中心</h2><p class="muted">选择各端信息并预览，点击「前往 LINE 分享」，然后在 LINE 中选择好友或群组并确认发送。</p>
- <div class="grid"><label>信息来源<select id="lineSource" onchange="lineLoad()"><option value="announcements">📢 各端公告</option><option value="churchPosts">⛪ 教会生活</option><option value="musicPosts">🎵 音乐角</option><option value="carePosts">❤️ 爱心站</option><option value="qrInfoShares">▦ Q分享</option><option value="inventory">📦 库存（仅登录入口）</option><option value="library">📚 图书馆（仅入口）</option><option value="privacy">🔒 会员及审批（仅登录入口）</option></select></label><label>搜索信息<input id="lineSearch" type="search" oninput="lineRender()" placeholder="搜索标题、正文或日期"></label></div>
+ <div class="grid"><label>信息来源<select id="lineSource" onchange="lineLoad()"><option value="registration">📝 注册界面</option><option value="changelog">📋 更新日志</option><option value="churchPosts">⛪ 教会生活</option><option value="musicPosts">🎵 音乐角</option><option value="carePosts">❤️ 爱心站</option><option value="qrInfoShares">▦ Q分享</option><option value="inventory">📦 库存（仅登录入口）</option><option value="library">📚 图书馆（仅入口）</option><option value="privacy">🔒 会员及审批（仅登录入口）</option></select></label><label>搜索信息<input id="lineSearch" type="search" oninput="lineRender()" placeholder="搜索标题、正文或日期"></label></div>
  <p id="lineLoadStatus" role="status" class="muted">选择信息来源后读取。</p><div id="lineEntries" class="line-entries" aria-label="可分享信息（3滑）"></div>
  <h3>分享内容预览</h3><label>消息文字（可编辑）<textarea id="lineText" rows="7" maxlength="8000" style="width:100%" placeholder="选择上方信息后自动填入"></textarea></label><label>分享链接（可编辑）<input id="lineUrl" type="url" style="width:100%" placeholder="https://..."></label>
  <div style="margin-top:14px"><button type="button" onclick="lineShare()" style="background:#06a74f;font-weight:700;font-size:17px;padding:13px 20px">🟢 前往 LINE 分享</button></div>
@@ -1849,6 +1849,59 @@ async function restorePlatformMemberAccount(uid,email){
  try{await fzhAdminStore.collection('platformMembers').doc(uid).update({status:'approved'});alert('账号已解封。会员重新登录或刷新页面后可使用。');await loadPlatformAccounts()}
  catch(e){alert('解封失败：'+e.message)}
 }
+// v10.7: 同一 Firebase UID 的历史展示姓名同步；绝不修改身份 UID、聊天 ID 或正文。
+const ccgNameHistoryFields={
+ libraryRequests:{ids:['borrowerUid','uid'],names:['borrowerName']},
+ onlineRequests:{ids:['uid','requesterUid','memberUid'],names:['requesterName','memberName','familyName']},
+ carePosts:{ids:['uid'],names:['author']},
+ carePostArchives:{ids:['uid'],names:['author']},
+ careChats:{ids:['ownerUid','requesterUid'],names:['ownerName','requesterName']},
+ careNeeds:{ids:['uid','requesterUid','ownerUid'],names:['requester','ownerName']},
+ careMatches:{ids:['uid','requesterUid','ownerUid'],names:['requester','author']},
+ churchInteractions:{ids:['uid'],names:['author']},
+ carePostContacts:{ids:['uid','requesterUid','ownerUid'],names:['requester','ownerName']}
+};
+async function ccgSyncMemberDisplayName(uid,oldName,newName,onProgress){
+ const store=fzhAdminStore;
+ let changed=0,scanned=0,skipped=0;
+ for(const [collection,config] of Object.entries(ccgNameHistoryFields)){
+  // 按文档 ID 分页，不受 500/1000 条旧记录限制；失败时明确报告，支持重试。
+  let last=null;
+  while(true){
+   let query=store.collection(collection).orderBy(firebase.firestore.FieldPath.documentId()).limit(200);
+   if(last)query=query.startAfter(last);
+   const snap=await query.get();
+   if(snap.empty)break;
+   const batch=store.batch();let count=0;
+   for(const doc of snap.docs){
+    const data=doc.data()||{};scanned++;
+    const matches=config.ids.filter(field=>String(data[field]||'')===uid);
+    if(!matches.length)continue;
+    const patch={};
+    for(const field of config.names){
+     if(!Object.prototype.hasOwnProperty.call(data,field))continue;
+     // 两人会话必须分别匹配对应 UID；禁止改掉对方的名字。
+     if(collection==='careChats'){
+      if(field==='ownerName'&&String(data.ownerUid||'')!==uid)continue;
+      if(field==='requesterName'&&String(data.requesterUid||'')!==uid)continue;
+     }else if(['careNeeds','careMatches','carePostContacts'].includes(collection)){
+      if(field==='ownerName'||field==='author'){
+       if(String(data.ownerUid||'')!==uid && String(data.uid||'')!==uid)continue;
+      }else if(field==='requester'&&String(data.requesterUid||'')!==uid && String(data.uid||'')!==uid)continue;
+     }
+     // 只改与旧姓名一致的显示字段，防止误改其他人的姓名。
+     if(String(data[field]||'').trim()===String(oldName||'').trim())patch[field]=newName;
+    }
+    if(Object.keys(patch).length){batch.update(doc.ref,patch);count++}else skipped++;
+   }
+   if(count){await batch.commit();changed+=count}
+   last=snap.docs[snap.docs.length-1];
+   if(onProgress)onProgress(`${collection}：已扫描 ${scanned} 条，更新 ${changed} 条`);
+   if(snap.size<200)break;
+  }
+ }
+ return {changed,scanned,skipped};
+}
 async function editPlatformMemberName(uid,currentName,email){
  if(!fzhAdminReady||!fzhAdminStore){alert('请先登录管理员账号');return;}
  const input=prompt('修改平台会员姓名\n账号：'+email+'\n请输入新姓名（1～40个字符）：',currentName);
@@ -1861,8 +1914,16 @@ async function editPlatformMemberName(uid,currentName,email){
  try{
   status.textContent='正在保存会员姓名…';
   await fzhAdminStore.collection('platformMembers').doc(uid).update({name});
-  await loadPlatformAccounts();
-  status.textContent='会员姓名已保存至云端。会员重新打开页面后将读取新姓名。';
+  status.textContent='会员姓名已保存，正在同步关联历史记录…';
+  try{
+   const result=await ccgSyncMemberDisplayName(uid,currentName,name,progress=>{status.textContent='正在同步历史显示姓名：'+progress});
+   await loadPlatformAccounts();
+   status.textContent=`会员姓名及关联历史显示字段同步完成：更新 ${result.changed} 条，扫描 ${result.scanned} 条。未改变 Firebase UID。`;
+  }catch(syncError){
+   await loadPlatformAccounts();
+   status.textContent='新姓名已保存，但历史同步未全部完成：'+syncError.message+'。请联系管理员检查权限后重试。';
+   alert(status.textContent);
+  }
  }catch(e){status.textContent='修改失败：'+e.message;alert('修改姓名失败：'+e.message)}
 }
 async function loadMembers(){const area=document.getElementById('memberList'),status=document.getElementById('memberStatus');if(!fzhAdminReady)return;area.textContent='正在读取…';try{const snap=await fzhAdminStore.collection('members').get();area.replaceChildren();status.textContent='共 '+snap.size+' 个成员账号';snap.forEach(d=>{const v=d.data(),line=document.createElement('div');line.style.cssText='border-bottom:1px solid #ddd;padding:10px';const info=document.createElement('span');info.textContent=(v.family||'')+' · '+(v.member||'')+' · '+(v.email||'')+' · '+(v.status||'');line.append(info);for(const [label,val] of [['批准','approved'],['停用','blocked']]){const b=document.createElement('button');b.textContent=label;b.onclick=()=>changeMemberStatus(d.id,val);line.append(b)}area.append(line)});requestAnimationFrame(()=>limitAdminFourRows('memberList'));}catch(e){status.textContent='读取失败：'+e.message}}
@@ -2449,7 +2510,7 @@ async function downloadFamilyQr(){if(!familyQrToken)return alert('请先生成�
 // LINE 手动分享中心：不使用机器人令牌，不自动发送，不暴露私有数据。
 
 let lineRecords=[],lineRequestSeq=0;
-const lineRoutes={announcements:'platform.html',churchPosts:'church.html',musicPosts:'music.html',carePosts:'posts.html',qrInfoShares:'platform.html',inventory:'lager.html',library:'library.html',privacy:'platform.html'};
+const lineRoutes={registration:'platform.html',changelog:'changelog.html',announcements:'platform.html',churchPosts:'church.html',musicPosts:'music.html',carePosts:'posts.html',qrInfoShares:'platform.html',inventory:'lager.html',library:'library.html',privacy:'platform.html'};
 function linePage(path){return new URL('./'+path,location.href).href}
 function lineStatus(msg){$('lineLoadStatus').textContent=msg}
 function lineSelect(i){const r=lineRecords[i];if(!r)return;$('lineText').value='⛪ CCG Mainz 幸福家人数字平台\n'+r.label+'\n'+(r.body||'').slice(0,4500);$('lineUrl').value=r.url; $('lineShareStatus').textContent='已选择「'+r.title+'」，请核对内容和链接。'}
@@ -2457,7 +2518,8 @@ function lineRender(){const q=$('lineSearch').value.trim().toLowerCase(),box=$('
 function lineDate(v){try{return v?.toDate?v.toDate().toLocaleString('zh-CN'):v?new Date(v).toLocaleString('zh-CN'):''}catch{return ''}}
 async function lineLoad(){if(!$('lineManagement')||!fzhAdminReady||!fzhAdminStore){lineStatus('请先登录管理员账号');return}const source=$('lineSource').value,seq=++lineRequestSeq;lineRecords=[];lineRender();lineStatus('正在读取 '+$('lineSource').selectedOptions[0].text+'…');try{
  const base=linePage(lineRoutes[source]);let records=[];
- if(source==='announcements'){const snap=await fzhAdminStore.collection('siteAnnouncements').get();records=snap.docs.filter(d=>['platform','library','posts','music','church'].includes(d.id)).map(d=>{const x=d.data();return {title:x.title||'公告',label:'📢 '+({platform:'平台',library:'图书馆',posts:'爱心站',music:'音乐角',church:'教会生活'}[d.id]||d.id)+'公告：'+(x.title||'未命名'),body:x.body||'',url:linePage(({platform:'platform.html',library:'library.html',posts:'posts.html',music:'music.html',church:'church.html'})[d.id]||'platform.html'),date:lineDate(x.updatedAt)}})}
+ if(source==='registration'){records=[{title:'注册新账号',label:'📝 CCG Mainz 幸福家人平台注册',body:'欢迎注册 CCG Mainz 幸福家人数字平台。请填写真实姓名、邮箱和密码，注册后等待管理员审核。',url:linePage('platform.html')+'#register',date:''}]}
+ else if(source==='changelog'){records=[{title:'更新日志',label:'📋 CCG Mainz 平台更新日志',body:'查看 CCG Mainz 幸福家人数字平台更新日志。',url:linePage('changelog.html'),date:''}]}
  else if(source==='inventory'||source==='library'||source==='privacy'){records=[{title:'平台入口',label:source==='inventory'?'📦 CCG Lager 入口':source==='library'?'📚 图书馆入口':'🔒 平台会员登录入口',body:'请登录平台并确认访问权限后查看具体内容。',url:base,date:''}]}
  else {const snap=await fzhAdminStore.collection(source).limit(200).get();records=snap.docs.map(d=>{const x=d.data(),title=String(x.title||x.name||x.itemName||x.text||'分享内容').slice(0,100);let body=String(x.body||x.text||x.description||x.notes||'').slice(0,4500);const isCare=source==='carePosts';if(isCare){body=String(x.text||'').slice(0,600);if(x.status==='deleted'||x.deleted===true)return null}const date=lineDate(x.createdAt||x.updatedAt);let url=base;if(['churchPosts','musicPosts','carePosts'].includes(source))url=base+'?post='+encodeURIComponent(d.id);if(source==='qrInfoShares')url=base; // QR 公开链接依赖独立域名配置，不能猜测
  if(source==='musicPosts'){const section=x.category==='hymns'?'常见赞美诗学习':'近期音乐分享';body='【'+section+'】\n'+body+(x.link&&/^https:\/\//i.test(x.link)?'\n\n🎬 相关视频／网页：'+x.link:'');}
