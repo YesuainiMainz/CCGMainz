@@ -114,7 +114,7 @@ function ccgEnableFirestoreCache(store){
   if(e.code!=='failed-precondition'&&e.code!=='unimplemented')console.warn('Firestore 缓存不可用',e);
  });
 }
-let memberReady=false;
+let memberReady=false;const ccgTargetPost=new URLSearchParams(location.search).get('post');let ccgTargetShown=false;
 let postKind='offer';let selectedPhotos=[];let needMarkedPhoto="";let needSourcePhoto="";let needCircles=[];let needStart=null;let needBaseImage=null;let editingPostId=null;let myPosts=[];let db=null,posts=[],nextPage=null,loading=false,hasMore=true,selectedPhoto='',chosenPost=null,needBusy=false;
 function setPostKind(kind){postKind=kind==='request'?'request':'offer';
  $('kindOffer').className=postKind==='offer'?'':'secondary';$('kindRequest').className=postKind==='request'?'':'secondary';
@@ -371,7 +371,7 @@ try{
  $('postForm').hidden=false;
  $('postForm').querySelectorAll('textarea,input,button').forEach(el=>el.disabled=false);
  $('postingIdentity').textContent='实名发布：'+m.profile.name;
- loadMore(true);ccgListenChatList();const requestedChat=new URLSearchParams(location.search).get('chat');if(requestedChat&&requestedChat.length<300)ccgNavigateToChat(requestedChat);
+ loadMore(true);if(ccgTargetPost&&ccgTargetPost.length<250){db.collection('carePosts').doc(ccgTargetPost).get().then(s=>{if(!s.exists){$('feedStatus').textContent='分享的帖子可能已删除';return}const target=document.createElement('section');target.id='ccg-shared-post';target.className='card';target.style.cssText='border:3px solid #2d875b;scroll-margin-top:20px';target.append(make('h2','📍 LINE 分享的帖子'));const holder=document.createElement('div');renderCards(holder,[{id:s.id,...s.data()}]);target.append(holder);$('feed').parentNode.insertBefore(target,$('feed'));setTimeout(()=>target.scrollIntoView({behavior:'smooth',block:'start'}),200)}).catch(e=>{$('feedStatus').textContent='无法读取分享的帖子：'+e.message})}ccgListenChatList();const requestedChat=new URLSearchParams(location.search).get('chat');if(requestedChat&&requestedChat.length<300)ccgNavigateToChat(requestedChat);
 });
 }catch(err){$('feedStatus').textContent='初始化失败：'+err.message}
 
