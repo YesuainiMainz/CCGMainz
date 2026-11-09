@@ -263,7 +263,7 @@ html{scroll-padding-top:90px}body{padding-top:calc(56px + env(safe-area-inset-to
  <p id="lineShareStatus" role="status" class="muted">点击后在 LINE 中选择好友或群组，并确认发送。</p>
  </div></section>
 <section id="privacyManagement" class="management-view" hidden>
- <div class="card"><h2>平台会员账号（不显示密码）</h2><p class="muted">管理员可查看注册姓名和邮箱账号。密码由 Firebase Authentication 安全管理，管理员无法读取。</p><button type="button" onclick="loadPlatformAccounts()">刷新会员与找回请求</button><p id="platformAccountStatus" class="muted">登录后可查看。</p><div id="platformAccountList" class="admin-four-scroll" aria-label="平台会员账号列表"></div><h3>忘记账号密码 · 找回请求</h3><p class="muted">显示申请者提交的姓名和邮箱，便于人工核对。管理员不能查看或发送原密码。</p><div id="accountRecoveryList" class="admin-four-scroll" aria-label="忘记账号找回请求列表"></div></div><div class="card" id="lagerAccessManagement"><h2>📦 CCG Lager 访问权限管理</h2><p class="muted">仅已批准的幸福家人平台会员可申请或获得库存权限；批准、直接授权和撤销均独立于平台会员身份。</p><button type="button" onclick="lagerAdminLoad()">刷新 Lager 权限</button><p id="lagerAdminStatus" class="muted">进入隐私管理后读取。</p><div id="lagerAdminList" class="admin-four-scroll" style="overflow-y:auto" aria-label="Lager 权限申请及授权列表"></div></div><div class="card" id="memberApproval"><h2>家庭成员审批</h2><button onclick="loadMembers()" type="button">刷新申请列表</button><p class="muted" id="memberStatus">请先以管理员身份登录。</p><div id="memberList" class="admin-four-scroll" aria-label="家庭人员审批列表"></div></div>
+ <div class="card"><h2>平台会员账号（不显示密码）</h2><p class="muted">管理员可查看注册姓名和邮箱账号。密码由 Firebase Authentication 安全管理，管理员无法读取。</p><button type="button" onclick="loadPlatformAccounts()">刷新会员与找回请求</button><p id="platformAccountStatus" class="muted">登录后可查看。</p><div id="platformAccountList" class="admin-four-scroll" aria-label="平台会员账号列表"></div><h3>忘记账号密码 · 找回请求</h3><p class="muted">显示申请者提交的姓名和邮箱，便于人工核对。管理员不能查看或发送原密码。</p><div id="accountRecoveryList" class="admin-four-scroll" aria-label="忘记账号找回请求列表"></div></div><div class="card" id="legacyAccountRecovery"><h2>🧩 旧库存账号排查与迁移</h2><p class="muted">旧账号邮箱被占用通常是 Firebase Authentication 已有登录账号。此工具只检查 Firestore 中可见的旧库存会员、平台会员和库存授权，不会读取密码，也不会删除身份账号。</p><label>需要排查的邮箱<input id="legacyAccountEmail" type="email" autocomplete="off" placeholder="例如：member@example.com" style="width:100%;max-width:480px"></label><button type="button" onclick="ccgInspectLegacyAccount()">检查旧账号</button><p id="legacyAccountStatus" class="muted" role="status">请输入邮箱后检查。</p><div id="legacyAccountResult" style="white-space:pre-wrap;overflow-wrap:anywhere;border:1px solid #dce6dd;border-radius:10px;padding:12px" hidden></div><button type="button" id="legacyAccountMigrate" onclick="ccgMigrateLegacyAccount()" hidden>将旧库存会员资料迁移为待审核平台会员</button><p class="muted">如果 Firebase Authentication 已存在此邮箱，用户应使用原邮箱登录，或在平台登录页使用「忘记密码」。迁移仅复用同一个 UID，不创建第二个身份账号；若旧库存账号属于另一个 Firebase 项目，请在 Firebase 控制台核实后另行处理。</p></div><div class="card" id="lagerAccessManagement"><h2>📦 CCG Lager 访问权限管理</h2><p class="muted">仅已批准的幸福家人平台会员可申请或获得库存权限；批准、直接授权和撤销均独立于平台会员身份。</p><button type="button" onclick="lagerAdminLoad()">刷新 Lager 权限</button><p id="lagerAdminStatus" class="muted">进入隐私管理后读取。</p><div id="lagerAdminList" class="admin-four-scroll" style="overflow-y:auto" aria-label="Lager 权限申请及授权列表"></div></div><div class="card" id="memberApproval"><h2>家庭成员审批</h2><button onclick="loadMembers()" type="button">刷新申请列表</button><p class="muted" id="memberStatus">请先以管理员身份登录。</p><div id="memberList" class="admin-four-scroll" aria-label="家庭人员审批列表"></div></div>
 </section></main><div id="stockActionModal" class="stock-action-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="stockActionTitle"><div class="stock-action-box"><h2 id="stockActionTitle">库存出库 / 库位移动</h2><p id="stockActionItem"></p><label>操作类型<select id="stockActionType" onchange="updateStockActionFields()"><option value="move">库位移动（可移动部分数量）</option><option value="use">取用（扣减库存）</option><option value="destroy">销毁（扣减库存）</option></select></label><label id="stockActionLocationWrap">目标库位<select id="stockActionLocation"></select></label><label id="stockActionQtyWrap" hidden>数量<input id="stockActionQty" type="number" min="1" step="1" value="1"></label><label>操作备注<input id="stockActionNote" maxlength="200" placeholder="可选：操作原因、经手人"></label><p id="stockActionError" class="warn" aria-live="polite"></p><div><button type="button" id="stockActionSubmit" onclick="submitStockAction()">确认操作</button><button type="button" class="alt" onclick="closeStockAction()">取消</button></div></div></div><div id="photoLightbox" class="photo-lightbox" role="dialog" aria-modal="true" aria-label="物品照片放大查看" onclick="closePhotoLightbox()"><button type="button" class="lightbox-close" onclick="closePhotoLightbox()" aria-label="关闭大图">× 关闭</button><img id="lightboxImage" alt="物品大图" onclick="event.stopPropagation()"><div id="lightboxTitle" class="lightbox-title"></div></div><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script><script src="./firebase-config.js"></script><script>
 const $=id=>document.getElementById(id);
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
@@ -1769,6 +1769,55 @@ async function returnOnline(id){
  }catch(e){$('onlineRequestStatus').textContent='归还失败：'+e.message}
 }
 
+
+
+// v10.8 旧库存账号排查：只使用已授权 Firestore 资料，不尝试从网页列出 Firebase Authentication 用户。
+let ccgLegacyCandidate=null;
+async function ccgInspectLegacyAccount(){
+ const email=(document.getElementById('legacyAccountEmail').value||'').trim().toLowerCase();
+ const status=document.getElementById('legacyAccountStatus'),out=document.getElementById('legacyAccountResult'),button=document.getElementById('legacyAccountMigrate');
+ ccgLegacyCandidate=null;button.hidden=true;out.hidden=true;
+ if(!fzhAdminReady||!fzhAdminStore){status.textContent='请先登录管理员账号';return}
+ if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){status.textContent='请输入有效邮箱';return}
+ status.textContent='正在查询旧会员和平台会员资料…';
+ try{
+  const [oldSnap,platformSnap]=await Promise.all([
+   fzhAdminStore.collection('members').limit(500).get(),
+   fzhAdminStore.collection('platformMembers').limit(500).get()
+  ]);
+  const matches=snap=>snap.docs.filter(d=>String(d.data().email||'').trim().toLowerCase()===email);
+  const old=matches(oldSnap),modern=matches(platformSnap);
+  const lines=['排查邮箱：'+email,'旧库存 members：'+old.length+' 条','家人平台 platformMembers：'+modern.length+' 条'];
+  for(const d of old){const v=d.data();lines.push('旧会员 UID：'+d.id+'；姓名：'+(v.member||v.name||'未填写')+'；状态：'+(v.status||'未知'))}
+  for(const d of modern){const v=d.data();lines.push('平台 UID：'+d.id+'；姓名：'+(v.name||'未填写')+'；状态：'+(v.status||'未知'))}
+  if(old.length===1&&!modern.length){
+   const d=old[0],v=d.data();
+   ccgLegacyCandidate={uid:d.id,email,name:String(v.member||v.name||'').trim(),status:v.status||''};
+   lines.push('可尝试迁移旧会员资料：保持旧 UID，新建待审核平台资料。请先核实此 UID 确实属于同一 Firebase Authentication 账号。');
+   button.hidden=false;
+  }else if(modern.length){lines.push('平台资料已经存在：请优先让用户用原邮箱登录或重置密码，不要重新注册。')}
+  else{lines.push('未找到对应 Firestore 资料；这不代表 Authentication 中不存在该邮箱。请到 Firebase 控制台 → Authentication → Users 查询。')}
+  lines.push('本工具只检查前500条资料；如人数更多，需到控制台精确检索。');
+  out.textContent=lines.join('\n');out.hidden=false;status.textContent='查询完成（未修改任何资料）';
+ }catch(e){status.textContent='查询失败：'+e.message}
+}
+async function ccgMigrateLegacyAccount(){
+ const c=ccgLegacyCandidate,status=document.getElementById('legacyAccountStatus');
+ if(!fzhAdminReady||!c)return;
+ if(!c.name){status.textContent='旧会员没有姓名，请先核对资料，暂不迁移';return}
+ if(!confirm('请先在 Firebase Authentication → Users 核实 UID '+c.uid+' 确实对应 '+c.email+'。确认后创建待审核家人平台会员资料？不会删除旧库存记录。'))return;
+ try{
+  const ref=fzhAdminStore.collection('platformMembers').doc(c.uid);
+  await fzhAdminStore.runTransaction(async tx=>{
+   const current=await tx.get(ref);
+   if(current.exists)throw Error('平台会员资料已存在，禁止覆盖');
+   tx.set(ref,{name:c.name,email:c.email,status:'pending',createdAt:firebase.firestore.FieldValue.serverTimestamp(),migrationSource:'members',migratedAt:firebase.firestore.FieldValue.serverTimestamp()});
+  });
+  ccgLegacyCandidate=null;document.getElementById('legacyAccountMigrate').hidden=true;
+  status.textContent='迁移资料成功。请到平台会员账号审核，并让用户用原邮箱和密码登录（或重置密码）。';
+  await loadPlatformAccounts();
+ }catch(e){status.textContent='迁移失败：'+e.message}
+}
 
 async function loadPlatformAccounts(){
  if(!fzhAdminReady)return;
