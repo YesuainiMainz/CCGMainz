@@ -2525,7 +2525,7 @@ async function qrPublishInfo(){
  const title=document.getElementById('qrInfoTitle').value.trim();
  const body=document.getElementById('qrInfoBody').value.trim();
  const status=document.getElementById('qrInfoEditStatus');
- if(!title||!body){status.textContent='请填写标题和正文';return}
+ if(!title&&!body&&!qrInfoImages.length){status.textContent='请至少填写标题、正文或上传一张图片';return}
  if(!qrPublicBase()){status.textContent='请先填写独立的 Cloudflare Pages HTTPS 分享网址（不能是教会网站域名）';return}
  if(qrInfoImages.length>3||qrInfoImages.some(s=>s.length>=155000)){status.textContent='图片大小超出限制';return}
  qrInfoBusy=true;status.textContent='正在保存到服务器…';
