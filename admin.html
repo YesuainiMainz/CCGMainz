@@ -257,6 +257,15 @@ html{scroll-padding-top:90px}body{padding-top:calc(56px + env(safe-area-inset-to
 <section id="lineManagement" class="management-view" hidden>
  <div class="card"><h2>💬 LINE 分享中心</h2><p class="muted">选择各端信息并预览，点击「前往 LINE 分享」，然后在 LINE 中选择好友或群组并确认发送。</p>
  <div class="grid"><label>信息来源<select id="lineSource" onchange="lineLoad()"><option value="registration">📝 注册界面</option><option value="changelog">📋 更新日志</option><option value="churchPosts">⛪ 教会生活</option><option value="musicPosts">🎵 音乐角</option><option value="carePosts">❤️ 爱心站</option><option value="qrInfoShares">▦ Q分享</option><option value="inventory">📦 库存（仅登录入口）</option><option value="library">📚 图书馆（仅入口）</option><option value="privacy">🔒 会员及审批（仅登录入口）</option></select></label><label>搜索信息<input id="lineSearch" type="search" oninput="lineRender()" placeholder="搜索标题、正文或日期"></label></div>
+ <div class="card" style="margin:12px 0;padding:12px;border:1px solid #dce6dd">
+  <h3>📚 当前可借图书 · 图片书单</h3>
+  <p class="muted">从云端读取图书馆，只列出未冻结且仍有可借数量的图书名称；生成纯文字 PNG 图片。分享时不会公开库存位置或借阅人资料。</p>
+  <button type="button" onclick="lineCreateLibraryImage()">生成当前可借书单图片</button>
+  <button type="button" class="alt" id="lineLibraryDownload" onclick="lineDownloadLibraryImage()" disabled>下载书单 PNG</button>
+  <button type="button" id="lineLibraryShare" onclick="lineShareLibraryImage()" disabled>分享书单图片到 LINE</button>
+  <p id="lineLibraryStatus" class="muted" role="status">尚未生成书单。</p>
+  <img id="lineLibraryPreview" alt="当前可借图书纯文字书单预览" hidden style="width:100%;max-width:520px;border:1px solid #dce6dd;border-radius:8px">
+ </div>
  <p id="lineLoadStatus" role="status" class="muted">选择信息来源后读取。</p><div id="lineEntries" class="line-entries" aria-label="可分享信息（3滑）"></div>
  <div style="display:flex;gap:10px;align-items:center;margin:10px 0"><b id="lineSelectedCount">已选择 0 条</b><button type="button" class="alt" onclick="lineClear()">清空已选</button></div><p class="muted">可跨来源选择多条信息，例如一次选中音乐角的多首歌；切换来源后已选内容会保留。LINE 将它们作为一条合并消息分享。</p><h3>分享内容预览</h3><label>消息文字（可编辑）<textarea id="lineText" rows="7" maxlength="8000" style="width:100%" placeholder="选择上方信息后自动填入"></textarea></label><label>分享链接（可编辑）<input id="lineUrl" type="url" style="width:100%" placeholder="https://..."></label>
  <div style="margin-top:14px"><button type="button" onclick="lineShare()" style="background:#06a74f;font-weight:700;font-size:17px;padding:13px 20px">🟢 前往 LINE 分享</button></div>
@@ -2640,6 +2649,85 @@ async function lineLoad(){if(!$('lineManagement')||!fzhAdminReady||!fzhAdminStor
  return {title,label:({churchPosts:'⛪ 教会生活',musicPosts:'🎵 音乐角',carePosts:'❤️ 爱心站',qrInfoShares:'▦ Q分享'})[source]+'：'+title,body,url,date}}).filter(Boolean)}
  if(seq!==lineRequestSeq)return;lineRecords=records;lineRender();lineStatus('已读取 '+records.length+' 条。列表最多显示3条，其余滑动。音乐角、教会生活及爱心站支持单条帖子定位链接；接收人仍需有对应平台权限。');
  }catch(e){if(seq!==lineRequestSeq)return;lineStatus('读取失败：'+e.message+'。请确认该模块集合名称及 Firestore 权限。')}}
+
+// 图书馆可借书单：读取独立的公开图书镜像及借阅状态，避免将私人库存位置分享出去。
+let lineLibraryBlob=null;
+async function lineCreateLibraryImage(){
+ const status=$('lineLibraryStatus'),preview=$('lineLibraryPreview');
+ lineLibraryBlob=null;$('lineLibraryDownload').disabled=true;$('lineLibraryShare').disabled=true;preview.hidden=true;
+ if(!fzhAdminReady||!fzhAdminStore){status.textContent='请先登录管理员账号';return}
+ status.textContent='正在从服务器核对图书与借阅状态…';
+ try{
+  const [booksSnap,statesSnap]=await Promise.all([
+   fzhAdminStore.collection('publicLibrary').get({source:'server'}),
+   fzhAdminStore.collection('libraryLoanStates').get({source:'server'})
+  ]);
+  const states=new Map(statesSnap.docs.map(d=>[d.id,d.data()]));
+  const names=booksSnap.docs.filter(d=>{
+   const b=d.data(),state=states.get(d.id)||{};
+   const qty=Number(b.qty),borrowed=Number(state.borrowedCount||0);
+   return b.category==='图书'&&!state.frozen&&Number.isFinite(qty)&&qty>0&&qty>borrowed&&String(b.name||'').trim();
+  }).map(d=>String(d.data().name).trim()).sort((a,b)=>a.localeCompare(b,'zh-CN'));
+  if(!names.length){status.textContent='云端没有符合条件的可借图书，未生成空白图片。';return}
+  const width=1080,pad=76,fontSize=36,lineHeight=58,headerHeight=190,footerHeight=105,maxRowsPerPage=45;
+  // 超过一页时生成多张，避免手机分享图片过高导致失败。
+  const pages=[];for(let start=0;start<names.length;start+=maxRowsPerPage)pages.push(names.slice(start,start+maxRowsPer));
+  const blobs=[];
+  for(let pi=0;pi<pages.length;pi++){
+   const rows=pages[pi],canvas=document.createElement('canvas');
+   canvas.width=width;canvas.height=headerHeight+rows.length*lineHeight+footerHeight;
+   const ctx=canvas.getContext('2d');if(!ctx)throw Error('浏览器不支持 Canvas');
+   ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
+   ctx.fillStyle='#171717';ctx.font='bold 48px sans-serif';ctx.fillText('CCG Mainz 图书馆 · 可借书单',pad,83);
+   ctx.font='27px sans-serif';ctx.fillStyle='#555';
+   ctx.fillText('当前可借 '+names.length+' 本图书 · 第 '+(pi+1)+' / '+pages.length+' 页',pad,135);
+   ctx.fillStyle='#202020';ctx.font=fontSize+'px sans-serif';
+   rows.forEach((name,i)=>{
+    const prefix=(pi*maxRowsPerPage+i+1)+'. ';
+    const maxWidth=width-2*pad;
+    let label=prefix+name;
+    while(label.length>1&&ctx.measureText(label).width>maxWidth)label=label.slice(0,-2)+'…';
+    ctx.fillText(label,pad,headerHeight+i*lineHeight);
+   });
+   ctx.font='24px sans-serif';ctx.fillStyle='#666';
+   ctx.fillText('书单以生成时的云端可借状态为准',pad,canvas.height-45);
+   const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));
+   if(!blob)throw Error('PNG 生成失败');
+   blobs.push(blob);
+   if(pi===0){preview.src=URL.createObjectURL(blob);preview.hidden=false}
+  }
+  lineLibraryBlob=blobs;
+  $('lineLibraryDownload').disabled=false;$('lineLibraryShare').disabled=false;
+  status.textContent='已生成 '+names.length+' 本可借图书的纯文字书单（'+blobs.length+' 张图片）。可直接分享，或先下载。';
+ }catch(e){status.textContent='生成失败：'+e.message}
+}
+function lineLibraryFiles(){
+ return (lineLibraryBlob||[]).map((blob,i)=>new File([blob],'CCGMainz_可借书单_'+(i+1)+'.png',{type:'image/png'}));
+}
+function lineDownloadLibraryImage(){
+ if(!lineLibraryBlob?.length)return;
+ lineLibraryBlob.forEach((blob,i)=>{
+  const u=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=u;a.download='CCGMainz_可借书单_'+(i+1)+'.png';document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(u),10000);
+ });
+ $('lineLibraryStatus').textContent='书单图片已开始下载，可在 LINE 聊天中作为图片发送。';
+}
+async function lineShareLibraryImage(){
+ if(!lineLibraryBlob?.length)return;
+ const files=lineLibraryFiles();
+ try{
+  if(navigator.share&&navigator.canShare?.({files})){
+   await navigator.share({files,title:'CCG Mainz 图书馆可借书单'});
+   $('lineLibraryStatus').textContent='已打开系统分享界面，请选择 LINE 并确认发送。';
+  }else{
+   lineDownloadLibraryImage();
+   $('lineLibraryStatus').textContent='当前浏览器不支持直接分享图片。已下载 PNG，请打开 LINE 并从相册/文件中发送。';
+  }
+ }catch(e){
+  if(e.name!=='AbortError')$('lineLibraryStatus').textContent='系统分享未完成：'+e.message+'。可使用下载按钮手动发送。';
+ }
+}
 function lineMessage(){const t=$('lineText').value.trim(),url=$('lineUrl').value.trim();if(!t&&!url){alert('请先选择信息或填写分享文字');return null}if(url&&!/^https:\/\//i.test(url)){alert('分享链接必须是 HTTPS 地址');return null}return t+(url?'\n\n🔗 '+url:'')}
 function lineShare(){const msg=lineMessage();if(!msg)return;$('lineShareStatus').textContent='请在 LINE 中选择好友或群组，并确认发送。';const target='https://line.me/R/msg/text/?'+encodeURIComponent(msg);const w=window.open(target,'_blank','noopener,noreferrer');if(!w)location.href=target}
 </script><script src="./music-admin.js"></script></html>
