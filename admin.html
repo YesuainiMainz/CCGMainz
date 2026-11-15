@@ -256,8 +256,9 @@ html{scroll-padding-top:90px}body{padding-top:calc(56px + env(safe-area-inset-to
 </div></section>
 <section id="lineManagement" class="management-view" hidden>
  <div class="card"><h2>💬 LINE 分享中心</h2><p class="muted">选择各端信息并预览，点击「前往 LINE 分享」，然后在 LINE 中选择好友或群组并确认发送。</p>
- <div class="grid"><label>信息来源<select id="lineSource" onchange="lineLoad()"><option value="registration">📝 注册界面</option><option value="changelog">📋 更新日志</option><option value="churchPosts">⛪ 教会生活</option><option value="musicPosts">🎵 音乐角</option><option value="carePosts">❤️ 爱心站</option><option value="qrInfoShares">▦ Q分享</option><option value="inventory">📦 库存（仅登录入口）</option><option value="library">📚 图书馆（仅入口）</option><option value="privacy">🔒 会员及审批（仅登录入口）</option></select></label><label>搜索信息<input id="lineSearch" type="search" oninput="lineRender()" placeholder="搜索标题、正文或日期"></label></div>
- <div class="card" style="margin:12px 0;padding:12px;border:1px solid #dce6dd">
+ <div class="grid"><label>信息来源<select id="lineSource" onchange="lineLoad()"><option value="registration">📝 注册界面</option><option value="changelog">📋 更新日志</option><option value="churchPosts">⛪ 教会生活</option><option value="musicPosts">🎵 音乐角</option><option value="carePosts">❤️ 爱心站</option><option value="qrInfoShares">▦ Q分享</option><option value="inventory">📦 库存（仅登录入口）</option><option value="library">📚 图书馆（仅入口）</option><option value="libraryImage">📚 当前可借书单（图片）</option><option value="privacy">🔒 会员及审批（仅登录入口）</option></select></label><label>搜索信息<input id="lineSearch" type="search" oninput="lineRender()" placeholder="搜索标题、正文或日期"></label></div>
+
+ <div id="lineLibraryImagePanel" hidden class="card" style="margin:12px 0;padding:12px;border:1px solid #dce6dd">
   <h3>📚 当前可借图书 · 图片书单</h3>
   <p class="muted">从云端读取图书馆，只列出未冻结且仍有可借数量的图书名称；生成纯文字 PNG 图片。分享时不会公开库存位置或借阅人资料。</p>
   <button type="button" onclick="lineCreateLibraryImage()">生成当前可借书单图片</button>
@@ -266,10 +267,12 @@ html{scroll-padding-top:90px}body{padding-top:calc(56px + env(safe-area-inset-to
   <p id="lineLibraryStatus" class="muted" role="status">尚未生成书单。</p>
   <img id="lineLibraryPreview" alt="当前可借图书纯文字书单预览" hidden style="width:100%;max-width:520px;border:1px solid #dce6dd;border-radius:8px">
  </div>
+ <div id="lineStandardPanel">
  <p id="lineLoadStatus" role="status" class="muted">选择信息来源后读取。</p><div id="lineEntries" class="line-entries" aria-label="可分享信息（3滑）"></div>
  <div style="display:flex;gap:10px;align-items:center;margin:10px 0"><b id="lineSelectedCount">已选择 0 条</b><button type="button" class="alt" onclick="lineClear()">清空已选</button></div><p class="muted">可跨来源选择多条信息，例如一次选中音乐角的多首歌；切换来源后已选内容会保留。LINE 将它们作为一条合并消息分享。</p><h3>分享内容预览</h3><label>消息文字（可编辑）<textarea id="lineText" rows="7" maxlength="8000" style="width:100%" placeholder="选择上方信息后自动填入"></textarea></label><label>分享链接（可编辑）<input id="lineUrl" type="url" style="width:100%" placeholder="https://..."></label>
  <div style="margin-top:14px"><button type="button" onclick="lineShare()" style="background:#06a74f;font-weight:700;font-size:17px;padding:13px 20px">🟢 前往 LINE 分享</button></div>
  <p id="lineShareStatus" role="status" class="muted">点击后在 LINE 中选择好友或群组，并确认发送。</p>
+ </div>
  </div></section>
 <section id="privacyManagement" class="management-view" hidden>
  <div class="card"><h2>平台会员账号（不显示密码）</h2><p class="muted">管理员可查看注册姓名和邮箱账号。密码由 Firebase Authentication 安全管理，管理员无法读取。</p><button type="button" onclick="loadPlatformAccounts()">刷新会员与找回请求</button><p id="platformAccountStatus" class="muted">登录后可查看。</p><div id="platformAccountList" class="admin-four-scroll" aria-label="平台会员账号列表"></div><h3>忘记账号密码 · 找回请求</h3><p class="muted">显示申请者提交的姓名和邮箱，便于人工核对。管理员不能查看或发送原密码。</p><div id="accountRecoveryList" class="admin-four-scroll" aria-label="忘记账号找回请求列表"></div></div><div class="card" id="legacyAccountRecovery"><h2>🧩 旧库存账号排查与迁移</h2><p class="muted">旧账号邮箱被占用通常是 Firebase Authentication 已有登录账号。此工具只检查 Firestore 中可见的旧库存会员、平台会员和库存授权，不会读取密码，也不会删除身份账号。</p><label>需要排查的邮箱<input id="legacyAccountEmail" type="email" autocomplete="off" placeholder="例如：member@example.com" style="width:100%;max-width:480px"></label><button type="button" onclick="ccgInspectLegacyAccount()">检查旧账号</button><p id="legacyAccountStatus" class="muted" role="status">请输入邮箱后检查。</p><div id="legacyAccountResult" style="white-space:pre-wrap;overflow-wrap:anywhere;border:1px solid #dce6dd;border-radius:10px;padding:12px" hidden></div><button type="button" id="legacyAccountMigrate" onclick="ccgMigrateLegacyAccount()" hidden>将旧库存会员资料迁移为待审核平台会员</button><p class="muted">如果 Firebase Authentication 已存在此邮箱，用户应使用原邮箱登录，或在平台登录页使用「忘记密码」。迁移仅复用同一个 UID，不创建第二个身份账号；若旧库存账号属于另一个 Firebase 项目，请在 Firebase 控制台核实后另行处理。</p></div><div class="card" id="lagerAccessManagement"><h2>📦 CCG Lager 访问权限管理</h2><p class="muted">仅已批准的幸福家人平台会员可申请或获得库存权限；批准、直接授权和撤销均独立于平台会员身份。</p><button type="button" onclick="lagerAdminLoad()">刷新 Lager 权限</button><p id="lagerAdminStatus" class="muted">进入隐私管理后读取。</p><div id="lagerAdminList" class="admin-four-scroll" style="overflow-y:auto" aria-label="Lager 权限申请及授权列表"></div></div><div class="card" id="memberApproval"><h2>家庭成员审批</h2><button onclick="loadMembers()" type="button">刷新申请列表</button><p class="muted" id="memberStatus">请先以管理员身份登录。</p><div id="memberList" class="admin-four-scroll" aria-label="家庭人员审批列表"></div></div>
@@ -2639,7 +2642,7 @@ function lineRender(){
  if(!arr.length)box.textContent='暂无符合条件的信息';
 }
 function lineDate(v){try{return v?.toDate?v.toDate().toLocaleString('zh-CN'):v?new Date(v).toLocaleString('zh-CN'):''}catch{return ''}}
-async function lineLoad(){if(!$('lineManagement')||!fzhAdminReady||!fzhAdminStore){lineStatus('请先登录管理员账号');return}const source=$('lineSource').value,seq=++lineRequestSeq;lineRecords=[];lineRender();lineStatus('正在读取 '+$('lineSource').selectedOptions[0].text+'…');try{
+async function lineLoad(){if(!$('lineManagement')||!fzhAdminReady||!fzhAdminStore){lineStatus('请先登录管理员账号');return}const source=$('lineSource').value,seq=++lineRequestSeq;const imageMode=source==='libraryImage';$('lineLibraryImagePanel').hidden=!imageMode;$('lineStandardPanel').hidden=imageMode;lineRecords=[];lineRender();if(imageMode){lineStatus('请选择生成当前可借书单图片；图片生成后可下载或分享到 LINE。');return}lineStatus('正在读取 '+$('lineSource').selectedOptions[0].text+'…');try{
  const base=linePage(lineRoutes[source]);let records=[];
  if(source==='registration'){records=[{title:'注册新账号',label:'📝 CCG Mainz 幸福家人平台注册',body:'欢迎注册 CCG Mainz 幸福家人数字平台。请填写真实姓名、邮箱和密码，注册后等待管理员审核。',url:linePage('platform.html')+'#register',date:''}]}
  else if(source==='changelog'){records=[{title:'更新日志',label:'📋 CCG Mainz 平台更新日志',body:'查看 CCG Mainz 幸福家人数字平台更新日志。',url:linePage('changelog.html'),date:''}]}
@@ -2671,7 +2674,7 @@ async function lineCreateLibraryImage(){
   if(!names.length){status.textContent='云端没有符合条件的可借图书，未生成空白图片。';return}
   const width=1080,pad=76,fontSize=36,lineHeight=58,headerHeight=190,footerHeight=105,maxRowsPerPage=45;
   // 超过一页时生成多张，避免手机分享图片过高导致失败。
-  const pages=[];for(let start=0;start<names.length;start+=maxRowsPerPage)pages.push(names.slice(start,start+maxRowsPer));
+  const pages=[];for(let start=0;start<names.length;start+=maxRowsPerPage)pages.push(names.slice(start,start+maxRowsPerPage));
   const blobs=[];
   for(let pi=0;pi<pages.length;pi++){
    const rows=pages[pi],canvas=document.createElement('canvas');
