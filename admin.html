@@ -1587,6 +1587,7 @@ function publicSnapshot(){return {type:'fzh-stock-snapshot',schema:1,version:db.
 const CCG_QUEUE_KEY='ccg-inventory-ops-v99';
 let ccgServerConnected=false,ccgProbeBusy=false,ccgFlushBusy=false,ccgHydrating=false,ccgInitialHydrated=false;
 let ccgQueue=loadLocal(CCG_QUEUE_KEY,[]);
+let ccgLocalMutationSerial=0;
 if(!Array.isArray(ccgQueue))ccgQueue=[];
 // 从 v9.8 迁移未发布草稿；保留逐条 ID，不把整个本机快照覆盖云端。
 let ccgTracked=inventoryPart(db);
@@ -1595,6 +1596,7 @@ function ccgQueueSave(){
  catch(e){$('ghPublishStatus').textContent='本机队列保存失败，请立即导出备份：'+e.message;return false}
 }
 function ccgQueuePush(op){
+ ccgLocalMutationSerial++;
  ccgQueue.push({id:uuid(),uid:fzhAdminAuth?.currentUser?.uid||null,at:Date.now(),...op});
  return ccgQueueSave();
 }
@@ -1606,6 +1608,7 @@ function ccgSaveInventoryOperations(){
  for(const id of old.keys())if(!now.has(id))operations.push({kind:'delete',itemId:id});
  for(const field of ['categories','locations'])if(JSON.stringify(before[field])!==JSON.stringify(after[field]))operations.push({kind:'meta',field,value:after[field]});
  if(!operations.length)return true;
+ ccgLocalMutationSerial++;
  const previous=ccgQueue.length;
  for(const op of operations)ccgQueue.push({id:uuid(),uid:fzhAdminAuth?.currentUser?.uid||null,at:Date.now(),...op});
  if(!ccgQueueSave()){ccgQueue.length=previous;return false}
@@ -1614,6 +1617,7 @@ function ccgSaveInventoryOperations(){
  return true;
 }
 function ccgSetLocalSnapshot(snap){
+ if(ccgQueue.length || ccgFlushBusy)return;
  // Reject delayed listener events from an older cloud version.
  if(cloudBaseline && snap.version < cloudBaseline.version)return;
  db.items=snap.items.map(i=>({...i}));db.categories=[...(snap.categories||[])];db.locations=[...(snap.locations||[])];db.version=snap.version;
@@ -1645,6 +1649,7 @@ function ccgApplyOp(snap,op){
 async function ccgFlushQueue(){
  if(ccgFlushBusy||!ccgServerConnected||!fzhAdminReady||!fzhAdminStore)return;
  ccgFlushBusy=true;updateConnectionIndicator();
+ const flushStartSerial=ccgLocalMutationSerial;
  const ref=fzhAdminStore.doc('private/inventory');
  try{
   while(ccgQueue.length&&ccgServerConnected){
@@ -1675,7 +1680,7 @@ async function ccgFlushQueue(){
   if(!ccgQueue.length&&ccgServerConnected){
    const remote=await ref.get({source:'server'});
    const snap=remote.exists?remote.data().snapshot:null;
-   if(snap&&validSnapshot(snap)){
+   if(snap&&validSnapshot(snap) && !ccgQueue.length && ccgLocalMutationSerial===flushStartSerial){
     if(!inventoryRemoteSnapshot || snap.version >= inventoryRemoteSnapshot.version){
      cloudBaseline=snap;cloudRemoteVersion=snap.version;cloudReady=true;inventoryRemoteSnapshot=snap;
      ccgSetLocalSnapshot(snap);
@@ -1689,7 +1694,10 @@ async function ccgFlushQueue(){
  }catch(e){
   $('ghPublishStatus').textContent='🔴 同步尚未成功：'+e.message+'；操作已保留在本机，联网后自动重试';
   if(/offline|unavailable|network|deadline|failed to fetch/i.test(e.message))setCcgServerStatus(false);
- }finally{ccgFlushBusy=false;updateConnectionIndicator()}
+ }finally{
+  ccgFlushBusy=false;updateConnectionIndicator();
+  if(ccgQueue.length && ccgServerConnected) scheduleAutoSync();
+ }
 }
 setInterval(checkCcgServer,12000);
 window.addEventListener('focus',checkCcgServer);
