@@ -1225,12 +1225,16 @@ function renderDraftChanges(){
 function applyCloud(doc){
  const snap=doc.data().snapshot;
  if(!validSnapshot(snap))throw Error('云端库存格式无效');
+ if(inventoryRemoteSnapshot && snap.version < inventoryRemoteSnapshot.version)return;
  cloudRemoteVersion=snap.version;cloudRemoteTime=doc.data().updatedAt||null;
  inventoryRemoteSnapshot=snap;libraryCloudItems=snap.items.map(i=>({...i}));
  updateLatestStockTime();renderLibraryRequests();scheduleLibraryMirror();
  cloudReady=true;
  // 未上传队列始终优先；禁止云端快照覆盖尚未上传的本机操作。
- if(!ccgQueue.length&&!ccgFlushBusy){cloudBaseline=snap;ccgSetLocalSnapshot(snap);ccgInitialHydrated=true;ccgMarkSyncVerified()}
+ if(!ccgQueue.length&&!ccgFlushBusy){
+  // A delayed snapshot must never roll back a version already confirmed by the server.
+  if(!cloudBaseline || snap.version >= cloudBaseline.version){cloudBaseline=snap;ccgSetLocalSnapshot(snap);ccgInitialHydrated=true;ccgMarkSyncVerified()}
+ }
  updateConnectionIndicator();
  if(ccgQueue.length&&ccgServerConnected)ccgFlushQueue();
  else if(!ccgQueue.length)flushOfflinePhotos();
@@ -1610,6 +1614,8 @@ function ccgSaveInventoryOperations(){
  return true;
 }
 function ccgSetLocalSnapshot(snap){
+ // Reject delayed listener events from an older cloud version.
+ if(cloudBaseline && snap.version < cloudBaseline.version)return;
  db.items=snap.items.map(i=>({...i}));db.categories=[...(snap.categories||[])];db.locations=[...(snap.locations||[])];db.version=snap.version;
  ccgTracked=inventoryPart(db);saveLocal(KEY,db);render();renderDraftChanges();renderInventoryDiff();
 }
@@ -1660,8 +1666,9 @@ async function ccgFlushQueue(){
    // runTransaction resolves after server ACK. Re-read authoritative version to verify before dequeue.
    const confirmed=await ref.get({source:'server'});
    if(!confirmed.data()?.appliedOperationIds?.includes(op.id))throw Error('服务器未确认操作 '+op.id);
+   if(op.kind==='meta' && !(op.value||[]).every(v=>(confirmed.data()?.snapshot?.[op.field]||[]).includes(v)))throw Error('云端尚未包含新增'+(op.field==='categories'?'分类':'位置')+'，已保留待同步操作');
    ccgQueue.shift();if(!ccgQueueSave())throw Error('已上传但无法更新本机队列；下次将进行幂等验证');
-   inventoryRemoteSnapshot=confirmed.data().snapshot;
+   if(!inventoryRemoteSnapshot || confirmed.data().snapshot.version >= inventoryRemoteSnapshot.version)inventoryRemoteSnapshot=confirmed.data().snapshot;
    $('ghPublishStatus').textContent='✅ 成功同步操作，云端版本 V'+inventoryRemoteSnapshot.version+' · 剩余 '+ccgQueue.length+' 项';
    updateConnectionIndicator();
   }
@@ -1669,8 +1676,10 @@ async function ccgFlushQueue(){
    const remote=await ref.get({source:'server'});
    const snap=remote.exists?remote.data().snapshot:null;
    if(snap&&validSnapshot(snap)){
-    cloudBaseline=snap;cloudRemoteVersion=snap.version;cloudReady=true;inventoryRemoteSnapshot=snap;
-    ccgSetLocalSnapshot(snap);
+    if(!inventoryRemoteSnapshot || snap.version >= inventoryRemoteSnapshot.version){
+     cloudBaseline=snap;cloudRemoteVersion=snap.version;cloudReady=true;inventoryRemoteSnapshot=snap;
+     ccgSetLocalSnapshot(snap);
+    }
     ccgMarkSyncVerified();
     $('ghPublishStatus').textContent='✅ 本机操作全部成功同步，已从云端更新库存 V'+snap.version;
     flushOfflinePhotos();
