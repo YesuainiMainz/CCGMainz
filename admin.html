@@ -258,7 +258,7 @@ html{scroll-padding-top:90px}body{padding-top:calc(56px + env(safe-area-inset-to
  <div class="card"><h2>💬 LINE 分享中心</h2><p class="muted">选择各端信息并预览，点击「前往 LINE 分享」，然后在 LINE 中选择好友或群组并确认发送。</p>
  <div class="grid"><label>信息来源<select id="lineSource" onchange="lineLoad()"><option value="registration">📝 注册界面</option><option value="changelog">📋 更新日志</option><option value="churchPosts">⛪ 教会生活</option><option value="musicPosts">🎵 音乐角</option><option value="carePosts">❤️ 爱心站</option><option value="qrInfoShares">▦ Q分享</option><option value="inventory">📦 库存（仅登录入口）</option><option value="library">📚 图书馆（仅入口）</option><option value="privacy">🔒 会员及审批（仅登录入口）</option></select></label><label>搜索信息<input id="lineSearch" type="search" oninput="lineRender()" placeholder="搜索标题、正文或日期"></label></div>
  <p id="lineLoadStatus" role="status" class="muted">选择信息来源后读取。</p><div id="lineEntries" class="line-entries" aria-label="可分享信息（3滑）"></div>
- <h3>分享内容预览</h3><label>消息文字（可编辑）<textarea id="lineText" rows="7" maxlength="8000" style="width:100%" placeholder="选择上方信息后自动填入"></textarea></label><label>分享链接（可编辑）<input id="lineUrl" type="url" style="width:100%" placeholder="https://..."></label>
+ <div style="display:flex;gap:10px;align-items:center;margin:10px 0"><b id="lineSelectedCount">已选择 0 条</b><button type="button" class="alt" onclick="lineClear()">清空已选</button></div><p class="muted">可跨来源选择多条信息，例如一次选中音乐角的多首歌；切换来源后已选内容会保留。LINE 将它们作为一条合并消息分享。</p><h3>分享内容预览</h3><label>消息文字（可编辑）<textarea id="lineText" rows="7" maxlength="8000" style="width:100%" placeholder="选择上方信息后自动填入"></textarea></label><label>分享链接（可编辑）<input id="lineUrl" type="url" style="width:100%" placeholder="https://..."></label>
  <div style="margin-top:14px"><button type="button" onclick="lineShare()" style="background:#06a74f;font-weight:700;font-size:17px;padding:13px 20px">🟢 前往 LINE 分享</button></div>
  <p id="lineShareStatus" role="status" class="muted">点击后在 LINE 中选择好友或群组，并确认发送。</p>
  </div></section>
@@ -330,7 +330,26 @@ async function submitInboundEntry(e){
  }catch(err){alert(err.message)}finally{button.disabled=false}
 }
 $('inboundForm').addEventListener('submit',submitInboundEntry);
-function addOption(field,inputId){if(!fzhAdminReady)return msg('请先登录管理员账号');let v=$(inputId).value.trim();if(!v||v.length>50)return msg('名称不能为空或超过50字');if(db[field].includes(v))return msg('已经存在');if(!confirmThree('增加',v))return;db[field].push(v);$(inputId).value='';persist();$(field==='categories'?'categorySelect':'locationSelect').value=v}
+function addOption(field,inputId){
+ if(!fzhAdminReady)return msg('请先登录管理员账号');
+ if(!cloudReady || !ccgInitialHydrated)return msg('库存云端数据尚未加载完成，请等待库存同步完成后再添加，避免新分类或位置被旧数据覆盖。');
+ if(!['categories','locations'].includes(field))return;
+ const input=$(inputId),v=input.value.trim();
+ if(!v||v.length>50)return msg('名称不能为空或超过50字');
+ if(db[field].includes(v))return msg('已经存在');
+ if(!confirm('确定添加'+(field==='categories'?'分类':'位置')+'「'+v+'」吗？'))return;
+ const before=[...db[field]],oldTracked=structuredClone(ccgTracked),oldQueue=ccgQueue.length;
+ db[field].push(v);
+ if(!ccgSaveInventoryOperations() || !saveLocal(KEY,db)){
+  db[field]=before;ccgTracked=oldTracked;ccgQueue.length=oldQueue;ccgQueueSave();render();
+  return msg('添加失败：本机保存或待同步队列写入失败，请检查浏览器存储空间。');
+ }
+ input.value='';render();updateConnectionIndicator();scheduleAutoSync();
+ const sel=$(field==='categories'?'categorySelect':'locationSelect');if(sel)sel.value=v;
+ const inbound=$(field==='categories'?'inboundCategory':'inboundLocation');if(inbound)inbound.value=v;
+ $('ghPublishStatus').textContent='已添加「'+v+'」并保存本机，等待云端确认（待上传 '+ccgQueue.length+' 项）';
+ if(ccgServerConnected)ccgFlushQueue();
+}
 
 function deleteOption(field,index){if(!fzhAdminReady)return msg('请先登录管理员账号');
  let value=db[field][index];if(value===undefined)return;
@@ -2559,11 +2578,40 @@ async function downloadFamilyQr(){if(!familyQrToken)return alert('请先生成�
 // LINE 手动分享中心：不使用机器人令牌，不自动发送，不暴露私有数据。
 
 let lineRecords=[],lineRequestSeq=0;
+const lineSelected=new Map();
 const lineRoutes={registration:'platform.html',changelog:'changelog.html',announcements:'platform.html',churchPosts:'church.html',musicPosts:'music.html',carePosts:'posts.html',qrInfoShares:'platform.html',inventory:'lager.html',library:'library.html',privacy:'platform.html'};
 function linePage(path){return new URL('./'+path,location.href).href}
 function lineStatus(msg){$('lineLoadStatus').textContent=msg}
-function lineSelect(i){const r=lineRecords[i];if(!r)return;$('lineText').value='⛪ CCG Mainz 幸福家人数字平台\n'+r.label+'\n'+(r.body||'').slice(0,4500);$('lineUrl').value=r.url; $('lineShareStatus').textContent='已选择「'+r.title+'」，请核对内容和链接。'}
-function lineRender(){const q=$('lineSearch').value.trim().toLowerCase(),box=$('lineEntries');box.replaceChildren();const arr=lineRecords.map((r,i)=>({r,i})).filter(({r})=>!q||(r.title+' '+r.body+' '+r.date).toLowerCase().includes(q));for(const {r,i} of arr){const d=document.createElement('div');d.className='line-entry';const b=document.createElement('b');b.textContent=r.label;const small=document.createElement('div');small.className='muted';small.textContent=(r.body||'').slice(0,130)+(r.date?' · '+r.date:'');const btn=document.createElement('button');btn.type='button';btn.textContent='选择此信息';btn.onclick=()=>lineSelect(i);d.append(b,small,btn);box.append(d)}if(!arr.length)box.textContent='暂无符合条件的信息';}
+function lineKey(r){return r.url+'|'+r.label}
+function lineCompose(){
+ const entries=[...lineSelected.values()];
+ $('lineSelectedCount').textContent='已选择 '+entries.length+' 条';
+ if(!entries.length){$('lineText').value='';$('lineUrl').value='';$('lineShareStatus').textContent='请选择一条或多条信息';return}
+ const sections=entries.map((r,i)=>{
+  const label=(entries.length>1?(i+1)+'. ':'')+r.label;
+  const body=(r.body||'').trim();
+  return label+(body?'\n'+body:'')+(r.url?'\n🔗 '+r.url:'');
+ });
+ const result='⛪ CCG Mainz 幸福家人数字平台\n\n'+sections.join('\n\n────────\n\n');
+ $('lineText').value=result.length<=8000?result:'';
+ $('lineUrl').value='';
+ $('lineShareStatus').textContent='已合并 '+entries.length+' 条信息；可以编辑预览后前往 LINE 分享。';
+ if(result.length>8000)$('lineShareStatus').textContent='已选内容超过8000字，暂不生成分享内容。请减少选择数量，避免漏发歌曲或链接。';
+}
+function lineSelect(i){const r=lineRecords[i];if(!r)return;const key=lineKey(r);if(lineSelected.has(key))lineSelected.delete(key);else lineSelected.set(key,r);lineCompose();lineRender()}
+function lineClear(){lineSelected.clear();lineCompose();lineRender()}
+function lineRender(){
+ const q=$('lineSearch').value.trim().toLowerCase(),box=$('lineEntries');box.replaceChildren();
+ const arr=lineRecords.map((r,i)=>({r,i})).filter(({r})=>!q||(r.title+' '+r.body+' '+r.date).toLowerCase().includes(q));
+ for(const {r,i} of arr){const d=document.createElement('div');d.className='line-entry';
+  const b=document.createElement('b');b.textContent=r.label;
+  const small=document.createElement('div');small.className='muted';small.textContent=(r.body||'').slice(0,130)+(r.date?' · '+r.date:'');
+  const check=document.createElement('input');check.type='checkbox';check.checked=lineSelected.has(lineKey(r));check.setAttribute('aria-label','选择 '+r.title);check.onchange=()=>lineSelect(i);
+  const label=document.createElement('label');label.style.cssText='display:flex;align-items:center;gap:9px;cursor:pointer';label.append(check,b);
+  d.append(label,small);box.append(d);
+ }
+ if(!arr.length)box.textContent='暂无符合条件的信息';
+}
 function lineDate(v){try{return v?.toDate?v.toDate().toLocaleString('zh-CN'):v?new Date(v).toLocaleString('zh-CN'):''}catch{return ''}}
 async function lineLoad(){if(!$('lineManagement')||!fzhAdminReady||!fzhAdminStore){lineStatus('请先登录管理员账号');return}const source=$('lineSource').value,seq=++lineRequestSeq;lineRecords=[];lineRender();lineStatus('正在读取 '+$('lineSource').selectedOptions[0].text+'…');try{
  const base=linePage(lineRoutes[source]);let records=[];
