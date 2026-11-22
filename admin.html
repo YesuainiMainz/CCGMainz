@@ -2616,12 +2616,19 @@ function lineCompose(){
  const entries=[...lineSelected.values()];
  $('lineSelectedCount').textContent='已选择 '+entries.length+' 条';
  if(!entries.length){$('lineText').value='';$('lineUrl').value='';$('lineShareStatus').textContent='请选择一条或多条信息';return}
+ const musicEntries=entries.filter(r=>r.source==='musicPosts');
  const sections=entries.map((r,i)=>{
+  if(r.source==='musicPosts'){
+   const number=entries.length>1?(i+1)+'. ':'';
+   return number+'🎵 '+r.title+(r.videoLink?'\n🎬 相关视频／网页：'+r.videoLink:'');
+  }
   const label=(entries.length>1?(i+1)+'. ':'')+r.label;
   const body=(r.body||'').trim();
   return label+(body?'\n'+body:'')+(r.url?'\n🔗 '+r.url:'');
  });
- const result='⛪ CCG Mainz 幸福家人数字平台\n\n'+sections.join('\n\n────────\n\n');
+ let result='⛪ CCG Mainz 幸福家人数字平台\n\n'+sections.join('\n\n────────\n\n');
+ // 所有音乐帖共用一个音乐角入口；混合来源也只添加一次。
+ if(musicEntries.length)result+='\n\n🎵 进入 CCG Mainz 音乐角\n🔗 '+linePage('music.html');
  $('lineText').value=result.length<=8000?result:'';
  $('lineUrl').value='';
  $('lineShareStatus').textContent='已合并 '+entries.length+' 条信息；可以编辑预览后前往 LINE 分享。';
@@ -2648,9 +2655,9 @@ async function lineLoad(){if(!$('lineManagement')||!fzhAdminReady||!fzhAdminStor
  else if(source==='changelog'){records=[{title:'更新日志',label:'📋 CCG Mainz 平台更新日志',body:'查看 CCG Mainz 幸福家人数字平台更新日志。',url:linePage('changelog.html'),date:''}]}
  else if(source==='inventory'||source==='library'||source==='privacy'){records=[{title:'平台入口',label:source==='inventory'?'📦 CCG Lager 入口':source==='library'?'📚 图书馆入口':'🔒 平台会员登录入口',body:'请登录平台并确认访问权限后查看具体内容。',url:base,date:''}]}
  else {const snap=await fzhAdminStore.collection(source).limit(200).get();records=snap.docs.map(d=>{const x=d.data(),title=String(x.title||x.name||x.itemName||x.text||'分享内容').slice(0,100);let body=String(x.body||x.text||x.description||x.notes||'').slice(0,4500);const isCare=source==='carePosts';if(isCare){body=String(x.text||'').slice(0,600);if(x.status==='deleted'||x.deleted===true)return null}const date=lineDate(x.createdAt||x.updatedAt);let url=base;if(['churchPosts','musicPosts','carePosts'].includes(source))url=base+'?post='+encodeURIComponent(d.id);if(source==='qrInfoShares')url=base; // QR 公开链接依赖独立域名配置，不能猜测
- if(source==='musicPosts'){const section=x.category==='hymns'?'常见赞美诗学习':'近期音乐分享';body='【'+section+'】\n'+body+(x.link&&/^https:\/\//i.test(x.link)?'\n\n🎬 相关视频／网页：'+x.link:'');}
+ if(source==='musicPosts'){const videoLink=typeof x.link==='string'&&/^https:\/\//i.test(x.link.trim())?x.link.trim():'';return {title,label:'🎵 音乐角：'+title,body:'',url:base,videoLink,source,date};}
  return {title,label:({churchPosts:'⛪ 教会生活',musicPosts:'🎵 音乐角',carePosts:'❤️ 爱心站',qrInfoShares:'▦ Q分享'})[source]+'：'+title,body,url,date}}).filter(Boolean)}
- if(seq!==lineRequestSeq)return;lineRecords=records;lineRender();lineStatus('已读取 '+records.length+' 条。列表最多显示3条，其余滑动。音乐角、教会生活及爱心站支持单条帖子定位链接；接收人仍需有对应平台权限。');
+ if(seq!==lineRequestSeq)return;lineRecords=records;lineRender();lineStatus('已读取 '+records.length+' 条。列表最多显示3条，其余滑动。音乐角仅分享每首歌的视频／网页链接，末尾统一添加一个音乐角入口；其他模块仍保留原有分享方式。');
  }catch(e){if(seq!==lineRequestSeq)return;lineStatus('读取失败：'+e.message+'。请确认该模块集合名称及 Firestore 权限。')}}
 
 // 图书馆可借书单：读取独立的公开图书镜像及借阅状态，避免将私人库存位置分享出去。
