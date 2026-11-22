@@ -2611,7 +2611,7 @@ const lineSelected=new Map();
 const lineRoutes={registration:'platform.html',changelog:'changelog.html',announcements:'platform.html',churchPosts:'church.html',musicPosts:'music.html',carePosts:'posts.html',qrInfoShares:'platform.html',inventory:'lager.html',library:'library.html',privacy:'platform.html'};
 function linePage(path){return new URL('./'+path,location.href).href}
 function lineStatus(msg){$('lineLoadStatus').textContent=msg}
-function lineKey(r){return r.url+'|'+r.label}
+function lineKey(r){return r.recordKey || (r.source||'legacy')+'|'+r.url+'|'+r.label}
 function lineCompose(){
  const entries=[...lineSelected.values()];
  $('lineSelectedCount').textContent='已选择 '+entries.length+' 条';
@@ -2655,8 +2655,8 @@ async function lineLoad(){if(!$('lineManagement')||!fzhAdminReady||!fzhAdminStor
  else if(source==='changelog'){records=[{title:'更新日志',label:'📋 CCG Mainz 平台更新日志',body:'查看 CCG Mainz 幸福家人数字平台更新日志。',url:linePage('changelog.html'),date:''}]}
  else if(source==='inventory'||source==='library'||source==='privacy'){records=[{title:'平台入口',label:source==='inventory'?'📦 CCG Lager 入口':source==='library'?'📚 图书馆入口':'🔒 平台会员登录入口',body:'请登录平台并确认访问权限后查看具体内容。',url:base,date:''}]}
  else {const snap=await fzhAdminStore.collection(source).limit(200).get();records=snap.docs.map(d=>{const x=d.data(),title=String(x.title||x.name||x.itemName||x.text||'分享内容').slice(0,100);let body=String(x.body||x.text||x.description||x.notes||'').slice(0,4500);const isCare=source==='carePosts';if(isCare){body=String(x.text||'').slice(0,600);if(x.status==='deleted'||x.deleted===true)return null}const date=lineDate(x.createdAt||x.updatedAt);let url=base;if(['churchPosts','musicPosts','carePosts'].includes(source))url=base+'?post='+encodeURIComponent(d.id);if(source==='qrInfoShares')url=base; // QR 公开链接依赖独立域名配置，不能猜测
- if(source==='musicPosts'){const videoLink=typeof x.link==='string'&&/^https:\/\//i.test(x.link.trim())?x.link.trim():'';return {title,label:'🎵 音乐角：'+title,body:'',url:base,videoLink,source,date};}
- return {title,label:({churchPosts:'⛪ 教会生活',musicPosts:'🎵 音乐角',carePosts:'❤️ 爱心站',qrInfoShares:'▦ Q分享'})[source]+'：'+title,body,url,date}}).filter(Boolean)}
+ if(source==='musicPosts'){const videoLink=typeof x.link==='string'&&/^https:\/\//i.test(x.link.trim())?x.link.trim():'';return {recordKey:source+':'+d.id,title,label:'🎵 音乐角：'+title,body:'',url:base,videoLink,source,date};}
+ return {recordKey:source+':'+d.id,source,title,label:({churchPosts:'⛪ 教会生活',musicPosts:'🎵 音乐角',carePosts:'❤️ 爱心站',qrInfoShares:'▦ Q分享'})[source]+'：'+title,body,url,date}}).filter(Boolean)}
  if(seq!==lineRequestSeq)return;lineRecords=records;lineRender();lineStatus('已读取 '+records.length+' 条。列表最多显示3条，其余滑动。音乐角仅分享每首歌的视频／网页链接，末尾统一添加一个音乐角入口；其他模块仍保留原有分享方式。');
  }catch(e){if(seq!==lineRequestSeq)return;lineStatus('读取失败：'+e.message+'。请确认该模块集合名称及 Firestore 权限。')}}
 
