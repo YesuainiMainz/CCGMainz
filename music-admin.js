@@ -1,5 +1,8 @@
 
 let musicEditId=null,musicEditImages=[],musicAdminUnsub=null,musicRecords=new Map();
+let musicReturnPosition=null;
+function musicScrollToEditor(){const title=document.getElementById("musicTitle");if(title)title.scrollIntoView({behavior:"instant",block:"center"})}
+function musicReturnToPost(id){const list=document.getElementById("musicAdminList");if(!list)return;const row=[...list.querySelectorAll("[data-music-post]")].find(el=>el.dataset.musicPost===id);if(row){row.scrollIntoView({behavior:"instant",block:"nearest"});if(musicReturnPosition){const max=Math.max(0,list.scrollHeight-list.clientHeight);list.scrollTop=Math.min(max,Math.max(0,musicReturnPosition.scrollTop));}row.focus({preventScroll:true});}else if(musicReturnPosition){list.scrollTop=musicReturnPosition.scrollTop;}musicReturnPosition=null;}
 function musicEsc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]))}
 function musicYoutubeId(link){try{const u=new URL(link);const h=u.hostname.toLowerCase().replace(/^www\./,'');if(h==='youtu.be')return /^[\w-]{11}$/.test(u.pathname.slice(1).split('/')[0])?u.pathname.slice(1).split('/')[0]:'';if(['youtube.com','m.youtube.com','music.youtube.com','youtube-nocookie.com'].includes(h)){const v=u.searchParams.get('v')||u.pathname.match(/\/(?:shorts|embed|live)\/([\w-]{11})/)?.[1];return /^[\w-]{11}$/.test(v||'')?v:''}}catch(e){}return ''}
 function musicSafeLink(link){try{const u=new URL(link);return ['https:','http:'].includes(u.protocol)?u.href:''}catch(e){return ''}}
@@ -12,15 +15,19 @@ async function musicSavePost(){
  if(!fzhAdminReady||!fzhAdminStore){status.textContent='请先登录管理员';return}
  const title=document.getElementById('musicTitle').value.trim(),body=document.getElementById('musicBody').value.trim(),link=document.getElementById('musicLink').value.trim();
  if(!title){status.textContent='请填写歌曲名称';return}
+ const songDateInput=document.getElementById('musicSongDate');if(!songDateInput){status.textContent='页面版本不匹配，请同时更新 admin.html 和 music-admin.js 并强制刷新';return}
+ if(!songDateInput.value){status.textContent='请选择歌曲日期';return}
  if(link&&!musicSafeLink(link)){status.textContent='链接必须是 http 或 https 地址';return}
  btn.disabled=true;status.textContent='正在保存…';
  try{
   const files=[...document.getElementById('musicFiles').files];if(files.length+musicEditImages.length>2)throw Error('最多上传2张图片');
   const images=[...musicEditImages];for(const file of files)images.push(await musicImage(file));
-  const category=document.getElementById('musicCategory').value;const songDate=document.getElementById('musicSongDate').value;const data={title,body,link,images,category,songDate,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
-  if(musicEditId)await fzhAdminStore.collection('musicPosts').doc(musicEditId).update(data);
+  const category=document.getElementById('musicCategory').value;const songDate=songDateInput.value;const data={title,body,link,images,category,songDate,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+  const savedId=musicEditId;
+  if(savedId)await fzhAdminStore.collection('musicPosts').doc(savedId).update(data);
   else await fzhAdminStore.collection('musicPosts').add({...data,createdAt:firebase.firestore.FieldValue.serverTimestamp(),authorUid:fzhAdminAuth.currentUser.uid});
   musicResetEditor();status.textContent='已保存到云端';
+  if(savedId){musicRenderAdmin();requestAnimationFrame(()=>musicReturnToPost(savedId));}
  }catch(e){status.textContent='保存失败：'+e.message}finally{btn.disabled=false}
 }
 function musicStartAdmin(){if(musicAdminUnsub||!fzhAdminReady||!fzhAdminStore)return;musicAdminUnsub=fzhAdminStore.collection('musicPosts').orderBy('createdAt','desc').onSnapshot(s=>{musicRecords.clear();s.forEach(d=>musicRecords.set(d.id,d.data()));musicRenderAdmin()},e=>{document.getElementById('musicAdminStatus').textContent='读取失败：'+e.message})}
@@ -32,6 +39,7 @@ function musicAdminSearchModeChange(){
 }
 function musicRenderAdmin(){
  const list=document.getElementById('musicAdminList');if(!list)return;
+ const previousScroll=list.scrollTop;
  const category=document.getElementById('musicAdminCategory').value,mode=document.getElementById('musicAdminSearchMode').value;
  const q=document.getElementById('musicAdminSearch').value.trim().toLowerCase();
  const entries=[...musicRecords].filter(([id,p])=>{
@@ -40,9 +48,10 @@ function musicRenderAdmin(){
   if(mode==='date')return !q||p.songDate===q;
   return true;
  });
- list.innerHTML=entries.map(([id,p])=>{const link=musicSafeLink(p.link),vid=musicYoutubeId(link);return `<article style="padding:14px;border-bottom:1px solid #ddd;height:248px;overflow-y:auto;box-sizing:border-box"><div style="font-size:18px;color:#24583e;font-weight:750">${musicEsc(p.songDate||'日期未填写')}</div><strong style="display:block;font-size:22px;margin:6px 0">${musicEsc(p.title)}</strong>${p.body?`<p style="white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;color:#64746a">备注：${musicEsc(p.body)}</p>`:''}${(p.images||[]).map(x=>`<img src="${x}" style="height:90px;max-width:140px;object-fit:cover;margin:3px" alt="帖子图片">`).join('')}${link?`<p><a href="${musicEsc(link)}" target="_blank" rel="noopener noreferrer">${vid?'▶ YouTube 视频':'打开链接'}</a></p>`:''}<button type="button" data-music-edit="${musicEsc(id)}">编辑</button><button type="button" class="danger" data-music-delete="${musicEsc(id)}">删除</button></article>`}).join('')||'<p style="padding:14px">暂无符合条件的歌曲</p>';
+ list.innerHTML=entries.map(([id,p])=>{const link=musicSafeLink(p.link),vid=musicYoutubeId(link);return `<article tabindex="-1" data-music-post="${musicEsc(id)}" style="padding:14px;border-bottom:1px solid #ddd;height:248px;overflow-y:auto;box-sizing:border-box"><div style="font-size:18px;color:#24583e;font-weight:750">${musicEsc(p.songDate||'日期未填写')}</div><strong style="display:block;font-size:22px;margin:6px 0">${musicEsc(p.title)}</strong>${p.body?`<p style="white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;color:#64746a">备注：${musicEsc(p.body)}</p>`:''}${(p.images||[]).map(x=>`<img src="${x}" style="height:90px;max-width:140px;object-fit:cover;margin:3px" alt="帖子图片">`).join('')}${link?`<p><a href="${musicEsc(link)}" target="_blank" rel="noopener noreferrer">${vid?'▶ YouTube 视频':'打开链接'}</a></p>`:''}<button type="button" data-music-edit="${musicEsc(id)}">编辑</button><button type="button" class="danger" data-music-delete="${musicEsc(id)}">删除</button></article>`}).join('')||'<p style="padding:14px">暂无符合条件的歌曲</p>';
+ list.scrollTop=previousScroll;
  list.querySelectorAll('[data-music-edit]').forEach(b=>b.onclick=()=>musicEditPost(b.dataset.musicEdit));
  list.querySelectorAll('[data-music-delete]').forEach(b=>b.onclick=()=>musicDeletePost(b.dataset.musicDelete));
 }
-function musicEditPost(id){const p=musicRecords.get(id);if(!p)return;musicEditId=id;document.getElementById('musicCategory').value=p.category||'recent';musicEditImages=[...(p.images||[])];document.getElementById('musicTitle').value=p.title||'';document.getElementById('musicBody').value=p.body||'';document.getElementById('musicLink').value=p.link||'';document.getElementById('musicSongDate').value=p.songDate||'';document.getElementById('musicFiles').value='';document.getElementById('musicSave').textContent='保存修改';musicPreview();document.getElementById('musicTitle').scrollIntoView({behavior:'smooth',block:'center'})}
+function musicEditPost(id){const p=musicRecords.get(id);if(!p)return;const list=document.getElementById('musicAdminList');musicReturnPosition={id,scrollTop:list?list.scrollTop:0};musicEditId=id;document.getElementById('musicCategory').value=p.category||'recent';musicEditImages=[...(p.images||[])];document.getElementById('musicTitle').value=p.title||'';document.getElementById('musicBody').value=p.body||'';document.getElementById('musicLink').value=p.link||'';document.getElementById('musicSongDate').value=p.songDate||'';document.getElementById('musicFiles').value='';document.getElementById('musicSave').textContent='保存修改';musicPreview();musicScrollToEditor()}
 async function musicDeletePost(id){if(!confirm('确定永久删除此音乐角帖子吗？'))return;try{await fzhAdminStore.collection('musicPosts').doc(id).delete();if(musicEditId===id)musicResetEditor()}catch(e){document.getElementById('musicAdminStatus').textContent='删除失败：'+e.message}}
