@@ -57,9 +57,9 @@ th{position:sticky;top:0;background:white;z-index:2}img{width:74px;height:74px;o
 <div class="actions"><button id="cancelBorrow" type="button">取消</button><button id="sendBorrow" type="submit">发送借书申请</button></div>
 </form></div>
 <div id="lightbox" hidden role="dialog" aria-modal="true" aria-label="查看图书照片"><button id="closePhoto" type="button">关闭 ×</button><img id="bigPhoto" alt="图书照片"></div>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-check-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="./firebase-config.js?v=20261126"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="./firebase-config.js?v=20261126b"></script><script src="./app-check.js?v=20261126b"></script>
 <script>
 const $=id=>document.getElementById(id);
 
@@ -165,4 +165,4 @@ try{
  });
 
 }catch(e){$('status').textContent='初始化失败：'+e.message}
-</script><script src="./zh-toggle.js?v=20261126"></script><script src="./announcements.js?v=20261126" data-target="library"></script></body></html>
+</script><script src="./zh-toggle.js?v=20261126b"></script><script src="./announcements.js?v=20261126b" data-target="library"></script></body></html>

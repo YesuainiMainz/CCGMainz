@@ -101,9 +101,9 @@ a{color:inherit}.post-actions{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0
  <p id="chatStatus" class="muted" role="status"></p></div>
 </div>
 <div id="needDialog" hidden role="dialog" aria-modal="true" aria-labelledby="needTitle"><form id="needForm" class="card"><h2 id="needTitle">我有兴趣</h2><p id="needItem"></p><label for="requester">您的真实姓名（由账号自动填写） *</label><input id="requester" type="text" maxlength="40" readonly required><label for="needDetails">您的留言或可以提供的帮助 *</label><textarea id="needDetails" maxlength="500" required placeholder="例如：我可以帮忙照看孩子，请私下确认时间和安全安排"></textarea><div id="needPhotoTools" hidden><label for="needPhotoSelect">选择要圈出的帖子图片（可选）</label><select id="needPhotoSelect"></select><p class="muted">用鼠标或手指在图片上拖动，圈出需要的物品。圈出的图片只随本次需求发送，不修改发布者的原图。</p><canvas id="needMarkCanvas" style="width:100%;max-height:350px;object-fit:contain;border:1px solid #dce6dd;border-radius:8px;touch-action:none"></canvas><div class="actions"><button type="button" class="secondary" id="needUndoCircle">撤销上一个圈</button><button type="button" class="secondary" id="needResetCircle">清除所有圈</button></div></div><label for="needOwnImage">附上您自己的图片（可选）</label><input id="needOwnImage" type="file" accept="image/*"><p class="muted">消息和图片仅发送双方及管理员可见。涉及儿童照看时请先由监护人确认身份、时间和安全安排，勿公开儿童个人信息。</p><button id="sendNeed" type="submit">发送给发布者</button><button id="cancelNeed" type="button" class="secondary">取消</button><p id="needStatus" role="status"></p></form></div><div id="viewer" hidden role="dialog" aria-modal="true" aria-label="查看图片"><button id="closeViewer" type="button">关闭 ×</button><img id="largeImage" alt="物品图片"></div>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-check-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="./firebase-config.js?v=20261126"></script><script src="./member-session.js?v=20261126"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="./firebase-config.js?v=20261126b"></script><script src="./app-check.js?v=20261126b"></script><script src="./member-session.js?v=20261126b"></script>
 <script>
 const $=id=>document.getElementById(id);
 
@@ -474,4 +474,4 @@ function ccgRenderChatList(){const root=$('chatList');root.replaceChildren();if(
 function ccgListenChatList(){if(ccgChatListUnsub)ccgChatListUnsub();const uid=window.CCGMember?.user?.uid;if(!uid)return;
  $('myChatSection').hidden=false;$('myChatStatus').textContent='正在同步云端聊天…';ccgChatListUnsub=db.collection('careChats').where('participants','array-contains',uid).limit(100).onSnapshot(s=>{ccgChatItems=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>((b.updatedAt?.seconds||b.createdAt?.seconds||0)-(a.updatedAt?.seconds||a.createdAt?.seconds||0)));$('myChatSection').hidden=false;ccgRenderMyChatList();},e=>{$('myChatSection').hidden=false;$('myChatStatus').textContent='聊天列表读取失败：'+e.message})}
 
-</script><script src="./zh-toggle.js?v=20261126"></script><script src="./announcements.js?v=20261126" data-target="posts"></script></body></html>
+</script><script src="./zh-toggle.js?v=20261126b"></script><script src="./announcements.js?v=20261126b" data-target="posts"></script></body></html>
