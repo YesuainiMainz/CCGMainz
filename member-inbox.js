@@ -1,7 +1,7 @@
 (()=>{'use strict';
 const $=id=>document.getElementById(id);if(!window.firebase)return;
-const auth=firebase.auth(),db=firebase.firestore();let off=[],loans=[],notices=[],requests=[],myNeeds=[];
-function clear(){off.forEach(f=>f());off=[];loans=[];notices=[];requests=[];myNeeds=[];const root=$('memberInbox');if(root)root.replaceChildren()}
+const auth=firebase.auth(),db=firebase.firestore();let off=[],loans=[],notices=[],requests=[],myNeeds=[],chats=[],myUid='';
+function clear(){off.forEach(f=>f());off=[];loans=[];notices=[];requests=[];myNeeds=[];chats=[];const root=$('memberInbox');if(root)root.replaceChildren()}
 const when=x=>x?.toDate?.()?.toLocaleString('zh-CN')||'时间待同步';
 const status=x=>({pending:'需求已发送',accepted:'历史记录：已接受',rejected:'历史记录：已拒绝'})[x]||'需求已发送';
 function render(){
@@ -9,6 +9,8 @@ function render(){
  ...loans.map(x=>({kind:'图书借阅进度',title:x.bookName||'图书借阅',summary:({pending:'等待管理员审核',approved:'已借出未归还',returned:'已归还',rejected:'申请未获批准'})[x.status]||x.status||'处理中',details:[['书名',x.bookName],['处理状态',x.status==='approved'?'已借出未归还':x.status==='returned'?'已归还':x.status==='rejected'?'未获批准':'等待管理员审核'],['借阅申请时间',when(x.createdAt)]],time:x.createdAt})),
  ...myNeeds.map(x=>({postId:x.postId,kind:'我的爱心站需求',title:'已向发布者发送需求',summary:status(x.status),annotatedPhoto:x.annotatedPhoto,details:[['申请人',x.requester],['需求内容',x.details],['申请状态',status(x.status)],['发送时间',when(x.createdAt)]],time:x.createdAt})),
  ...requests.map(x=>({postId:x.postId,kind:'有人需要您的物品',title:(x.requester||'会员')+' 提交了需求',summary:'点击查看需求详情',annotatedPhoto:x.annotatedPhoto,details:[['申请人',x.requester],['需求内容',x.details],['状态','已通知发布者（无需线上批准或拒绝）'],['发送时间',when(x.createdAt)]],time:x.createdAt})),
+ // v12.3：新版爱心站私信（兴趣申请与聊天）也显示在“我的消息”。
+ ...chats.map(x=>{const other=x.ownerUid===myUid?(x.requesterName||'申请者'):(x.ownerName||'发布者');const incoming=x.lastSenderUid&&x.lastSenderUid!==myUid;return {chatId:x.id,kind:x.ownerUid===myUid?'有人对您的帖子感兴趣':'我的爱心站私信',title:'与 '+other+' 的私信',summary:incoming?'收到新消息，点击查看':'您已发送最新消息',details:[['帖子',x.postText||'图片帖子'],['兴趣申请',x.applicationText],['最近消息',x.lastText],['最近更新',when(x.updatedAt||x.createdAt)]],time:x.updatedAt||x.createdAt}}),
  ...notices.filter(x=>!requests.some(r=>r.id===x.needId)).map(x=>({postId:x.postId,kind:'爱心站提醒',title:'您的物品收到需求',summary:'点击查看通知详情',details:[['需求内容',x.text],['通知时间',when(x.createdAt)]],time:x.createdAt}))
  ].sort((a,b)=>(b.time?.seconds||0)-(a.time?.seconds||0));
  const root=$('memberInbox');if(!root)return;root.replaceChildren();
@@ -23,7 +25,11 @@ function render(){
   const panel=document.createElement('div');panel.className='ccg-message-detail';
   for(const [label,value] of x.details){const line=document.createElement('p');const b=document.createElement('strong');b.textContent=label+'：';line.append(b,document.createTextNode(value||'—'));panel.append(line)}
   if(typeof x.annotatedPhoto==='string' && x.annotatedPhoto.startsWith('data:image/')){const label=document.createElement('p');label.textContent='申请人圈选的物品：';const img=document.createElement('img');img.src=x.annotatedPhoto;img.alt='申请人标注的物品';img.style.cssText='display:block;max-width:100%;max-height:360px;object-fit:contain;border-radius:8px;cursor:zoom-in';img.onclick=()=>window.open(img.src,'_blank');panel.append(label,img)}
-  if(x.postId){
+  if(x.chatId){
+   const link=document.createElement('a');link.href='./posts.html?chat='+encodeURIComponent(x.chatId);
+   link.className='ccg-message-post-link';link.textContent='打开私信并回复 →';
+   panel.append(link);
+  }else if(x.postId){
    const link=document.createElement('a');link.href='./posts.html?post='+encodeURIComponent(x.postId);
    link.className='ccg-message-post-link';link.textContent='查看对应的爱心站帖子 →';
    panel.append(link);
@@ -49,6 +55,8 @@ auth.onAuthStateChanged(u=>{
  off.push(db.collection('libraryRequests').where('uid','==',u.uid).onSnapshot(s=>{loans=s.docs.map(d=>({id:d.id,...d.data()}));render()},e=>{$('inboxStatus').textContent='借阅消息加载失败：'+e.message}));
  off.push(db.collection('careNeeds').where('uid','==',u.uid).onSnapshot(s=>{myNeeds=s.docs.map(d=>({id:d.id,...d.data()}));render()},e=>{$('inboxStatus').textContent='我的需求消息加载失败：'+e.message}));
  off.push(db.collection('careNeeds').where('ownerUid','==',u.uid).onSnapshot(s=>{requests=s.docs.map(d=>({id:d.id,...d.data()}));render()},e=>{$('inboxStatus').textContent='需求通知加载失败：'+e.message}));
+ myUid=u.uid;
+ off.push(db.collection('careChats').where('participants','array-contains',u.uid).limit(100).onSnapshot(s=>{chats=s.docs.map(d=>({id:d.id,...d.data()}));render()},e=>{$('inboxStatus').textContent='私信消息加载失败：'+e.message}));
  off.push(db.collection('memberNotifications').where('uid','==',u.uid).onSnapshot(s=>{notices=s.docs.map(d=>({id:d.id,...d.data()}));render()},e=>{$('inboxStatus').textContent='提醒加载失败：'+e.message}));
  },e=>{$('inboxStatus').textContent='审核状态读取失败：'+e.message});
 });})();

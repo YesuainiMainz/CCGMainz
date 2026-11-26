@@ -94,7 +94,7 @@
  <div class="app-modal-actions"><button type="button" class="alt" id="appModalCancel">取消</button><button type="button" id="appModalOK">确定</button></div></div>
 </div>
 
-<div id="photoLightbox" class="photo-lightbox" role="dialog" aria-modal="true" aria-label="物品照片放大查看" onclick="closePhotoLightbox()"><button type="button" class="lightbox-close" onclick="closePhotoLightbox()" aria-label="关闭大图">× 关闭</button><img id="lightboxImage" alt="物品大图" onclick="event.stopPropagation()"><div id="lightboxTitle" class="lightbox-title"></div></div><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script><script src="./firebase-config.js"></script><script>
+<div id="photoLightbox" class="photo-lightbox" role="dialog" aria-modal="true" aria-label="物品照片放大查看" onclick="closePhotoLightbox()"><button type="button" class="lightbox-close" onclick="closePhotoLightbox()" aria-label="关闭大图">× 关闭</button><img id="lightboxImage" alt="物品大图" onclick="event.stopPropagation()"><div id="lightboxTitle" class="lightbox-title"></div></div><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script><script src="./firebase-config.js?v=20261126"></script><script>
 const $=id=>document.getElementById(id);
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 const uuid=()=>typeof crypto!=='undefined'&&typeof crypto.randomUUID==='function'?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);
@@ -208,9 +208,9 @@ function render(){
  updateSearchControls();
  $('status').textContent=db.version<0?'尚未收到云端库存。':`云端库存版本 V${db.version} · ${db.items.length} 种物品（实时同步）`;
  let q=$('search').value.trim().toLowerCase(),mode=$('searchMode').value,choice=$('searchChoice').value;
- $('items').innerHTML=db.items.filter(i=>mode==='name'?i.name.toLowerCase().includes(q):mode==='category'?(!choice||i.category===choice):mode==='location'?(!choice||i.location===choice):q===''?true:(Number.isFinite(Number(q))&&($('qtyMode').value==='eq'?i.qty===Number(q):$('qtyMode').value==='gte'?i.qty>=Number(q):i.qty<=Number(q)))).map(i=>`<tr><td>${familyPhoto(i)?`<button type="button" class="photo-open" data-photo-id="${esc(i.id)}" title="点击查看大图" aria-label="放大查看 ${esc(i.name)} 的图片"><img class="photo zoomable-photo" src="${familyPhoto(i)}" alt="${esc(i.name)}的照片"></button>`:'📦'}</td><td><b>${esc(i.name)}</b><br><small>${esc(i.category)}</small></td><td>${esc(i.location)}</td><td class="item-notes">${i.notes?esc(i.notes):'<span class="muted">—</span>'}</td><td>${i.qty} ${esc(i.unit)}</td><td><button onclick="requestItem('${i.id}')">申请</button></td></tr>`).join('');
+ $('items').innerHTML=db.items.filter(i=>mode==='name'?i.name.toLowerCase().includes(q):mode==='category'?(!choice||i.category===choice):mode==='location'?(!choice||i.location===choice):q===''?true:(Number.isFinite(Number(q))&&($('qtyMode').value==='eq'?i.qty===Number(q):$('qtyMode').value==='gte'?i.qty>=Number(q):i.qty<=Number(q)))).map(i=>`<tr><td>${familyPhoto(i)?`<button type="button" class="photo-open" data-photo-id="${esc(i.id)}" title="点击查看大图" aria-label="放大查看 ${esc(i.name)} 的图片"><img class="photo zoomable-photo" src="${esc(familyPhoto(i))}" alt="${esc(i.name)}的照片"></button>`:'📦'}</td><td><b>${esc(i.name)}</b><br><small>${esc(i.category)}</small></td><td>${esc(i.location)}</td><td class="item-notes">${i.notes?esc(i.notes):'<span class="muted">—</span>'}</td><td>${i.qty} ${esc(i.unit)}</td><td><button onclick="requestItem(${esc(JSON.stringify(i.id))})">申请</button></td></tr>`).join('');
  limitInventoryToTenRows();
- $('requests').innerHTML=onlineRequests.map(r=>`<div class="request-history-row">📄 ${esc(r.itemName)} × ${r.qty}（${esc(r.kind)}） · <b>${esc(r.status)}</b>${r.kind==='借用'?' · 已归还 '+(r.returnedQty||0)+'/'+r.qty:''}</div>`).join('')||'<p class="muted">暂无在线申请</p>';
+ $('requests').innerHTML=onlineRequests.map(r=>`<div class="request-history-row">📄 ${esc(r.itemName)} × ${esc(r.qty)}（${esc(r.kind)}） · <b>${esc(r.status)}</b>${r.kind==='借用'?' · 已归还 '+esc(r.returnedQty||0)+'/'+esc(r.qty):''}</div>`).join('')||'<p class="muted">暂无在线申请</p>';
  requestAnimationFrame(limitFamilyRequestRows);
 }
 function limitFamilyRequestRows(){
@@ -325,4 +325,4 @@ function fzhInit(){
  });
 }
 try{fzhInit()}catch(e){fzhSetStatus('Firebase 初始化失败：'+e.message)}
-</script><script src="./zh-toggle.js"></script></html>
+</script><script src="./zh-toggle.js?v=20261126"></script></html>

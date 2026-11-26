@@ -11,7 +11,7 @@ button:disabled{opacity:.55;cursor:wait}.muted{color:#617567;font-size:14px}.war
 .post-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
 .post time{color:#6b7e70;font-size:13px}.post p{white-space:pre-wrap;line-height:1.7;margin:9px 0}
 .post img{display:block;max-width:100%;max-height:550px;object-fit:contain;border-radius:10px;cursor:zoom-in}
-#viewer[hidden]{display:none}#viewer{position:fixed;inset:0;background:#000e;z-index:5;display:flex;align-items:center;justify-content:center;padding:12px}
+#viewer[hidden]{display:none}#viewer{position:fixed;inset:0;background:#000e;z-index:40;display:flex;align-items:center;justify-content:center;padding:12px}
 #viewer img{max-width:96vw;max-height:85vh;object-fit:contain}#viewer button{position:absolute;right:15px;top:15px;background:white;color:#111}
 a{color:inherit}.post-actions{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}.post-actions button{flex:1 1 180px}#more{display:block;margin:15px auto}
 @media(max-width:560px){.card,.post{padding:13px}header{padding:16px 12px}}
@@ -103,7 +103,7 @@ a{color:inherit}.post-actions{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0
 <div id="needDialog" hidden role="dialog" aria-modal="true" aria-labelledby="needTitle"><form id="needForm" class="card"><h2 id="needTitle">我有兴趣</h2><p id="needItem"></p><label for="requester">您的真实姓名（由账号自动填写） *</label><input id="requester" type="text" maxlength="40" readonly required><label for="needDetails">您的留言或可以提供的帮助 *</label><textarea id="needDetails" maxlength="500" required placeholder="例如：我可以帮忙照看孩子，请私下确认时间和安全安排"></textarea><div id="needPhotoTools" hidden><label for="needPhotoSelect">选择要圈出的帖子图片（可选）</label><select id="needPhotoSelect"></select><p class="muted">用鼠标或手指在图片上拖动，圈出需要的物品。圈出的图片只随本次需求发送，不修改发布者的原图。</p><canvas id="needMarkCanvas" style="width:100%;max-height:350px;object-fit:contain;border:1px solid #dce6dd;border-radius:8px;touch-action:none"></canvas><div class="actions"><button type="button" class="secondary" id="needUndoCircle">撤销上一个圈</button><button type="button" class="secondary" id="needResetCircle">清除所有圈</button></div></div><label for="needOwnImage">附上您自己的图片（可选）</label><input id="needOwnImage" type="file" accept="image/*"><p class="muted">消息和图片仅发送双方及管理员可见。涉及儿童照看时请先由监护人确认身份、时间和安全安排，勿公开儿童个人信息。</p><button id="sendNeed" type="submit">发送给发布者</button><button id="cancelNeed" type="button" class="secondary">取消</button><p id="needStatus" role="status"></p></form></div><div id="viewer" hidden role="dialog" aria-modal="true" aria-label="查看图片"><button id="closeViewer" type="button">关闭 ×</button><img id="largeImage" alt="物品图片"></div>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="./firebase-config.js"></script><script src="./member-session.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="./firebase-config.js?v=20261126"></script><script src="./member-session.js?v=20261126"></script>
 <script>
 const $=id=>document.getElementById(id);
 
@@ -312,8 +312,16 @@ $('cancelCross').onclick=()=>{$('photoEditor').hidden=true;crossBase=null;editin
 $('applyCross').onclick=()=>{
  if(editingPhotoIndex<0||!crossBase)return;
  if(!crossMarks.length){$('crossStatus').textContent='请先在图片上画叉';return}
- const result=crossCanvas.toDataURL('image/jpeg',.8);
- if(result.length>300000){$('crossStatus').textContent='标记后图片过大，请缩小原图后重试';return}
+ // v12.3：标记后图片须符合 Firestore 规则（每张 ≤230000 字符），逐级降低质量和尺寸。
+ let result='';
+ for(const side of [Math.max(crossCanvas.width,crossCanvas.height),1000,800,650,500]){
+  const scale=Math.min(1,side/Math.max(crossCanvas.width,crossCanvas.height));
+  const c=document.createElement('canvas');c.width=Math.max(1,Math.round(crossCanvas.width*scale));c.height=Math.max(1,Math.round(crossCanvas.height*scale));
+  c.getContext('2d').drawImage(crossCanvas,0,0,c.width,c.height);
+  for(const quality of [.8,.65,.5,.4]){const data=c.toDataURL('image/jpeg',quality);if(data.length<=220000){result=data;break}}
+  if(result)break;
+ }
+ if(!result){$('crossStatus').textContent='标记后图片过大，请缩小原图后重试';return}
  selectedPhotos[editingPhotoIndex]=result;selectedPhoto=selectedPhotos[0]||'';
  $('photoEditor').hidden=true;crossBase=null;editingPhotoIndex=-1;renderPreviews();
  $('publishStatus').textContent='红叉已应用到图片预览，请点击「保存修改」同步到云端。';
@@ -339,10 +347,14 @@ $('needForm').addEventListener('submit',async e=>{
  try{
   const id=ccgChatId(p.id,uid),ref=db.collection('careChats').doc(id),old=await ref.get();
   if(old.exists){$('needDialog').hidden=true;chosenPost=null;await ccgOpenChat(id);return}
+  // v12.3：圈选的帖子图片及申请人自己的图片随第一条私信一起发送（最多2张）。
+  const photos=[];
+  const marked=createNeedMarkedPhoto();if(marked)photos.push(marked);
+  const ownFile=$('needOwnImage').files?.[0];if(ownFile)photos.push(await compressImage(ownFile));
   const msgRef=ref.collection('messages').doc(),stamp=firebase.firestore.FieldValue.serverTimestamp(),batch=db.batch();
   batch.set(ref,{postId:p.id,ownerUid:p.uid,requesterUid:uid,participants:[p.uid,uid],ownerName:p.author||'发布者',requesterName:window.CCGMember.profile.name,postText:(p.text||'图片帖子').slice(0,150),applicationText:details,initialMessageId:msgRef.id,createdAt:stamp,updatedAt:stamp,lastText:details,lastSenderUid:uid,lastMessageId:msgRef.id});
-  batch.set(msgRef,{senderUid:uid,text:details,createdAt:stamp});
-  await batch.commit();$('needDialog').hidden=true;chosenPost=null;$('needDetails').value='';await ccgOpenChat(id);
+  batch.set(msgRef,photos.length?{senderUid:uid,text:details,createdAt:stamp,photos}:{senderUid:uid,text:details,createdAt:stamp});
+  await batch.commit();$('needOwnImage').value='';needCircles=[];$('needDialog').hidden=true;chosenPost=null;$('needDetails').value='';await ccgOpenChat(id);
  }catch(err){$('needStatus').textContent='申请提交失败：'+err.message}
  finally{needBusy=false;$('sendNeed').disabled=false}
 });
@@ -352,14 +364,16 @@ $('postForm').addEventListener('submit',async e=>{
  const author=window.CCGMember?.profile?.name||'',text=$('body').value.trim();
  if(!author||author.length>40){$('publishStatus').textContent='请填写不超过40字的称呼';return}
  if(!text&&!selectedPhotos.length){$('publishStatus').textContent='请填写文字或上传图片';return}
+ // v12.3：图片只保存在 photos 中（photo 留空，避免第一张图重复占用空间），并预先检查 Firestore 单文档 1MiB 上限。
+ if(text.length+selectedPhotos.reduce((n,x)=>n+String(x).length,0)>1000000){$('publishStatus').textContent='图片总大小超过云端单条帖子上限，请减少图片数量或换较小的图片';return}
  if(!confirm(editingPostId?'确定保存对这条帖子的修改吗？':'确定发布这条'+(postKind==='request'?'物品或生活求助':'闲置物品')+'吗？文字、照片和您的真实姓名会公开。'))return;
  const btn=$('publish');btn.disabled=true;$('publishStatus').textContent=editingPostId?'正在保存修改…':'正在发布…';
  try{
-  if(editingPostId){await db.collection('carePosts').doc(editingPostId).update({text,photo:selectedPhotos[0]||'',photos:selectedPhotos,kind:postKind});editingPostId=null;setPostKind('offer');}
-  else{const id=db.collection('carePosts').doc().id;await db.collection('carePosts').doc(id).set({text,photo:selectedPhotos[0]||'',photos:selectedPhotos,kind:postKind,author,uid:window.CCGMember.user.uid,createdAt:firebase.firestore.FieldValue.serverTimestamp()});}
+  if(editingPostId){await db.collection('carePosts').doc(editingPostId).update({text,photo:'',photos:selectedPhotos,kind:postKind});editingPostId=null;setPostKind('offer');}
+  else{const id=db.collection('carePosts').doc().id;await db.collection('carePosts').doc(id).set({text,photo:'',photos:selectedPhotos,kind:postKind,author,uid:window.CCGMember.user.uid,createdAt:firebase.firestore.FieldValue.serverTimestamp()});}
   $('body').value='';$('image').value='';$('preview').hidden=true;selectedPhoto='';selectedPhotos=[];renderPreviews();
   $('publishStatus').textContent='保存成功！';nextPage=null;await loadMore(true);
- }catch(err){$('publishStatus').textContent=(editingPostId?'保存修改失败：':'发布失败：')+(err.code==='permission-denied'?'Firebase 权限拒绝，请检查 Cloud Firestore 是否已发布 v11.8 规则。':err.message)}
+ }catch(err){$('publishStatus').textContent=(editingPostId?'保存修改失败：':'发布失败：')+(err.code==='permission-denied'?'Firebase 权限拒绝：可能是图片过大或格式不符，或云端尚未发布最新 Firestore Rules。':err.message)}
  finally{btn.disabled=false}
 });
 try{
@@ -383,7 +397,9 @@ $('closeChat').onclick=ccgCloseChat;
 $('chatDialog').addEventListener('click',e=>{if(e.target===$('chatDialog'))ccgCloseChat()});
 function ccgChatDate(t){return t?.toDate?.()?.toLocaleString('zh-CN')||'刚刚'}
 function ccgShowMessages(snap){const root=$('chatMessages');root.replaceChildren();if(snap.empty){root.append(make('p','暂无消息，发送第一条私信吧。','muted'));return}
- snap.docs.forEach(d=>{const m=d.data(),el=make('div',m.text||'', 'chat-bubble '+(m.senderUid===window.CCGMember?.user?.uid?'mine':'other'));el.append(make('small',ccgChatDate(m.createdAt)));root.append(el)});root.scrollTop=root.scrollHeight}
+ snap.docs.forEach(d=>{const m=d.data(),el=make('div',m.text||'', 'chat-bubble '+(m.senderUid===window.CCGMember?.user?.uid?'mine':'other'));
+  for(const src of Array.isArray(m.photos)?m.photos:[]){if(typeof src!=='string'||!src.startsWith('data:image/jpeg;base64,'))continue;const img=document.createElement('img');img.src=src;img.alt='私信图片';img.loading='lazy';img.style.cssText='display:block;max-width:100%;max-height:260px;object-fit:contain;margin:6px 0;border-radius:8px;cursor:zoom-in';img.onclick=()=>openPhoto(src);el.append(img)}
+  el.append(make('small',ccgChatDate(m.createdAt)));root.append(el)});root.scrollTop=root.scrollHeight}
 // 从“我的消息”或“我的聊天”进入：先展示对应帖子，再打开聊天。
 // 直接按 postId 查询，不依赖最新帖子列表的分页。
 let ccgNavigationSerial=0;
@@ -458,4 +474,4 @@ function ccgRenderChatList(){const root=$('chatList');root.replaceChildren();if(
 function ccgListenChatList(){if(ccgChatListUnsub)ccgChatListUnsub();const uid=window.CCGMember?.user?.uid;if(!uid)return;
  $('myChatSection').hidden=false;$('myChatStatus').textContent='正在同步云端聊天…';ccgChatListUnsub=db.collection('careChats').where('participants','array-contains',uid).limit(100).onSnapshot(s=>{ccgChatItems=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>((b.updatedAt?.seconds||b.createdAt?.seconds||0)-(a.updatedAt?.seconds||a.createdAt?.seconds||0)));$('myChatSection').hidden=false;ccgRenderMyChatList();},e=>{$('myChatSection').hidden=false;$('myChatStatus').textContent='聊天列表读取失败：'+e.message})}
 
-</script><script src="./zh-toggle.js"></script><script src="./announcements.js" data-target="posts"></script></body></html>
+</script><script src="./zh-toggle.js?v=20261126"></script><script src="./announcements.js?v=20261126" data-target="posts"></script></body></html>
